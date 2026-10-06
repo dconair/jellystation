@@ -1,0 +1,431 @@
+.xmb {
+  --xmb-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* leichtes Überschwingen = "schwebend" */
+  --xmb-dur: 0.75s;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: #fff;
+}
+
+.xmb-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.xmb-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 28% 38%, transparent 35%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+/* ---------- Kopfzeile ---------- */
+
+.xmb-header {
+  position: absolute;
+  top: 1.8rem;
+  right: 3.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 0.6rem rgba(0, 0, 0, 0.5);
+}
+
+.xmb-pad {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.8;
+  animation: xmb-fade-in 0.6s ease both;
+}
+
+.xmb-pad::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #5dff9a;
+  box-shadow: 0 0 0.6rem #5dff9a;
+}
+
+.xmb-stage {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------- Horizontale Achse: Kategorien ---------- */
+
+.xmb-category {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8rem;
+  height: 6rem;
+  margin: -3rem 0 0 -4rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  opacity: max(0.12, calc(0.62 - (var(--dist) - 1) * 0.1));
+  transition:
+    transform var(--xmb-dur) var(--xmb-ease),
+    opacity 0.5s ease;
+  will-change: transform;
+}
+
+.xmb-category.is-active {
+  opacity: 1;
+}
+
+.xmb-category__float {
+  display: block;
+}
+
+.xmb-category .xmb-icon-svg {
+  display: block;
+  width: 3.4rem;
+  height: 3.4rem;
+  transform: scale(1);
+  filter: drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.25));
+  transition:
+    transform var(--xmb-dur) var(--xmb-ease),
+    filter 0.5s ease;
+}
+
+.xmb-category.is-active .xmb-icon-svg {
+  transform: scale(1.4);
+  filter: drop-shadow(0 0 0.9rem rgba(255, 255, 255, 0.75));
+}
+
+.xmb-category.is-active .xmb-category__float {
+  animation: xmb-float 4s ease-in-out infinite;
+}
+
+.xmb-category__label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: 3.4rem;
+  font-size: 1.3rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-shadow: 0 0 0.8rem rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translate(-50%, -0.6rem);
+  transition:
+    opacity 0.35s ease,
+    transform var(--xmb-dur) var(--xmb-ease);
+}
+
+.xmb-category.is-active .xmb-category__label {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: 0.12s;
+}
+
+/* ---------- Vertikale Achse: Einträge ---------- */
+
+.xmb-column {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(1.8rem);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease,
+    visibility 0s 0.3s;
+}
+
+.xmb-column.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition:
+    opacity 0.55s ease 0.1s,
+    transform var(--xmb-dur) var(--xmb-ease) 0.1s,
+    visibility 0s;
+}
+
+.xmb-item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 4.2rem;
+  margin: -2.1rem 0 0 -1.7rem; /* Icon-Mitte sitzt auf der Spaltenachse */
+  pointer-events: auto;
+  cursor: pointer;
+  white-space: nowrap;
+  /* Staffelung: der Fokus reagiert zuerst, entferntere Einträge folgen leicht versetzt. */
+  transition:
+    transform var(--xmb-dur) var(--xmb-ease) calc(var(--stagger) * 24ms),
+    opacity 0.55s ease calc(var(--stagger) * 12ms);
+  will-change: transform, opacity;
+}
+
+.xmb-item__inner {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  height: 100%;
+  transform-origin: 1.7rem 50%;
+  transform: scale(1);
+  transition: transform var(--xmb-dur) var(--xmb-ease);
+}
+
+.xmb-item.is-focused .xmb-item__inner {
+  transform: scale(1.22);
+}
+
+.xmb-item.is-focused .xmb-item__float {
+  animation: xmb-float 3.6s ease-in-out infinite;
+}
+
+.xmb-item__float {
+  display: block;
+}
+
+.xmb-item__tile {
+  width: 3.4rem;
+  height: 3.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.7rem;
+  color: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(
+    145deg,
+    hsl(var(--hue) 70% 58% / 0.85),
+    hsl(var(--hue) 70% 22% / 0.85)
+  );
+  box-shadow:
+    0 0.3rem 1rem rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  transition: box-shadow 0.5s ease;
+}
+
+.xmb-item.is-focused .xmb-item__tile {
+  box-shadow:
+    0 0.4rem 1.4rem rgba(0, 0, 0, 0.4),
+    0 0 1.6rem hsl(var(--hue) 90% 70% / 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.xmb-item__tile .xmb-icon-svg {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.xmb-item__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.65);
+}
+
+.xmb-item__title {
+  font-size: 1.4rem;
+  font-weight: 400;
+}
+
+.xmb-item.is-focused .xmb-item__title {
+  font-weight: 600;
+}
+
+.xmb-item__subtitle {
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.xmb-item__badge {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 0.05rem 0.55rem;
+  border-radius: 1rem;
+  font-size: 0.85rem;
+  background: rgba(93, 255, 154, 0.2);
+  color: #9dffc3;
+  text-shadow: none;
+}
+
+/* ---------- Detailkarte ---------- */
+
+.xmb-detail {
+  position: absolute;
+  top: 22rem;
+  right: 4rem;
+  width: 26rem;
+  animation: xmb-fade-in 0.7s var(--xmb-ease) both;
+  text-shadow: 0 0 0.8rem rgba(0, 0, 0, 0.55);
+}
+
+.xmb-detail__poster {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.9rem;
+  margin-bottom: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(
+    145deg,
+    hsl(var(--hue) 70% 52% / 0.8),
+    hsl(var(--hue) 70% 18% / 0.8)
+  );
+  box-shadow:
+    0 0.8rem 2.4rem rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.xmb-detail__poster .xmb-icon-svg {
+  width: 4.6rem;
+  height: 4.6rem;
+}
+
+.xmb-detail h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.xmb-detail p {
+  margin: 0.4rem 0 0;
+  font-size: 1.15rem;
+  line-height: 1.5;
+  opacity: 0.82;
+}
+
+.xmb-detail .xmb-detail__meta {
+  font-size: 1rem;
+  opacity: 0.6;
+}
+
+@media (max-aspect-ratio: 3 / 2) {
+  .xmb-detail {
+    display: none;
+  }
+}
+
+/* ---------- Hinweise & Toast ---------- */
+
+.xmb-hints {
+  position: absolute;
+  right: 3rem;
+  bottom: 1.6rem;
+  display: flex;
+  gap: 2rem;
+  font-size: 1rem;
+  opacity: 0.6;
+}
+
+.xmb-hints kbd {
+  display: inline-block;
+  min-width: 1.6rem;
+  margin-right: 0.3rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  font: inherit;
+  text-align: center;
+}
+
+.xmb-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 5rem;
+  padding: 0.8rem 1.8rem;
+  border-radius: 2rem;
+  font-size: 1.2rem;
+  background: rgba(10, 14, 40, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(0.6rem);
+  animation: xmb-toast 2.2s ease both;
+  white-space: nowrap;
+}
+
+/* ---------- Animationen ---------- */
+
+@keyframes xmb-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.32rem);
+  }
+}
+
+@keyframes xmb-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes xmb-toast {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 1rem);
+  }
+  10%,
+  85% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xmb *,
+  .xmb *::before,
+  .xmb *::after {
+    animation: none !important;
+    transition-duration: 0.01s !important;
+    transition-delay: 0s !important;
+  }
+}
+
+/* ---------- Statusanzeigen & Bestätigungs-Puls ---------- */
+
+.xmb-notice,
+.xmb-muted {
+  font-size: 0.95rem;
+  padding: 0.15rem 0.8rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  animation: xmb-fade-in 0.6s ease both;
+}
+
+.xmb-item.is-activated .xmb-item__tile {
+  animation: xmb-pulse 0.5s var(--xmb-ease);
+}
+
+@keyframes xmb-pulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

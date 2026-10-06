@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "library",
+  "description": "Lesezugriff (nur Verzeichnisse auflisten) auf den Spiele-Basisordner. Muss zu GAMES_BASE_DIR in src/config/games.ts passen.",
+  "windows": ["main"],
+  "permissions": [
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$HOME/JellyStation/Games" }, { "path": "$HOME/JellyStation/Games/**" }]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "$HOME/JellyStation/Games" }, { "path": "$HOME/JellyStation/Games/**" }]
+    }
+  ]
+}

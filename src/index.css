@@ -1,0 +1,27 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/*
+ * 1rem skaliert mit dem Fenster: bei 1080 px Höhe (16:9) = 20 px.
+ * Bei breiteren Fenstern bestimmt die Höhe, bei schmaleren die Breite.
+ */
+html {
+  font-size: calc(min(100vh, 56.25vw) / 54);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #050816;
+  color: #fff;
+  font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}

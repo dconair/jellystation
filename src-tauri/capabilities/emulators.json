@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "emulators",
+  "description": "Erlaubt das Starten lokaler macOS-Emulatoren über ihren absoluten Pfad. Der Name unter \"name\" ist der Programmname, den das Frontend in Command.create(...) verwendet (siehe src/config/games.ts).",
+  "windows": ["main"],
+  "platforms": ["macOS"],
+  "permissions": [
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "rpcs3",
+          "cmd": "/Applications/RPCS3.app/Contents/MacOS/rpcs3",
+          "args": ["--no-gui", { "validator": "^/[^\\n]+$" }]
+        },
+        {
+          "name": "open-app",
+          "cmd": "/usr/bin/open",
+          "args": [{ "validator": "^/[^\\n]+\\.app/?$" }]
+        }
+      ]
+    }
+  ]
+}
