@@ -4,7 +4,7 @@ Diese Anleitung bringt dich vom leeren Mac zur laufenden App. Bilder zeigen, was
 Die Screenshots stammen aus der Browser-Vorschau der App; das native Fenster sieht gleich aus, hat aber
 zusätzlich den echten macOS-Ordnerdialog.
 
-> **Abkürzung:** Wenn du nichts tippen möchtest als nötig, erledigt `./scripts/setup-mac.sh --install-missing`
+> **Abkürzung:** Wenn du möglichst wenig tippen möchtest, erledigt `bash scripts/setup-mac.sh --install-missing`
 > die Schritte 1–4 in einem Rutsch (siehe [Schnellweg](#schnellweg-ein-befehl)).
 
 ---
@@ -55,12 +55,47 @@ rustc --version
 
 ## 2. Projekt herunterladen
 
+> **Wichtig – warum du auf GitHub nur die Lizenz siehst:** Der gesamte Code liegt auf dem Branch
+> **`claude/serene-ride-x8ll06`**. GitHub zeigt dir beim Öffnen des Repos aber den Branch **`main`**, und der enthält
+> bisher nur die Lizenz. Du musst also entweder den Branch umschalten (siehe unten) oder den Code in `main`
+> übernehmen (Pull Request, siehe Ende dieses Abschnitts).
+
+### Variante A – ZIP herunterladen (einfachste Variante, kein Git nötig)
+
+Direkter Download-Link (im Browser öffnen, in GitHub eingeloggt sein, falls das Repo privat ist):
+
+<https://github.com/dconair/jellystation/archive/refs/heads/claude/serene-ride-x8ll06.zip>
+
+Oder per Klick:
+
+1. <https://github.com/dconair/jellystation> öffnen.
+2. Oben links auf die Schaltfläche **„main“** klicken (Branch-Auswahl) → **`claude/serene-ride-x8ll06`** wählen.
+   Jetzt siehst du alle Ordner und Dateien (`src`, `src-tauri`, `docs`, `scripts` …).
+3. Grüner Button **„<> Code“** → **„Download ZIP“**.
+4. Die ZIP-Datei im Ordner *Downloads* per Doppelklick entpacken. Es entsteht ein Ordner, z. B.
+   `jellystation-claude-serene-ride-x8ll06`. Diesen verschiebst du nach *Dokumente* und nennst ihn `jellystation`.
+5. Im Terminal dorthin wechseln:
+
+   ```bash
+   cd ~/Documents/jellystation
+   ```
+
+### Variante B – mit Git klonen
+
 ```bash
-cd ~/Documents                      # oder ein Ordner deiner Wahl
-git clone https://github.com/dconair/jellystation.git
+cd ~/Documents
+git clone --branch claude/serene-ride-x8ll06 https://github.com/dconair/jellystation.git
 cd jellystation
-git checkout claude/serene-ride-x8ll06   # der Branch mit diesem Stand
 ```
+
+### Variante C – Claude Code erledigt Download und Installation (siehe Abschnitt 9)
+
+### Optional: Code dauerhaft auf `main` zeigen
+
+Damit du beim Öffnen des Repos sofort alles siehst, muss der Branch in `main` übernommen werden:
+auf GitHub oben **„Pull requests“ → „New pull request“**, *base:* `main`, *compare:*
+`claude/serene-ride-x8ll06` → **„Create pull request“** → **„Merge pull request“**. (Alternativ lässt du Claude den
+Pull Request erstellen.) Danach gelten die Befehle oben auch ohne `--branch …`.
 
 ---
 
@@ -222,8 +257,20 @@ einfach aufrufen.
 So geht es:
 
 1. Claude Code einmalig installieren und anmelden (Anleitung: <https://code.claude.com/docs>).
-2. Im Terminal: `cd jellystation && claude`
-3. Sag: *„Richte das Projekt ein, baue die App und starte sie.“*
+2. Im Terminal einen Ordner wählen und Claude Code starten:
+
+   ```bash
+   cd ~/Documents
+   claude
+   ```
+
+3. Dann diesen Satz eingeben (Claude lädt den Code selbst herunter, installiert alles und baut die App):
+
+   > *Lade das GitHub-Repo dconair/jellystation (Branch claude/serene-ride-x8ll06) in den Ordner ~/Documents/jellystation,
+   > führe dort `bash scripts/setup-mac.sh --install-missing --open` aus und behebe auftretende Fehler.*
+
+   Liegt der Code schon lokal (Variante A/B), reicht: `cd jellystation && claude` und
+   *„Richte das Projekt ein, baue die App und starte sie.“*
 
 **Was trotzdem nicht „vollautomatisch ohne dich“ geht** – ehrlich:
 
@@ -245,7 +292,7 @@ So geht es:
 Im Projektordner:
 
 ```bash
-./scripts/setup-mac.sh --install-missing --open
+bash scripts/setup-mac.sh --install-missing --open
 ```
 
 Das Skript prüft Xcode-Tools, Node und Rust (und installiert fehlende, wenn du `--install-missing` angibst),

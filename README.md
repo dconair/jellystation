@@ -10,7 +10,7 @@ npm run tauri build
 ```
 
 > **Mac-Installation Schritt für Schritt (mit Bildern):** [docs/ANLEITUNG-MAC.md](docs/ANLEITUNG-MAC.md) ·
-> alles in einem Befehl: `./scripts/setup-mac.sh --install-missing --open`
+> alles in einem Befehl: `bash scripts/setup-mac.sh --install-missing --open`
 
 ## Ersteinrichtung & Einstellungen
 
