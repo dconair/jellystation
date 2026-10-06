@@ -1,0 +1,504 @@
+.setup {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  --ease: cubic-bezier(0.3, 1.08, 0.4, 1);
+}
+
+.setup input,
+.setup pre {
+  user-select: text;
+}
+
+.setup-panel {
+  position: relative;
+  width: min(64rem, 92vw);
+  max-height: 92%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  padding: 2.2rem 2.6rem 1.8rem;
+  border-radius: 1.4rem;
+  background: rgba(8, 14, 40, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 2rem 5rem rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(1.4rem);
+  animation: setup-in 0.8s var(--ease) both;
+}
+
+.setup-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+}
+
+.setup-logo {
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.setup-sub {
+  margin-top: 0.2rem;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  opacity: 0.6;
+}
+
+/* Fortschritt mit den vier PlayStation-Symbolen */
+.setup-steps {
+  display: flex;
+  gap: 1.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.45;
+  transition: opacity 0.4s ease;
+}
+
+.setup-steps li.is-active,
+.setup-steps li.is-done {
+  opacity: 1;
+}
+
+.setup-steps__symbol {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  font-size: 1.05rem;
+  transition:
+    background 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+.setup-steps li.is-active .setup-steps__symbol {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 1rem rgba(255, 255, 255, 0.6);
+}
+
+.setup-steps li.is-done .setup-steps__symbol {
+  background: rgba(93, 255, 154, 0.25);
+  border-color: #5dff9a;
+}
+
+.setup-body {
+  min-height: 24rem;
+  overflow-y: auto;
+  animation: setup-step 0.6s var(--ease) both;
+}
+
+.setup-body h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.9rem;
+  font-weight: 400;
+}
+
+.setup-lead {
+  margin: 0 0 1.4rem;
+  font-size: 1.15rem;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
+.setup-lead em {
+  font-style: normal;
+  color: #cfe0ff;
+}
+
+.setup-lead kbd {
+  padding: 0 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 0.3rem;
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+/* Formularfelder */
+.setup-field {
+  display: block;
+  margin-bottom: 1.1rem;
+}
+
+.setup-field > span {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.setup-field small {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.95rem;
+  opacity: 0.6;
+}
+
+.setup-input-row {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.setup input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.75rem 1.1rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  font-size: 1.25rem;
+  outline: none;
+  cursor: text;
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    background 0.3s ease;
+}
+
+.setup input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.setup input:focus {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 1.2rem rgba(150, 190, 255, 0.45);
+}
+
+.setup input[readonly] {
+  cursor: default;
+}
+
+/* PlayStation-typische Pillen-Buttons */
+.ps-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  border-radius: 3rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: inherit;
+  font-size: 1.15rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.4s var(--ease),
+    opacity 0.25s ease;
+}
+
+.ps-btn:hover:not(:disabled),
+.ps-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 0 1.2rem rgba(255, 255, 255, 0.35);
+  transform: translateY(-0.12rem);
+  outline: none;
+}
+
+.ps-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ps-btn--ghost {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: transparent;
+}
+
+.ps-btn--primary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.22));
+  border-color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+.ps-glyph {
+  font-size: 1.1em;
+  opacity: 0.85;
+}
+
+/* Rückmeldungen */
+.setup-test {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 1.4rem;
+}
+
+.setup-result {
+  font-size: 1.15rem;
+  animation: xmb-fade-in 0.4s ease both;
+}
+
+.setup-result.is-ok {
+  color: #7dffb0;
+}
+
+.setup-result.is-warn {
+  color: #ffd479;
+}
+
+.setup-result.is-fail {
+  color: #ff8d8d;
+}
+
+.setup-result.is-idle {
+  opacity: 0.6;
+}
+
+.setup-preview {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: #cfe0ff;
+}
+
+.setup-tree {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 0.6rem;
+  background: rgba(0, 0, 0, 0.3);
+  font:
+    1rem/1.5 "SF Mono",
+    Menlo,
+    monospace;
+  opacity: 0.85;
+}
+
+.setup-note {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  opacity: 0.6;
+}
+
+/* Controller-Schritt */
+.pad-orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 12rem;
+  height: 12rem;
+  margin: 0.4rem auto 1rem;
+  color: rgba(255, 255, 255, 0.4);
+  transition:
+    color 0.5s ease,
+    filter 0.5s ease,
+    transform 0.6s var(--ease);
+}
+
+.pad-orb .xmb-icon-svg {
+  width: 6.5rem;
+  height: 6.5rem;
+}
+
+.pad-orb__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0.5;
+}
+
+.pad-orb.is-idle {
+  animation: pad-pulse 2.4s ease-in-out infinite;
+}
+
+.pad-orb.is-connected {
+  color: #a9c8ff;
+  filter: drop-shadow(0 0 1.4rem rgba(120, 170, 255, 0.8));
+  animation: pad-pulse 1.4s ease-in-out infinite;
+}
+
+.pad-orb.is-pressed {
+  color: #7dffb0;
+  filter: drop-shadow(0 0 2rem rgba(93, 255, 154, 0.9));
+  transform: scale(1.08);
+}
+
+.pad-status {
+  text-align: center;
+  margin: 0 0 1rem;
+}
+
+/* Prüfliste */
+.setup-checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.setup-checks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition:
+    background 0.4s ease,
+    border-color 0.4s ease;
+}
+
+.setup-checks li.is-pending {
+  opacity: 0.45;
+}
+
+.setup-checks li.is-ok {
+  border-color: rgba(93, 255, 154, 0.45);
+}
+
+.setup-checks li.is-warn {
+  border-color: rgba(255, 212, 121, 0.5);
+}
+
+.setup-checks li.is-fail {
+  border-color: rgba(255, 141, 141, 0.6);
+  background: rgba(255, 80, 80, 0.1);
+}
+
+.check-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.is-ok .check-icon {
+  color: #7dffb0;
+  border-color: #7dffb0;
+}
+
+.is-warn .check-icon {
+  color: #ffd479;
+  border-color: #ffd479;
+}
+
+.is-fail .check-icon {
+  color: #ff8d8d;
+  border-color: #ff8d8d;
+}
+
+.check-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.check-text strong {
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.check-text small {
+  font-size: 1rem;
+  line-height: 1.4;
+  opacity: 0.7;
+  overflow-wrap: anywhere;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Fußzeile */
+.setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.setup-actions__spacer {
+  flex: 1;
+}
+
+.setup-summary {
+  font-size: 1.05rem;
+  opacity: 0.75;
+}
+
+@keyframes setup-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes setup-step {
+  from {
+    opacity: 0;
+    transform: translateX(1.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pad-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup *,
+  .setup *::before,
+  .setup *::after {
+    animation: none !important;
+    transition-duration: 0.01s !important;
+  }
+}

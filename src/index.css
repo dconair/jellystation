@@ -25,3 +25,9 @@ body,
   user-select: none;
   cursor: default;
 }
+
+.boot {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 40%, #0d1638, #050816);
+}

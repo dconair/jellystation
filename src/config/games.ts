@@ -1,18 +1,18 @@
 /**
  * Zentrale Konfiguration der Spielebibliothek.
  *
- * ┌─ Echten Ordner einrichten ────────────────────────────────────────────────┐
- * │ 1. GAMES_BASE_DIR unten auf den echten Pfad setzen.                       │
- * │ 2. Denselben Pfad in src-tauri/capabilities/library.json eintragen        │
- * │    (fs-Scope, dort als "$HOME/…" geschrieben).                            │
- * │ 3. Struktur:  <GAMES_BASE_DIR>/<System>/<Spiel>.<Endung>                  │
- * │    z. B.      ~/JellyStation/Games/PS3/Gran Turismo 5.iso                 │
- * └───────────────────────────────────────────────────────────────────────────┘
+ * Der echte Spiele-Ordner wird im Setup-Assistenten per Ordnerdialog gewählt und im
+ * Tauri-Store gespeichert (src/settings). GAMES_BASE_DIR ist nur der Standardwert,
+ * falls (noch) nichts gewählt wurde.
+ *
+ * Struktur:  <Basisordner>/<System>/<Spiel>.<Endung>
+ * z. B.      ~/JellyStation/Games/PS3/Gran Turismo 5.iso
+ *
  * Existiert der Ordner nicht (oder läuft die App nur im Browser), zeigt die XMB
  * automatisch Demo-Daten (siehe src/library/mockLibrary.ts).
  */
 
-/** Basisordner der Bibliothek. "~" wird zum Home-Verzeichnis aufgelöst. PLATZHALTER! */
+/** Standard-Basisordner der Bibliothek. "~" wird zum Home-Verzeichnis aufgelöst. */
 export const GAMES_BASE_DIR = "~/JellyStation/Games";
 
 /** Dateiendungen (klein geschrieben, ohne Punkt), die als Spiel erkannt werden. */
@@ -26,6 +26,8 @@ export interface EmulatorConfig {
    * Dort steht auch der absolute Systempfad der Anwendung.
    */
   command: string;
+  /** Standard-Installationspfad (macOS) – nur für den Abhängigkeits-Check im Setup. */
+  binary: string;
   /** Kommandozeilenargumente zum Starten einer Spieldatei. */
   args: (gamePath: string) => string[];
 }
@@ -35,6 +37,8 @@ export const EMULATORS: Record<string, EmulatorConfig> = {
   ps3: {
     name: "RPCS3",
     command: "rpcs3",
+    // Muss mit "cmd" in src-tauri/capabilities/emulators.json übereinstimmen.
+    binary: "/Applications/RPCS3.app/Contents/MacOS/rpcs3",
     args: (gamePath) => ["--no-gui", gamePath],
   },
 };

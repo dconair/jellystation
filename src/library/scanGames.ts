@@ -90,11 +90,11 @@ export function buildSystemCategories(
 }
 
 /** Löst "~" im konfigurierten Basisordner auf. */
-async function resolveBaseDir(): Promise<string> {
-  if (!GAMES_BASE_DIR.startsWith("~")) return GAMES_BASE_DIR.replace(/\/+$/, "");
+async function resolveBaseDir(configured: string): Promise<string> {
+  if (!configured.startsWith("~")) return configured.replace(/\/+$/, "");
   const { homeDir } = await import("@tauri-apps/api/path");
   const home = (await homeDir()).replace(/[\\/]+$/, "");
-  return (home + GAMES_BASE_DIR.slice(1)).replace(/\/+$/, "");
+  return (home + configured.slice(1)).replace(/\/+$/, "");
 }
 
 /**
@@ -102,11 +102,11 @@ async function resolveBaseDir(): Promise<string> {
  * dessen Dateien sind die Spiele. Wirft, wenn der Basisordner nicht existiert
  * oder nicht lesbar ist – der Aufrufer fällt dann auf die Demo-Daten zurück.
  */
-export async function scanGamesDir(): Promise<ScanResult> {
+export async function scanGamesDir(configuredDir: string = GAMES_BASE_DIR): Promise<ScanResult> {
   if (!isTauri()) throw new Error("Dateisystemzugriff nur in der Tauri-App verfügbar");
 
   const { exists, readDir } = await import("@tauri-apps/plugin-fs");
-  const baseDir = await resolveBaseDir();
+  const baseDir = await resolveBaseDir(configuredDir);
   if (!(await exists(baseDir))) throw new Error(`Basisordner nicht gefunden: ${baseDir}`);
 
   const listing: SystemListing = {};

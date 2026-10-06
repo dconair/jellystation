@@ -10,16 +10,16 @@ export interface GameLibrary {
 }
 
 /** Scannt beim Start einmal den Basisordner; fällt andernfalls auf Demo-Daten zurück. */
-export function useGameLibrary(): GameLibrary {
+export function useGameLibrary(baseDir?: string): GameLibrary {
   const [library, setLibrary] = useState<GameLibrary>({ source: "loading", categories: [] });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { baseDir, listing } = await scanGamesDir();
+        const scan = await scanGamesDir(baseDir || undefined);
         if (!cancelled) {
-          setLibrary({ source: "disk", categories: buildSystemCategories(listing, baseDir, false) });
+          setLibrary({ source: "disk", categories: buildSystemCategories(scan.listing, scan.baseDir, false) });
         }
       } catch (err) {
         console.info("Spielebibliothek: Mockup-Modus –", err instanceof Error ? err.message : err);
@@ -34,7 +34,7 @@ export function useGameLibrary(): GameLibrary {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [baseDir]);
 
   return library;
 }

@@ -89,9 +89,11 @@ export const categories: XmbCategory[] = [
     icon: "settings",
     entries: [
       entry("st1", "Server", "Verbindung verwalten", 225),
+      entry("st-games", "Spiele-Ordner", "Nicht gewählt", 90),
       entry("st2", "Benutzer", "Profil wechseln", 255),
       entry("st3", "Anzeige", "Vollbild, Skalierung", 195),
       entry("st4", "Ton", "Ausgabegerät und Lautstärke", 170),
+      { ...entry("st-setup", "Einrichtung erneut ausführen", "Jellyfin, Ordner, Controller", 150, "Startet den Setup-Assistenten mit deinen aktuellen Werten."), action: "run-setup" },
       entry("st5", "Über JellyStation", "Version 0.1.0", 280),
     ],
   },

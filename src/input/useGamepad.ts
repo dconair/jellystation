@@ -17,7 +17,7 @@ const STICK_OFF = 0.35; // … und erst darunter wieder als losgelassen (Hystere
 const REPEAT_DELAY = 400; // ms bis zur ersten Wiederholung
 const REPEAT_INTERVAL = 120; // ms zwischen Wiederholungen
 
-const prettyName = (id: string) => {
+export const prettyPadName = (id: string) => {
   if (/054c/i.test(id)) {
     if (/0ce6|0df2/i.test(id)) return "DualSense";
     if (/05c4|09cc/i.test(id)) return "DualShock 4";
@@ -70,7 +70,7 @@ export function useGamepad({ onAction, enabled = true }: Options) {
       const pads = Array.from(navigator.getGamepads()).filter(
         (p): p is Gamepad => p !== null && p.connected,
       );
-      const name = pads.length > 0 ? prettyName(pads[0].id) : null;
+      const name = pads.length > 0 ? prettyPadName(pads[0].id) : null;
       if (name !== current) {
         current = name;
         setController(name);

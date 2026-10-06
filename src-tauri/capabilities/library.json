@@ -1,12 +1,17 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "library",
-  "description": "Lesezugriff (nur Verzeichnisse auflisten) auf den Spiele-Basisordner. Muss zu GAMES_BASE_DIR in src/config/games.ts passen.",
+  "description": "Nur lesender Zugriff: Ordner auflisten und Existenz prüfen. Zusätzlich zu diesen festen Pfaden wird der im Setup per Dialog gewählte Spiele-Ordner zur Laufzeit freigegeben (und per persisted-scope gemerkt).",
   "windows": ["main"],
   "permissions": [
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$HOME/JellyStation/Games" }, { "path": "$HOME/JellyStation/Games/**" }]
+      "allow": [
+        { "path": "$HOME/JellyStation/Games" },
+        { "path": "$HOME/JellyStation/Games/**" },
+        { "path": "/Applications/RPCS3.app" },
+        { "path": "/Applications/RPCS3.app/**" }
+      ]
     },
     {
       "identifier": "fs:allow-read-dir",

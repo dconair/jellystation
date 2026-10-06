@@ -1,11 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Standardrechte für das Hauptfenster",
+  "description": "Standardrechte für das Hauptfenster: Fenster, dauerhafte Einstellungen und native Dialoge",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "core:window:allow-set-fullscreen",
-    "core:window:allow-is-fullscreen"
+    "core:window:allow-is-fullscreen",
+    "store:default",
+    "dialog:default"
   ]
 }

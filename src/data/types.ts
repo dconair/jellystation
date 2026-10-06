@@ -7,6 +7,8 @@ export interface XmbEntry {
   hue: number;
   /** Gesetzt bei Spielen: wird beim Bestätigen im Emulator gestartet. */
   game?: GameRef;
+  /** Interne Aktion statt Inhalt, z. B. "run-setup". */
+  action?: "run-setup";
 }
 
 export type CategoryIconName =
