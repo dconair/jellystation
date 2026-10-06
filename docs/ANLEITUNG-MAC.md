@@ -110,10 +110,10 @@ npm run tauri dev
 - Es öffnet sich das Fenster „JellyStation“. Änderungen am Code erscheinen live.
 - Beenden: im Terminal `Strg + C`.
 
-> Falls beim ersten Kompilieren eine Fehlermeldung erscheint: Das Rust-Backend konnte in der Cloud-Umgebung, in
-> der dieser Code entstanden ist, nicht kompiliert werden (dort fehlen die macOS/WebKit-Bibliotheken). Der
-> Frontend-Teil ist getestet, der native Teil wird auf deinem Mac zum ersten Mal gebaut. Kopiere die Fehlermeldung
-> einfach in Claude (oder in Claude Code, siehe unten) – solche Fehler sind meist Kleinigkeiten.
+> Falls beim ersten Kompilieren trotzdem eine Fehlermeldung erscheint: Der Rust-Teil wurde bisher unter Linux
+> kompiliert (fehlerfrei, ohne Warnungen, inklusive Prüfung aller Berechtigungsdateien), aber noch nicht auf einem Mac
+> gebaut und gestartet. Kopiere eine Fehlermeldung einfach in Claude (oder in Claude Code, siehe Abschnitt 9) –
+> macOS-spezifische Abweichungen sind meist Kleinigkeiten.
 
 ---
 
@@ -282,8 +282,9 @@ So geht es:
   Admin-Passwort (Homebrew/`sudo`), macOS-Rückfragen zum Dateizugriff, im Setup-Assistenten den Ordner auswählen,
   den Controller koppeln, RPCS3 samt Firmware und deine legal erworbenen Spiele bereitstellen und den
   Jellyfin-API-Key erzeugen.
-- **Der Mac-Build ist noch ungetestet.** Falls beim ersten Kompilieren etwas hakt, ist genau das der Fall, in dem
-  Claude Code lokal am meisten hilft: Es sieht die echte Fehlermeldung und kann sie sofort beheben.
+- **Der Mac-Build ist noch ungetestet.** Der Rust-Teil kompiliert unter Linux, aber nativ gestartet (Ordnerdialog,
+  Emulator-Start, Store) wurde er noch nicht. Hakt es beim ersten Mal, ist genau das der Fall, in dem Claude Code lokal
+  am meisten hilft: Es sieht die echte Fehlermeldung und kann sie sofort beheben.
 
 ---
 
