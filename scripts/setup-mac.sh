@@ -49,12 +49,32 @@ else
   fail "Xcode Command Line Tools fehlen → 'xcode-select --install' (oder Skript mit --install-missing starten)"
 fi
 
+# Homebrew liegt auf Apple-Silicon-Macs unter /opt/homebrew, auf Intel-Macs unter /usr/local.
+load_brew() {
+  for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [ -x "$b" ]; then
+      eval "$("$b" shellenv)"
+      return 0
+    fi
+  done
+  return 1
+}
+have brew || load_brew || true
+
 # Node.js >= 20
 if ! have node && [ "$INSTALL_MISSING" = 1 ]; then
-  have brew || fail "Node.js fehlt und Homebrew ist nicht installiert (https://brew.sh) → danach erneut starten"
+  if ! have brew; then
+    echo "  Installiere Homebrew - du wirst nach deinem Mac-Passwort gefragt (die Eingabe bleibt unsichtbar) ..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    load_brew || fail "Homebrew wurde nicht gefunden - bitte das Terminal neu öffnen und das Skript erneut starten"
+    # Damit npm auch in neuen Terminal-Fenstern gefunden wird:
+    BREW_BIN="$(command -v brew)"
+    grep -qs "brew shellenv" "$HOME/.zprofile" || echo "eval \"\$($BREW_BIN shellenv)\"" >> "$HOME/.zprofile"
+    ok "Homebrew installiert"
+  fi
   brew install node
 fi
-have node || fail "Node.js fehlt → 'brew install node' (oder --install-missing)"
+have node || fail "Node.js fehlt -> 'brew install node' (oder Skript mit --install-missing starten)"
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 [ "$NODE_MAJOR" -ge 20 ] || fail "Node.js $(node -v) ist zu alt – benötigt wird Version 20 oder neuer"
 ok "Node.js $(node -v), npm $(npm -v)"
