@@ -4,6 +4,20 @@
   box-sizing: border-box;
 }
 
+:root {
+  /*
+   * Die Original-XMB nutzt "SCE-PS3 Rodin" (proprietär, nicht verteilbar). Source Sans 3 (OFL)
+   * ist die nächste freie Verwandte; eine eigene Schrift lässt sich hier einfach vorn eintragen.
+   */
+  --font-ui: "Source Sans 3 Variable", "Source Sans 3", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
+  /* Farben der PlayStation-Tasten */
+  --ps-cross: #7fa6ff;
+  --ps-circle: #ff6f78;
+  --ps-triangle: #5ccf9b;
+  --ps-square: #f08cc8;
+}
+
 /*
  * 1rem skaliert mit dem Fenster: bei 1080 px Höhe (16:9) = 20 px.
  * Bei breiteren Fenstern bestimmt die Höhe, bei schmaleren die Breite.
@@ -20,7 +34,7 @@ body,
   overflow: hidden;
   background: #050816;
   color: #fff;
-  font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   user-select: none;
   cursor: default;

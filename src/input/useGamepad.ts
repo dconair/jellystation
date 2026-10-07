@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
-export type PadAction = "up" | "down" | "left" | "right" | "confirm" | "back";
+/** ✕ = confirm, ○ = back, △ = triangle, □ = square (PlayStation-Layout). */
+export type PadAction = "up" | "down" | "left" | "right" | "confirm" | "back" | "triangle" | "square";
 
 interface Options {
   onAction: (action: PadAction) => void;
   enabled?: boolean;
 }
 
-// "Standard"-Mapping der Gamepad-API (DualShock 4: ✕ = 0, ○ = 1).
-const BUTTON = { confirm: 0, back: 1, up: 12, down: 13, left: 14, right: 15 } as const;
+// "Standard"-Mapping der Gamepad-API (DualShock 4: ✕ = 0, ○ = 1, □ = 2, △ = 3).
+const BUTTON = { confirm: 0, back: 1, square: 2, triangle: 3, up: 12, down: 13, left: 14, right: 15 } as const;
+const FACE_BUTTONS = ["confirm", "back", "triangle", "square"] as const;
+type FaceButton = (typeof FACE_BUTTONS)[number];
 const DIRECTIONS = ["up", "down", "left", "right"] as const;
 type Direction = (typeof DIRECTIONS)[number];
 
@@ -44,7 +47,7 @@ export function useGamepad({ onAction, enabled = true }: Options) {
     let current: string | null = null;
     const held = new Map<Direction, number>(); // Richtung → Zeitpunkt der nächsten Auslösung
     const stickDir = { x: 0, y: 0 };
-    const prevButton = { confirm: false, back: false };
+    const prevButton: Record<FaceButton, boolean> = { confirm: false, back: false, triangle: false, square: false };
 
     const releaseAll = () => {
       held.clear();
@@ -77,11 +80,10 @@ export function useGamepad({ onAction, enabled = true }: Options) {
       }
 
       const down: Record<Direction, boolean> = { up: false, down: false, left: false, right: false };
-      const pressed = { confirm: false, back: false };
+      const pressed: Record<FaceButton, boolean> = { confirm: false, back: false, triangle: false, square: false };
       for (const pad of pads) {
         for (const d of DIRECTIONS) if (pad.buttons[BUTTON[d]]?.pressed) down[d] = true;
-        pressed.confirm ||= !!pad.buttons[BUTTON.confirm]?.pressed;
-        pressed.back ||= !!pad.buttons[BUTTON.back]?.pressed;
+        for (const b of FACE_BUTTONS) pressed[b] ||= !!pad.buttons[BUTTON[b]]?.pressed;
 
         // Linker Stick: immer nur die dominante Achse, damit Diagonalen nicht doppelt auslösen.
         const x = pad.axes[0] ?? 0;
@@ -97,8 +99,7 @@ export function useGamepad({ onAction, enabled = true }: Options) {
 
       if (!primed) {
         // Bereits gehaltene Tasten ignorieren, bis sie losgelassen werden.
-        prevButton.confirm = pressed.confirm;
-        prevButton.back = pressed.back;
+        for (const b of FACE_BUTTONS) prevButton[b] = pressed[b];
         for (const d of DIRECTIONS) if (down[d]) held.set(d, Infinity);
         primed = true;
         return;
@@ -119,10 +120,10 @@ export function useGamepad({ onAction, enabled = true }: Options) {
         }
       }
 
-      if (pressed.confirm && !prevButton.confirm) handler.current("confirm");
-      if (pressed.back && !prevButton.back) handler.current("back");
-      prevButton.confirm = pressed.confirm;
-      prevButton.back = pressed.back;
+      for (const b of FACE_BUTTONS) {
+        if (pressed[b] && !prevButton[b]) handler.current(b);
+        prevButton[b] = pressed[b];
+      }
     };
 
     raf = requestAnimationFrame(poll);

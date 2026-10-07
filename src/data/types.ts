@@ -9,7 +9,20 @@ export interface XmbEntry {
   game?: GameRef;
   /** Interne Aktion statt Inhalt, z. B. "run-setup". */
   action?: "run-setup";
+  /** Cover/Game-Art. Fehlt sie, zeigt die XMB ein einfaches Icon-Kachel (z. B. bei Einstellungen). */
+  art?: ArtSource;
+  /** Seitenverhältnis des Originalbilds: "landscape" ≈ 16:9 (Game-Art), "poster" ≈ 2:3 (Film-Cover). */
+  artShape?: "landscape" | "poster";
 }
+
+/** Woher das Cover eines Eintrags kommt. */
+export type ArtSource =
+  /** Lokale Bilddatei (Tauri-FS, z. B. neben dem Spiel). */
+  | { kind: "file"; path: string }
+  /** Bild über HTTP (z. B. Jellyfin); Header z. B. für die Anmeldung. */
+  | { kind: "http"; url: string; headers?: Record<string, string> }
+  /** Prozedural erzeugtes Platzhalter-Cover (Demo-Daten, fehlende Bilder). */
+  | { kind: "generated" };
 
 export type CategoryIconName =
   | "search"
