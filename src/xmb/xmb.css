@@ -1,10 +1,17 @@
 .xmb {
   --xmb-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* leichtes Überschwingen = "schwebend" */
+  --xmb-soft: cubic-bezier(0.25, 0.8, 0.3, 1); /* ohne Überschwingen, für Helligkeit und Glanz */
   --xmb-dur: 0.75s;
+  --xmb-text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.55);
+  /* Bei höheren Fenstern als 16:9 (z. B. 4:3) wird die Menü-Komposition mittig nach unten geschoben. */
+  --stage-shift: max(0px, calc((100vh - 54rem) / 2));
   position: fixed;
   inset: 0;
   overflow: hidden;
   color: #fff;
+  font-family: var(--font-ui);
+  font-weight: 300;
+  letter-spacing: 0.02em;
 }
 
 .xmb-background {
@@ -18,7 +25,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(ellipse at 28% 38%, transparent 35%, rgba(0, 0, 0, 0.5) 100%);
+  background: radial-gradient(ellipse at 28% 40%, transparent 38%, rgba(0, 0, 0, 0.42) 100%);
 }
 
 /* ---------- Kopfzeile ---------- */
@@ -27,41 +34,80 @@
   position: absolute;
   top: 1.8rem;
   right: 3.5rem;
+  height: 2.8rem;
   display: flex;
   align-items: center;
-  gap: 1.6rem;
-  font-size: 1.25rem;
+  gap: 1.5rem;
+  line-height: 1;
+  text-shadow: var(--xmb-text-shadow);
+}
+
+.xmb-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.xmb-clock__date {
+  font-size: 1.15rem;
   letter-spacing: 0.04em;
-  text-shadow: 0 0 0.6rem rgba(0, 0, 0, 0.5);
+  opacity: 0.62;
+}
+
+.xmb-clock__time {
+  font-size: 1.7rem;
+  letter-spacing: 0.05em;
 }
 
 .xmb-pad {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
+  max-width: 18rem;
   font-size: 1rem;
-  opacity: 0.8;
+  white-space: nowrap;
+  opacity: 0.75;
   animation: xmb-fade-in 0.6s ease both;
 }
 
 .xmb-pad::before {
   content: "";
-  width: 0.55rem;
-  height: 0.55rem;
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
-  background: #5dff9a;
-  box-shadow: 0 0 0.6rem #5dff9a;
+  background: #7dffb2;
+  box-shadow: 0 0 0.6rem #7dffb2;
+}
+
+/* Kleine, ruhige Statusmarken ("Vorschau-Modus", "Ton aus") */
+.xmb-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 1.8rem;
+  padding: 0 0.9rem;
+  border-radius: 1rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  animation: xmb-fade-in 0.6s ease both;
 }
 
 .xmb-stage {
   position: absolute;
   inset: 0;
+  transform: translateY(var(--stage-shift));
 }
 
 /* ---------- Horizontale Achse: Kategorien ---------- */
 
 .xmb-category {
   position: absolute;
+  z-index: 2; /* Einträge, die beim Fokuswechsel an der Leiste vorbeiziehen, laufen hinter den Icons */
   left: 0;
   top: 0;
   width: 8rem;
@@ -76,19 +122,18 @@
   color: inherit;
   font: inherit;
   cursor: pointer;
-  opacity: max(0.12, calc(0.62 - (var(--dist) - 1) * 0.1));
+  outline: none; /* nach einem Klick soll kein Browser-Fokusrahmen im Menü auftauchen */
+  -webkit-tap-highlight-color: transparent;
+  opacity: max(0.14, calc(0.6 - (var(--dist) - 1) * 0.1));
+  /* Leichte Staffelung: die Icons folgen dem neuen Fokus wie eine sanfte Welle. */
   transition:
-    transform var(--xmb-dur) var(--xmb-ease),
+    transform var(--xmb-dur) var(--xmb-ease) calc(min(var(--dist), 5) * 14ms),
     opacity 0.5s ease;
   will-change: transform;
 }
 
 .xmb-category.is-active {
   opacity: 1;
-}
-
-.xmb-category__float {
-  display: block;
 }
 
 .xmb-category .xmb-icon-svg {
@@ -99,38 +144,44 @@
   filter: drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.25));
   transition:
     transform var(--xmb-dur) var(--xmb-ease),
-    filter 0.5s ease;
+    filter 0.6s var(--xmb-soft);
 }
 
 .xmb-category.is-active .xmb-icon-svg {
   transform: scale(1.4);
-  filter: drop-shadow(0 0 0.9rem rgba(255, 255, 255, 0.75));
+  filter: drop-shadow(0 0 0.35rem rgba(255, 255, 255, 0.55))
+    drop-shadow(0 0 1rem rgba(255, 255, 255, 0.45));
 }
 
-.xmb-category.is-active .xmb-category__float {
-  animation: xmb-float 4s ease-in-out infinite;
+/* Die Schwebe-Bewegung steuert <Float> (Float.tsx), damit nichts auf die Ruhelage zurückspringt. */
+.xmb-category__float {
+  display: block;
 }
 
 .xmb-category__label {
   position: absolute;
   top: 50%;
   left: 50%;
-  margin-top: 3.4rem;
-  font-size: 1.3rem;
-  letter-spacing: 0.06em;
+  margin-top: 3.5rem;
+  font-size: 1.25rem;
+  font-weight: 300;
+  letter-spacing: 0.07em;
+  line-height: 1.3;
   white-space: nowrap;
-  text-shadow: 0 0 0.8rem rgba(0, 0, 0, 0.6);
+  text-shadow: var(--xmb-text-shadow);
   opacity: 0;
-  transform: translate(-50%, -0.6rem);
+  transform: translate(-50%, -0.7rem);
   transition:
-    opacity 0.35s ease,
+    opacity 0.3s ease,
     transform var(--xmb-dur) var(--xmb-ease);
 }
 
 .xmb-category.is-active .xmb-category__label {
   opacity: 1;
   transform: translate(-50%, 0);
-  transition-delay: 0.12s;
+  transition:
+    opacity 0.5s ease 0.14s,
+    transform var(--xmb-dur) var(--xmb-ease) 0.1s;
 }
 
 /* ---------- Vertikale Achse: Einträge ---------- */
@@ -158,103 +209,218 @@
     visibility 0s;
 }
 
+/*
+ * Jeder Eintrag sitzt mit der Mitte seiner Kachel auf der Spaltenachse (x = 0 im Eintrag-Koordinatensystem
+ * minus halbe Kachelbreite). Das gilt für schmale Icon-Kacheln genauso wie für breite Cover-Kacheln.
+ */
 .xmb-item {
+  --tile-w: 3.6rem;
+  --tile-h: 3.6rem;
+  --tile-gap: 1.3rem;
+  --focus-scale: 1.24;
   position: absolute;
   left: 0;
   top: 0;
-  height: 4.2rem;
-  margin: -2.1rem 0 0 -1.7rem; /* Icon-Mitte sitzt auf der Spaltenachse */
+  height: var(--tile-h);
+  margin: calc(var(--tile-h) / -2) 0 0 calc(var(--tile-w) / -2);
   pointer-events: auto;
   cursor: pointer;
   white-space: nowrap;
   /* Staffelung: der Fokus reagiert zuerst, entferntere Einträge folgen leicht versetzt. */
   transition:
-    transform var(--xmb-dur) var(--xmb-ease) calc(var(--stagger) * 24ms),
-    opacity 0.55s ease calc(var(--stagger) * 12ms);
+    transform var(--xmb-dur) var(--xmb-ease) calc(var(--stagger) * 26ms),
+    opacity 0.55s ease calc(var(--stagger) * 14ms);
   will-change: transform, opacity;
+  /* Neu eingehängte Einträge (z. B. nach einem Sprung zurück) blenden weich ein. */
+  animation: xmb-item-in 0.45s ease 0.1s backwards;
+}
+
+/* Reste des alten Fokus nach einem weiten Sprung: schnell ausblenden, bevor die neuen Einträge einblenden. */
+.xmb-item.is-trailing {
+  transition:
+    transform var(--xmb-dur) var(--xmb-ease),
+    opacity 0.18s ease;
+}
+
+.xmb-item.has-art {
+  --tile-w: 8.8rem;
+  --tile-h: 4.95rem; /* 16:9 */
+  --tile-gap: 1.5rem;
+  --focus-scale: 1.2;
+}
+
+/* Icon-Eintrag in einer Spalte mit Covern: Text beginnt auf derselben Linie wie bei den Covern. */
+.xmb-item.in-art-col .xmb-item__text {
+  margin-left: calc((8.8rem - var(--tile-w)) / 2 + 1.5rem - var(--tile-gap));
+}
+
+.xmb-item.is-hidden {
+  pointer-events: none;
 }
 
 .xmb-item__inner {
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  gap: var(--tile-gap);
   height: 100%;
-  transform-origin: 1.7rem 50%;
+  transform-origin: calc(var(--tile-w) / 2) 50%;
   transform: scale(1);
   transition: transform var(--xmb-dur) var(--xmb-ease);
 }
 
 .xmb-item.is-focused .xmb-item__inner {
-  transform: scale(1.22);
-}
-
-.xmb-item.is-focused .xmb-item__float {
-  animation: xmb-float 3.6s ease-in-out infinite;
+  transform: scale(var(--focus-scale));
 }
 
 .xmb-item__float {
   display: block;
+  flex: none;
 }
 
-.xmb-item__tile {
-  width: 3.4rem;
-  height: 3.4rem;
-  display: grid;
-  place-items: center;
-  border-radius: 0.7rem;
-  color: rgba(255, 255, 255, 0.92);
+/* Gemeinsamer Glanz für Kacheln und Cover: Lichtkante oben, diagonaler Schimmer, feiner Rand. */
+.xmb-item__tile::after,
+.xmb-item__cover::after,
+.xmb-detail__art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
   background: linear-gradient(
-    145deg,
-    hsl(var(--hue) 70% 58% / 0.85),
-    hsl(var(--hue) 70% 22% / 0.85)
+    135deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.08) 34%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(255, 255, 255, 0.06) 100%
   );
   box-shadow:
-    0 0.3rem 1rem rgba(0, 0, 0, 0.35),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.22);
-  transition: box-shadow 0.5s ease;
+    inset 0 0 0 1px rgba(255, 255, 255, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* Cover einer beliebigen Bildform: füllt die Kachel, wird sauber beschnitten. */
+.xmb-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Icon-Kachel (Einträge ohne Cover): milchiges Glas in der Farbe des Eintrags */
+.xmb-item__tile {
+  position: relative;
+  width: var(--tile-w);
+  height: var(--tile-h);
+  display: grid;
+  place-items: center;
+  border-radius: 0.85rem;
+  color: #fff;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, hsl(var(--hue) 75% 58% / 0.78), hsl(var(--hue) 75% 24% / 0.78));
+  box-shadow:
+    0 0.35rem 1rem rgba(0, 0, 0, 0.32),
+    0 0 0 rgba(255, 255, 255, 0);
+  filter: brightness(0.9);
+  transition:
+    box-shadow 0.6s var(--xmb-soft),
+    filter 0.6s var(--xmb-soft);
 }
 
 .xmb-item.is-focused .xmb-item__tile {
+  filter: brightness(1.08);
   box-shadow:
-    0 0.4rem 1.4rem rgba(0, 0, 0, 0.4),
-    0 0 1.6rem hsl(var(--hue) 90% 70% / 0.55),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+    0 0.45rem 1.4rem rgba(0, 0, 0, 0.36),
+    0 0 1.8rem hsl(var(--hue) 90% 72% / 0.55);
 }
 
 .xmb-item__tile .xmb-icon-svg {
-  width: 1.9rem;
-  height: 1.9rem;
+  position: relative;
+  width: 2.1rem;
+  height: 2.1rem;
+  filter: drop-shadow(0 0 0.4rem rgba(255, 255, 255, 0.55));
+}
+
+/* Cover-Kachel (Querformat): kleine Ecken, dezenter Rahmen, Schatten; fokussiert heller mit Leuchten */
+.xmb-item__cover {
+  position: relative;
+  display: block;
+  width: var(--tile-w);
+  height: var(--tile-h);
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: rgba(10, 16, 40, 0.5);
+  box-shadow:
+    0 0.45rem 1.2rem rgba(0, 0, 0, 0.42),
+    0 0 0 rgba(255, 255, 255, 0);
+  filter: brightness(0.86) saturate(0.92);
+  transition:
+    box-shadow 0.6s var(--xmb-soft),
+    filter 0.6s var(--xmb-soft);
+}
+
+.xmb-item.is-focused .xmb-item__cover {
+  filter: brightness(1.04) saturate(1.05);
+  box-shadow:
+    0 0.6rem 1.7rem rgba(0, 0, 0, 0.45),
+    0 0 1.6rem rgba(255, 255, 255, 0.4),
+    0 0 3.4rem hsl(var(--hue) 90% 70% / 0.35);
 }
 
 .xmb-item__text {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.65);
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 26rem;
+  text-shadow: var(--xmb-text-shadow);
+}
+
+/* Das Polster hält den Textschatten sichtbar, obwohl die Zeile abgeschnitten wird. */
+.xmb-item__title,
+.xmb-item__subtitle {
+  display: block;
+  margin: 0 -0.8rem;
+  padding: 0.15rem 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .xmb-item__title {
   font-size: 1.4rem;
-  font-weight: 400;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.035em;
+  color: rgba(255, 255, 255, 0.94);
+  transition: color 0.5s ease;
 }
 
 .xmb-item.is-focused .xmb-item__title {
-  font-weight: 600;
+  color: #fff;
+  font-weight: 400;
 }
 
 .xmb-item__subtitle {
-  font-size: 1rem;
-  opacity: 0.7;
+  font-size: 1.05rem;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  opacity: 0.68;
 }
 
 .xmb-item__badge {
   align-self: flex-start;
-  margin-top: 0.2rem;
-  padding: 0.05rem 0.55rem;
+  margin-top: 0.15rem;
+  padding: 0.1rem 0.7rem;
   border-radius: 1rem;
   font-size: 0.85rem;
-  background: rgba(93, 255, 154, 0.2);
-  color: #9dffc3;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  background: rgba(125, 255, 178, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(125, 255, 178, 0.35);
+  color: #b4ffd2;
   text-shadow: none;
 }
 
@@ -262,107 +428,203 @@
 
 .xmb-detail {
   position: absolute;
-  top: 22rem;
-  right: 4rem;
-  width: 26rem;
-  animation: xmb-fade-in 0.7s var(--xmb-ease) both;
-  text-shadow: 0 0 0.8rem rgba(0, 0, 0, 0.55);
+  top: calc(17.5rem + var(--stage-shift));
+  right: 3.5rem;
+  width: 24rem;
+  text-shadow: var(--xmb-text-shadow);
+  /* Die neue Karte folgt der alten mit leichtem Versatz, damit sich beide Texte nicht stapeln. */
+  animation: xmb-detail-in 0.6s var(--xmb-ease) 0.2s both;
 }
 
-.xmb-detail__poster {
+.xmb-detail.is-leaving {
+  pointer-events: none;
+  animation: xmb-detail-out 0.16s ease both;
+}
+
+.xmb-detail__art {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.3rem;
+  border-radius: 0.7rem;
+  background: rgba(10, 16, 40, 0.5);
+  box-shadow:
+    0 0.8rem 2.2rem rgba(0, 0, 0, 0.45),
+    0 0 2.6rem rgba(255, 255, 255, 0.12);
+}
+
+.xmb-detail.is-landscape .xmb-detail__art {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.xmb-detail.is-poster .xmb-detail__art {
+  width: 11.4rem;
+  aspect-ratio: 2 / 3;
+}
+
+/* Ohne Cover: eine große Icon-Kachel im Stil der Listen-Kacheln */
+.xmb-detail.is-icon .xmb-detail__art {
   display: grid;
   place-items: center;
-  aspect-ratio: 16 / 9;
-  border-radius: 0.9rem;
-  margin-bottom: 1.2rem;
-  color: rgba(255, 255, 255, 0.9);
-  background: linear-gradient(
-    145deg,
-    hsl(var(--hue) 70% 52% / 0.8),
-    hsl(var(--hue) 70% 18% / 0.8)
-  );
+  width: 9rem;
+  height: 9rem;
+  border-radius: 1.3rem;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, hsl(var(--hue) 75% 58% / 0.78), hsl(var(--hue) 75% 24% / 0.78));
   box-shadow:
-    0 0.8rem 2.4rem rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    0 0.7rem 2rem rgba(0, 0, 0, 0.38),
+    0 0 2.4rem hsl(var(--hue) 90% 72% / 0.45);
 }
 
-.xmb-detail__poster .xmb-icon-svg {
+.xmb-detail__glyph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.xmb-detail__glyph .xmb-icon-svg {
   width: 4.6rem;
   height: 4.6rem;
+  filter: drop-shadow(0 0 0.6rem rgba(255, 255, 255, 0.6));
 }
 
-.xmb-detail h2 {
-  margin: 0 0 0.3rem;
-  font-size: 1.8rem;
-  font-weight: 600;
+.xmb-detail__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  /* Dateipfade und andere lange Wörter ohne Leerzeichen umbrechen statt aus der Karte zu ragen (word-break: Rückfall für ältere WebKit-Versionen) */
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
-.xmb-detail p {
-  margin: 0.4rem 0 0;
-  font-size: 1.15rem;
+.xmb-detail__meta,
+.xmb-detail__text {
+  margin: 0;
+  font-weight: 300;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Begrenzt, damit die Karte (Cover + Titel + Untertitel + Beschreibung) nie in die Hinweisleiste ragt. */
+.xmb-detail__meta {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  opacity: 0.62;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.xmb-detail__text {
+  margin-top: 0.7rem;
+  font-size: 1.1rem;
   line-height: 1.5;
-  opacity: 0.82;
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
 }
 
-.xmb-detail .xmb-detail__meta {
-  font-size: 1rem;
-  opacity: 0.6;
-}
-
-@media (max-aspect-ratio: 3 / 2) {
+/* Hochkant-Fenster (schmaler als 6:5): dort wird die Schrift zu klein, die Karte entfällt. 5:4 (1280×1024) zeigt sie noch. */
+@media (max-aspect-ratio: 6 / 5) {
   .xmb-detail {
     display: none;
   }
 }
 
-/* ---------- Hinweise & Toast ---------- */
+/* ---------- Hinweisleiste & Toast ---------- */
 
 .xmb-hints {
   position: absolute;
-  right: 3rem;
-  bottom: 1.6rem;
+  right: 3.5rem;
+  bottom: 1.8rem;
   display: flex;
-  gap: 2rem;
-  font-size: 1rem;
-  opacity: 0.6;
+  align-items: center;
+  gap: 2.2rem;
+  font-size: 1.05rem;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: var(--xmb-text-shadow);
 }
 
-.xmb-hints kbd {
-  display: inline-block;
-  min-width: 1.6rem;
-  margin-right: 0.3rem;
-  padding: 0.05rem 0.4rem;
-  border-radius: 0.35rem;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  font: inherit;
-  text-align: center;
-}
-
-.xmb-toast {
-  position: absolute;
-  left: 50%;
-  bottom: 5rem;
-  padding: 0.8rem 1.8rem;
-  border-radius: 2rem;
-  font-size: 1.2rem;
-  background: rgba(10, 14, 40, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(0.6rem);
-  animation: xmb-toast 2.2s ease both;
+.xmb-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   white-space: nowrap;
 }
 
-/* ---------- Animationen ---------- */
-
-@keyframes xmb-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-0.32rem);
-  }
+.xmb-hint .ps-symbol {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
 }
+
+.xmb-hint--cross .ps-symbol {
+  filter: drop-shadow(0 0 0.35rem var(--ps-cross));
+}
+
+.xmb-hint--circle .ps-symbol {
+  filter: drop-shadow(0 0 0.35rem var(--ps-circle));
+}
+
+.xmb-hint__label {
+  opacity: 0.9;
+}
+
+.xmb-hint kbd {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.3rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: center;
+  opacity: 0.5;
+}
+
+.xmb-hint--key .xmb-hint__label {
+  opacity: 0.6;
+}
+
+/* Meldungen erscheinen wie bei der PS3 oben rechts unter der Uhr. */
+.xmb-toast {
+  position: absolute;
+  top: 5.6rem;
+  right: 3.5rem;
+  max-width: 34rem;
+  padding: 0.75rem 1.6rem;
+  border-radius: 0.7rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  background: linear-gradient(160deg, rgba(40, 58, 120, 0.72), rgba(12, 18, 52, 0.78));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+    0 0.6rem 1.8rem rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(0.6rem);
+  animation: xmb-toast 2.2s ease both;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Animationen ---------- */
 
 @keyframes xmb-fade-in {
   from {
@@ -375,19 +637,45 @@
   }
 }
 
+@keyframes xmb-item-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes xmb-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes xmb-detail-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes xmb-toast {
   0% {
     opacity: 0;
-    transform: translate(-50%, 1rem);
+    transform: translateX(1.6rem);
   }
   10%,
   85% {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateX(0);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -0.5rem);
+    transform: translateX(0.6rem);
   }
 }
 
@@ -399,21 +687,17 @@
     transition-duration: 0.01s !important;
     transition-delay: 0s !important;
   }
+
+  /* Ohne Ausblend-Animation wäre die alte Detailkarte sonst noch kurz über der neuen zu sehen. */
+  .xmb-detail.is-leaving {
+    visibility: hidden;
+  }
 }
 
-/* ---------- Statusanzeigen & Bestätigungs-Puls ---------- */
+/* ---------- Bestätigungs-Puls ---------- */
 
-.xmb-notice,
-.xmb-muted {
-  font-size: 0.95rem;
-  padding: 0.15rem 0.8rem;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  animation: xmb-fade-in 0.6s ease both;
-}
-
-.xmb-item.is-activated .xmb-item__tile {
+.xmb-item.is-activated .xmb-item__tile,
+.xmb-item.is-activated .xmb-item__cover {
   animation: xmb-pulse 0.5s var(--xmb-ease);
 }
 
@@ -422,7 +706,7 @@
     transform: scale(1);
   }
   35% {
-    transform: scale(1.22);
+    transform: scale(1.12);
     filter: brightness(1.5);
   }
   100% {

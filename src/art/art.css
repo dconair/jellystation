@@ -1,0 +1,353 @@
+/*
+ * Cover-Bilder der XMB (ArtImage) und das prozedurale Platzhalter-Cover.
+ *
+ * Der Platzhalter misst sich selbst (container-type: size) und rechnet alles in cqmin, der kleineren
+ * Seite des Covers. So bleibt das Bild in der kleinen Listen-Kachel (16:9) und in der großen
+ * Detailkarte (16:9 oder 2:3) gleich proportioniert – nur Details fallen in kleinen Kacheln weg.
+ */
+
+/* Wurzel: füllt das Elternelement. Die XMB setzt zusätzlich .xmb-art (absolut, inset 0). */
+.art-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.art-image__img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.55s ease;
+  /* Bilder nie mit dem Mauszeiger greifen oder markieren */
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.art-image__img.is-shown,
+.art-image__img.is-instant {
+  opacity: 1;
+}
+
+.art-image__img.is-instant {
+  transition: none;
+}
+
+/* Liegt das Bild darüber, muss der Platzhalter nicht mehr gezeichnet werden. */
+.art-image.is-covered .art-ph {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art-image__img {
+    transition-duration: 0.01s;
+  }
+}
+
+/* ------------------------------------------------------------ Platzhalter */
+
+.art-ph {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  container-type: size;
+  color: #fff;
+  font-family: var(--font-ui);
+  line-height: 1.1;
+  --h: 220;
+  --h2: 250;
+}
+
+.art-ph__geo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+}
+
+.art-ph__shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Text darf in Kacheln nie umbrechen-überlaufen: Zeilen begrenzen, Rest abschneiden. */
+.art-ph__main,
+.art-ph__sub,
+.art-ph__ptitle,
+.art-ph__ttitle,
+.art-ph__tmeta,
+.art-ph__genre {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+/* ---- Spielehülle (PS3-Stil): System-Balken oben, Verlauf mit Lichtreflex, Titel unten ---- */
+
+.art-ph--game {
+  background:
+    radial-gradient(120% 85% at 88% 4%, hsl(var(--h2) 92% 64% / 0.6), transparent 62%),
+    radial-gradient(90% 70% at 4% 100%, hsl(var(--h) 90% 30% / 0.7), transparent 70%),
+    linear-gradient(162deg, hsl(var(--h) 80% 54%) 0%, hsl(var(--h) 74% 36%) 46%, hsl(var(--h2) 72% 17%) 100%);
+}
+
+.art-ph--game .art-ph__shine {
+  background:
+    linear-gradient(112deg, transparent 20%, rgba(255, 255, 255, 0.24) 33%, rgba(255, 255, 255, 0.07) 43%, transparent 56%),
+    radial-gradient(80% 55% at 0% 0%, rgba(255, 255, 255, 0.26), transparent 62%),
+    linear-gradient(to top, rgba(3, 6, 18, 0.74), rgba(3, 6, 18, 0.3) 38%, transparent 62%);
+}
+
+.art-ph__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 15cqmin;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5.5cqmin;
+  background: linear-gradient(to bottom, rgba(5, 8, 20, 0.9), rgba(5, 8, 20, 0.72));
+  box-shadow:
+    0 0.4cqmin 0 hsl(var(--h) 92% 72% / 0.7),
+    0 1cqmin 3cqmin rgba(0, 0, 0, 0.35);
+}
+
+.art-ph__sys {
+  /* Sehr lange Systemnamen kürzen, statt in die Tasten-Zierde zu laufen */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(6px, 6.6cqmin, 400px);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 0 1.4cqmin rgba(255, 255, 255, 0.35);
+}
+
+.art-ph__marks {
+  display: flex;
+  flex: none;
+  margin-left: 2cqmin;
+  gap: 1.6cqmin;
+  font-size: 7.4cqmin;
+  opacity: 0.95;
+}
+
+.art-ph__name {
+  position: absolute;
+  left: 6cqmin;
+  right: 6cqmin;
+  bottom: 6cqmin;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6cqmin;
+  text-shadow:
+    0 0.3cqmin 1.4cqmin rgba(0, 0, 0, 0.65),
+    0 0 0.4cqmin rgba(0, 0, 0, 0.4);
+}
+
+.art-ph__main {
+  /* --wl = längstes Wort; --avail = nutzbare Breite. So bricht auch "Interstellar" nicht mitten im Wort. */
+  font-size: clamp(8px, min(12.5cqmin, calc(var(--avail, 88cqw) / (var(--wl, 8) * 0.6))), 600px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.07;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.art-ph__sub {
+  font-size: clamp(7px, 6.8cqmin, 400px);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  opacity: 0.82;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* Kleine Kacheln: Zusatzzeile und Tasten-Zierde weglassen, sonst wird es unleserlich. */
+@container (max-height: 120px) {
+  .art-ph__sub {
+    display: none;
+  }
+}
+
+@container (max-width: 150px) {
+  .art-ph__marks {
+    display: none;
+  }
+}
+
+/* Querformat: Titel links, auf höchstens zwei Dritteln der Breite */
+@container (min-aspect-ratio: 1.3) {
+  .art-ph__name {
+    right: 28cqw;
+    --avail: 66cqw;
+  }
+  .art-ph__main {
+    font-size: clamp(8px, min(11.5cqmin, calc(var(--avail) / (var(--wl, 8) * 0.6))), 600px);
+  }
+}
+
+/* ---- Film-/Serienplakat: dunkler Verlauf, ein großes Motiv, Titel mit Jahr/Genre ---- */
+
+.art-ph--poster {
+  background:
+    radial-gradient(100% 70% at 50% 18%, hsl(var(--h2) 85% 58% / 0.7), transparent 66%),
+    linear-gradient(180deg, hsl(var(--h) 72% 34%) 0%, hsl(var(--h) 68% 20%) 58%, hsl(var(--h2) 70% 9%) 100%);
+}
+
+.art-ph--poster .art-ph__shine {
+  background:
+    linear-gradient(105deg, transparent 24%, rgba(255, 255, 255, 0.16) 38%, rgba(255, 255, 255, 0.04) 48%, transparent 60%),
+    radial-gradient(120% 90% at 50% 40%, transparent 52%, rgba(2, 4, 14, 0.5) 100%),
+    linear-gradient(to top, rgba(2, 4, 14, 0.78), rgba(2, 4, 14, 0.28) 40%, transparent 64%);
+}
+
+.art-ph__credits {
+  position: absolute;
+  left: 8cqmin;
+  right: 8cqmin;
+  bottom: 8cqmin;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.6cqmin;
+  text-align: center;
+  text-shadow:
+    0 0.3cqmin 1.4cqmin rgba(0, 0, 0, 0.7),
+    0 0 0.4cqmin rgba(0, 0, 0, 0.4);
+}
+
+.art-ph__rule {
+  width: 18cqmin;
+  height: max(1px, 0.35cqmin);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 1.6cqmin rgba(255, 255, 255, 0.6);
+}
+
+.art-ph__ptitle {
+  font-size: clamp(8px, min(10.5cqmin, calc(84cqw / (var(--wl, 8) * 0.78))), 600px);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  line-height: 1.16;
+  text-transform: uppercase;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+.art-ph__pmeta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8cqmin;
+  font-size: clamp(6px, 5.8cqmin, 300px);
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.art-ph__year {
+  font-weight: 600;
+  font-size: 1.16em;
+}
+
+.art-ph__genre {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+/* Querformat (Plakat in einer 16:9-Kachel): Text mittig statt unten */
+@container (min-aspect-ratio: 1.3) {
+  .art-ph__credits {
+    top: 0;
+    bottom: 0;
+    justify-content: center;
+    gap: 2.2cqmin;
+  }
+  .art-ph__ptitle {
+    font-size: clamp(8px, min(11.5cqmin, calc(84cqw / (var(--wl, 8) * 0.78))), 600px);
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+  .art-ph__pmeta {
+    flex-direction: row;
+    gap: 2.4cqmin;
+  }
+}
+
+/* Kleine Kachel: nur der Titel – Jahr, Genre und Zierlinie wären winzig und unleserlich. */
+@container (max-height: 120px) {
+  .art-ph__pmeta,
+  .art-ph__rule {
+    display: none;
+  }
+}
+
+/* ---- Sonstige: milchige Icon-Kachel in der Farbe des Eintrags ---- */
+
+.art-ph--tile {
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, hsl(var(--h) 76% 56%), hsl(var(--h2) 74% 24%));
+}
+
+.art-ph--tile .art-ph__shine {
+  background:
+    linear-gradient(115deg, transparent 22%, rgba(255, 255, 255, 0.2) 36%, rgba(255, 255, 255, 0.05) 46%, transparent 58%),
+    linear-gradient(to top, rgba(3, 6, 18, 0.5), transparent 55%);
+}
+
+.art-ph__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.4cqmin;
+  padding: 8cqmin;
+  text-align: center;
+  text-shadow: 0 0.3cqmin 1.4cqmin rgba(0, 0, 0, 0.6);
+}
+
+.art-ph__ttitle {
+  font-size: clamp(8px, min(11cqmin, calc(84cqw / (var(--wl, 8) * 0.62))), 600px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.art-ph__tmeta {
+  font-size: clamp(6px, 6.2cqmin, 300px);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.78;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+@container (max-height: 80px) {
+  .art-ph__tmeta {
+    display: none;
+  }
+}

@@ -3,24 +3,38 @@
 #
 #   ./scripts/setup-mac.sh                      prüft Voraussetzungen, installiert npm-Pakete, baut die App
 #   ./scripts/setup-mac.sh --install-missing    installiert fehlende Werkzeuge (Node, Rust, Xcode CLT) selbst
+#   ./scripts/setup-mac.sh --prepare            nur vorbereiten: Voraussetzungen prüfen/installieren und
+#                                               npm-Pakete installieren (npm ci), aber nichts bauen oder starten
 #   ./scripts/setup-mac.sh --dev                startet statt des Builds die Entwicklungsversion
 #   ./scripts/setup-mac.sh --open               öffnet die fertige App nach dem Build
+#
+# Üblich für die Ersteinrichtung:  bash scripts/setup-mac.sh --install-missing --prepare
+# Danach startet und aktualisiert alles der Befehl "jellystation" (siehe scripts/install-launcher.sh).
 #
 # Ohne --install-missing wird nichts am System verändert, außer node_modules und dem Build-Ordner.
 set -euo pipefail
 
 INSTALL_MISSING=0
 MODE=build
+PREPARE=0
+DEV=0
 OPEN_APP=0
 for arg in "$@"; do
   case "$arg" in
     --install-missing) INSTALL_MISSING=1 ;;
-    --dev) MODE=dev ;;
+    --prepare) PREPARE=1 ;;
+    --dev) DEV=1 ;;
     --open) OPEN_APP=1 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
     *) echo "Unbekannte Option: $arg" >&2; exit 2 ;;
   esac
 done
+# --prepare baut und startet nichts; die Kombination mit --dev/--open wäre widersprüchlich.
+if [ "$PREPARE" = 1 ] && { [ "$DEV" = 1 ] || [ "$OPEN_APP" = 1 ]; }; then
+  echo "--prepare lässt sich nicht mit --dev oder --open kombinieren (es wird nichts gebaut oder gestartet)." >&2
+  exit 2
+fi
+if [ "$PREPARE" = 1 ]; then MODE=prepare; elif [ "$DEV" = 1 ]; then MODE=dev; fi
 
 say()  { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
@@ -35,7 +49,13 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 cd "$(dirname "$0")/.."
 
-say "1/4 Voraussetzungen prüfen"
+case "$MODE" in
+  prepare) STEPS=2 ;;
+  dev) STEPS=3 ;;
+  *) STEPS=4 ;;
+esac
+
+say "1/$STEPS Voraussetzungen prüfen"
 
 # Xcode Command Line Tools (Compiler & Linker für Rust)
 if xcode-select -p >/dev/null 2>&1; then
@@ -88,20 +108,30 @@ fi
 have cargo || fail "Rust fehlt → https://rustup.rs (oder Skript mit --install-missing starten)"
 ok "$(rustc --version)"
 
-say "2/4 npm-Pakete installieren"
+say "2/$STEPS npm-Pakete installieren"
 if [ -f package-lock.json ]; then npm ci; else npm install; fi
 ok "Pakete installiert"
+# Stand der Pakete für den Befehl "jellystation" merken, damit er sie nicht gleich noch einmal installiert.
+bash scripts/jellystation.sh --mark-deps >/dev/null 2>&1 || true
+
+if [ "$MODE" = prepare ]; then
+  echo
+  ok "Vorbereitung abgeschlossen: Werkzeuge und Pakete sind bereit (gebaut oder gestartet wurde nichts)."
+  echo "  Als Nächstes:  bash scripts/install-launcher.sh   (richtet den Befehl 'jellystation' ein)"
+  echo "  Starten:       bash scripts/jellystation.sh       (aktualisiert und startet JellyStation)"
+  exit 0
+fi
 
 if [ "$MODE" = dev ]; then
-  say "3/4 Entwicklungsversion starten (beenden mit Strg+C)"
+  say "3/$STEPS Entwicklungsversion starten (beenden mit Strg+C)"
   exec npm run tauri dev
 fi
 
-say "3/4 App bauen (beim ersten Mal dauert das einige Minuten)"
+say "3/$STEPS App bauen (beim ersten Mal dauert das einige Minuten)"
 npm run tauri build
 
 APP="src-tauri/target/release/bundle/macos/JellyStation.app"
-say "4/4 Fertig"
+say "4/$STEPS Fertig"
 [ -d "$APP" ] || fail "Build abgeschlossen, aber $APP wurde nicht gefunden – Ausgabe oben prüfen"
 ok "App:  $PWD/$APP"
 for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do

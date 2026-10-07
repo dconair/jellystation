@@ -1,24 +1,27 @@
 import { useEffect, useRef } from "react";
+import { paletteFor } from "./background/palette";
+import { createScene } from "./background/scene";
 
-// Hintergrundfarbe wechselt wie auf der PS3 mit dem Monat.
-const monthHues = [215, 265, 130, 330, 100, 190, 20, 160, 285, 35, 230, 0];
+// Animationszeit in Sekunden. Liegt außerhalb der Komponente, damit der Hintergrund beim
+// Wechsel vom Setup ins Menü (neues Canvas) oder nach einer Spielpause nicht zurückspringt.
+let animTime = 0;
 
-interface Ribbon {
-  amp: number;
-  freq: number;
-  speed: number;
-  phase: number;
-  y: number;
-  alpha: number;
-}
+/** Längste Zeit, die ein einzelner Frame vorrücken darf (z. B. nach dem Aufwachen aus dem Standby). */
+const MAX_STEP = 0.1;
+/**
+ * Mindestabstand zwischen zwei gezeichneten Frames (ms), also höchstens ca. 30 Bilder pro Sekunde.
+ * Alles hier bewegt sich nur wenige Pixel pro Sekunde; die Menü-Animationen laufen unabhängig davon
+ * weiter mit voller Bildrate, der Hintergrund spart aber die Hälfte der Zeichenarbeit.
+ */
+const FRAME_MS = 28;
+/** Alle so viele Animationssekunden wird geprüft, ob Monat/Tageszeit eine neue Farbe verlangen. */
+const PALETTE_CHECK = 30;
 
-const ribbons: Ribbon[] = [
-  { amp: 0.09, freq: 1.3, speed: 0.11, phase: 0.0, y: 0.62, alpha: 0.1 },
-  { amp: 0.07, freq: 1.9, speed: -0.08, phase: 1.7, y: 0.68, alpha: 0.08 },
-  { amp: 0.11, freq: 0.9, speed: 0.06, phase: 3.1, y: 0.74, alpha: 0.12 },
-  { amp: 0.05, freq: 2.6, speed: -0.13, phase: 4.6, y: 0.8, alpha: 0.07 },
-];
-
+/**
+ * PS3-Hintergrund auf einem einzigen Canvas: Monatsfarbe, seidige Wellenbänder, Lichtpartikel
+ * und langsam fliegende PlayStation-Symbole. Bei `paused`, ausgeblendetem Fenster oder
+ * "Bewegung reduzieren" läuft keine Animation – dann bleibt ein Standbild mit allen Formen stehen.
+ */
 export function Background({ paused = false }: { paused?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -27,71 +30,70 @@ export function Background({ paused = false }: { paused?: boolean }) {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
 
-    const hue = monthHues[new Date().getMonth()];
+    // Liegt eine Menü-Bühne (--stage-shift) um den Hintergrund, sitzt der Lichtschein dahinter.
+    const parent = canvas.parentElement;
+    const menuGlow = !!parent && getComputedStyle(parent).getPropertyValue("--stage-shift").trim() !== "";
+    const scene = createScene(canvas, ctx, paletteFor(new Date()), { menuGlow });
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let w = 0;
-    let h = 0;
     let raf = 0;
+    let last = -1;
+    let sincePalette = 0;
 
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = canvas.clientWidth;
-      h = canvas.clientHeight;
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
+    const refreshPalette = () => scene.setPalette(paletteFor(new Date()));
 
-    const draw = (ms: number) => {
-      const t = ms / 1000;
-      const bg = ctx.createLinearGradient(0, 0, 0, h);
-      bg.addColorStop(0, `hsl(${hue} 70% 24%)`);
-      bg.addColorStop(0.55, `hsl(${hue} 65% 12%)`);
-      bg.addColorStop(1, `hsl(${hue} 60% 5%)`);
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, w, h);
-
-      for (const r of ribbons) {
-        ctx.beginPath();
-        ctx.moveTo(0, h);
-        for (let x = 0; x <= w; x += 12) {
-          const u = x / w;
-          const y =
-            h * r.y +
-            Math.sin(u * Math.PI * 2 * r.freq + t * r.speed * 6 + r.phase) * h * r.amp +
-            Math.sin(u * Math.PI * 2 * r.freq * 0.5 - t * r.speed * 3) * h * r.amp * 0.6;
-          ctx.lineTo(x, y);
-        }
-        ctx.lineTo(w, h);
-        ctx.closePath();
-        const g = ctx.createLinearGradient(0, h * (r.y - r.amp * 2), 0, h);
-        g.addColorStop(0, `hsl(${hue} 90% 80% / ${r.alpha})`);
-        g.addColorStop(1, `hsl(${hue} 90% 60% / 0)`);
-        ctx.fillStyle = g;
-        ctx.fill();
+    const tick = (ms: number) => {
+      raf = requestAnimationFrame(tick);
+      if (last >= 0 && ms - last < FRAME_MS) return;
+      // Zeit kommt aus dem rAF-Zeitstempel, nicht aus Date.now().
+      const dt = last < 0 ? 0 : Math.min((ms - last) / 1000, MAX_STEP);
+      last = ms;
+      animTime += dt;
+      sincePalette += dt;
+      if (sincePalette > PALETTE_CHECK) {
+        sincePalette = 0;
+        refreshPalette();
       }
+      scene.draw(animTime);
     };
 
-    const loop = (ms: number) => {
-      draw(ms);
-      raf = requestAnimationFrame(loop);
+    const stop = () => {
+      cancelAnimationFrame(raf);
+      raf = 0;
     };
 
-    const still = reduce.matches || paused;
+    // Entscheidet neu, ob animiert wird oder nur ein Standbild steht.
+    const sync = () => {
+      stop();
+      last = -1;
+      refreshPalette();
+      if (document.hidden) return;
+      // Auch das Standbild zeigt Bänder, Partikel und Formen – nur eben ohne Bewegung.
+      scene.draw(animTime);
+      // Bei pausiertem Hintergrund (z. B. laufendes Spiel) keine GPU-Zeit verbrauchen.
+      if (!paused && !reduce.matches) raf = requestAnimationFrame(tick);
+    };
+
     const onResize = () => {
-      resize();
-      if (still) draw(0);
+      // Eine neue Canvas-Größe leert die Zeichenfläche. Sofort neu zeichnen – sonst würde der nächste
+      // Frame (wegen der Bildraten-Begrenzung evtl. erst einer später) ohne Bänder und Formen erscheinen.
+      scene.resize();
+      if (!document.hidden) scene.draw(animTime);
     };
 
-    resize();
+    scene.resize();
+    sync();
     window.addEventListener("resize", onResize);
-    // Bei pausiertem Hintergrund (z. B. laufendes Spiel) keine GPU-Zeit verbrauchen.
-    if (still) draw(0);
-    else raf = requestAnimationFrame(loop);
+    document.addEventListener("visibilitychange", sync);
+    // Ältere WebKit-Versionen (macOS 10.x) kennen nur das veraltete addListener.
+    if (reduce.addEventListener) reduce.addEventListener("change", sync);
+    else reduce.addListener(sync);
 
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", sync);
+      if (reduce.removeEventListener) reduce.removeEventListener("change", sync);
+      else reduce.removeListener(sync);
     };
   }, [paused]);
 

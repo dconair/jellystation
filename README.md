@@ -9,8 +9,14 @@ npm run tauri dev    # komplette Desktop-App
 npm run tauri build
 ```
 
-> **Mac-Installation Schritt für Schritt (mit Bildern):** [docs/ANLEITUNG-MAC.md](docs/ANLEITUNG-MAC.md) ·
-> alles in einem Befehl: `bash scripts/setup-mac.sh --install-missing --open`
+> **Mac: einmal einrichten, danach ein Befehl.** Ausführliche Anleitung mit Bildern: [docs/ANLEITUNG-MAC.md](docs/ANLEITUNG-MAC.md)
+>
+> ```bash
+> # einmalig (Terminal):
+> bash -c "$(curl -fsSL https://raw.githubusercontent.com/dconair/jellystation/claude/serene-ride-x8ll06/scripts/bootstrap.sh)"
+> # danach immer: aktualisieren + starten
+> jellystation            # auch: --web, --build, --no-update, --status
+> ```
 
 ## Ersteinrichtung & Einstellungen
 
@@ -39,6 +45,8 @@ dieselben Fokus-Animationen und Soundeffekte aus. Der Gamepad-Hook liegt in `src
 - Basisordner: wird im Setup gewählt (gespeichert in den Einstellungen); `GAMES_BASE_DIR` in `src/config/games.ts` ist nur der Standardwert.
 - Struktur: `<Basisordner>/<System>/<Spiel>.<iso|app|pkg|cue|chd|bin|elf>` – jeder Systemordner wird zu einer
   Kategorie „Spiele · <System>“, der Dateiname ohne Endung ist der Titel.
+- Cover: gleichnamiges Bild neben dem Spiel (`Spiel.iso` + `Spiel.jpg`/`png`/`webp`) oder in `covers/`, `media/covers/`, `images/`;
+  ohne Bild entsteht ein Platzhalter-Cover. Filme/Serien holen ihre Plakate aus Jellyfin.
 - Existiert der Ordner nicht (oder läuft die App im Browser), erscheinen Demo-Daten
   (3 Konsolen × 5 fiktive Spiele, Hinweis „Vorschau-Modus“).
 - Per Dialog gewählte Ordner werden zur Laufzeit für das Auslesen freigegeben und per `persisted-scope` gemerkt;

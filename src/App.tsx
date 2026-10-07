@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { categories as baseCategories } from "./data/library";
 import type { XmbCategory, XmbEntry } from "./data/types";
+import { emptyLibraryEntry } from "./jellyfin/library";
+import { useJellyfinLibrary } from "./jellyfin/useJellyfinLibrary";
 import { useGameLauncher } from "./launcher/useGameLauncher";
 import { useGameLibrary } from "./library/useGameLibrary";
 import { loadSettings } from "./settings/settings";
@@ -56,12 +58,21 @@ export default function App() {
 
 function Main({ settings, onRunSetup }: { settings: Settings | null; onRunSetup: () => void }) {
   const library = useGameLibrary(settings?.gamesDir);
+  const jellyfin = useJellyfinLibrary(settings?.jellyfin);
   const { running, launch } = useGameLauncher();
 
+  // Echte Jellyfin-Titel ersetzen die Demo-Einträge – aber nur, wenn überhaupt etwas geladen wurde.
+  const hasJellyfinItems = jellyfin.status === "ok" && jellyfin.movies.length + jellyfin.series.length > 0;
+
   const categories = useMemo<XmbCategory[]>(() => {
-    // Einstellungen: Server-Eintrag zeigt die gespeicherte Adresse.
-    const base = baseCategories.map((cat) =>
-      cat.id !== "settings"
+    const base = baseCategories.map((cat) => {
+      if (hasJellyfinItems && (cat.id === "movies" || cat.id === "series")) {
+        // Hat der Server nur Filme oder nur Serien, zeigt die andere Spalte das ehrlich an (keine Demo-Daten daneben).
+        const real = cat.id === "movies" ? jellyfin.movies : jellyfin.series;
+        return { ...cat, entries: real.length ? real : [emptyLibraryEntry(cat.id === "movies" ? "Movie" : "Series")] };
+      }
+      // Einstellungen: Server-Eintrag zeigt die gespeicherte Adresse.
+      return cat.id !== "settings"
         ? cat
         : {
             ...cat,
@@ -72,27 +83,41 @@ function Main({ settings, onRunSetup }: { settings: Settings | null; onRunSetup:
                   ? { ...e, subtitle: settings.gamesDir }
                   : e,
             ),
-          },
-    );
+          };
+    });
     // Spiele-Systeme (PS1, PS2, PS3 …) landen direkt hinter den Serien.
     const at = base.findIndex((c) => c.id === "series") + 1;
     return [...base.slice(0, at), ...library.categories, ...base.slice(at)];
-  }, [library.categories, settings]);
+  }, [library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series]);
 
   const onActivate = useCallback(
-    (entry: XmbEntry, _category: XmbCategory, notify: (text: string) => void) => {
+    (entry: XmbEntry, category: XmbCategory, notify: (text: string) => void) => {
       if (entry.action === "run-setup") onRunSetup();
-      else void launch(entry, notify);
+      else if (entry.id.startsWith("jf-empty/")) return; // Platzhalter einer leeren Spalte
+      else if (category.id === "movies" || category.id === "series") {
+        notify("Wiedergabe folgt in einer späteren Version");
+      } else void launch(entry, notify);
     },
     [launch, onRunSetup],
   );
+
+  // Kopfzeilen-Hinweis: Spiele-Vorschau und/oder Zustand der Jellyfin-Verbindung.
+  const notice =
+    [
+      library.source === "mock" ? "Vorschau-Modus · Demo-Spiele" : null,
+      jellyfin.status === "error" ? `Jellyfin: ${jellyfin.error}` : null,
+      jellyfin.status === "ok" && !hasJellyfinItems ? "Jellyfin: keine Filme oder Serien gefunden" : null,
+      jellyfin.truncated ? `Jellyfin: ${jellyfin.truncated}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined;
 
   return (
     <Xmb
       categories={categories}
       onActivate={onActivate}
       runningIds={running}
-      notice={library.source === "mock" ? "Vorschau-Modus · Demo-Spiele" : undefined}
+      notice={notice}
     />
   );
 }

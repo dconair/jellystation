@@ -1,301 +1,212 @@
-# JellyStation auf dem Mac installieren, bauen und starten
+# JellyStation auf dem Mac: installieren, starten, aktuell halten
 
-Diese Anleitung bringt dich vom leeren Mac zur laufenden App. Bilder zeigen, was dich erwartet.
-Die Screenshots stammen aus der Browser-Vorschau der App; das native Fenster sieht gleich aus, hat aber
-zusätzlich den echten macOS-Ordnerdialog.
+Diese Anleitung ist für den Alltag gedacht: **Einmal einrichten, danach immer nur ein Befehl** – er holt die neueste
+Version von GitHub und startet die App. Die Bilder stammen aus der Browser-Vorschau; im echten Fenster sieht es gleich aus,
+nur dass dort zusätzlich der echte macOS-Ordnerdialog und der Emulator-Start funktionieren.
 
-> **Abkürzung:** Wenn du möglichst wenig tippen möchtest, erledigt `bash scripts/setup-mac.sh --install-missing`
-> die Schritte 1–4 in einem Rutsch (siehe [Schnellweg](#schnellweg-ein-befehl)).
-
----
-
-## 0. Was am Ende läuft
-
-| Setup-Assistent (Start ohne Konfiguration) | Hauptmenü (XMB) |
+| Setup-Assistent | Hauptmenü mit Cover-Kacheln |
 | --- | --- |
-| ![Setup Schritt 1](images/setup-1-jellyfin.png) | ![XMB](images/xmb-spiele-controller.png) |
+| ![Setup](images/setup-1-jellyfin.png) | ![Filme](images/xmb-filme.png) |
 
 ---
 
-## 1. Werkzeuge installieren (einmalig)
+## 1. Einmalig einrichten (ein Befehl)
 
-Öffne das **Terminal** (Spotlight: `Cmd + Leertaste`, „Terminal“ eintippen, Enter).
-
-**1a. Xcode Command Line Tools** (Compiler für den Rust-Teil):
+Öffne das **Terminal** (`Cmd + Leertaste`, „Terminal“ tippen, Enter) und füge diese **eine Zeile** ein:
 
 ```bash
-xcode-select --install
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/dconair/jellystation/claude/serene-ride-x8ll06/scripts/bootstrap.sh)"
 ```
 
-Es öffnet sich ein Fenster → **Installieren** → Lizenz akzeptieren → warten (einige Minuten).
+Was das Skript macht (du siehst jeden Schritt im Terminal):
 
-**1b. Node.js** (Version 20 oder neuer) – mit [Homebrew](https://brew.sh):
+1. prüft, ob `git` da ist – falls nicht, öffnet macOS ein Fenster der **Xcode-Tools**: dort auf **Installieren** klicken und warten;
+2. lädt JellyStation nach `~/JellyStation` (dein Benutzerordner);
+3. installiert fehlende Werkzeuge (Homebrew, Node.js, Rust) – dabei fragt es einmal nach deinem **Mac-Passwort**
+   (beim Tippen erscheint nichts, das ist normal);
+4. installiert die Pakete und richtet den Befehl **`jellystation`** ein.
 
-```bash
-brew install node
-node -v    # sollte v20 oder höher zeigen
-```
+Am Ende steht: *„Fertig! Öffne ein neues Terminal-Fenster und tippe: jellystation“*. Das erste Einrichten dauert je nach
+Internet etwa 5–15 Minuten.
 
-Ohne Homebrew kannst du Node auch von <https://nodejs.org> (LTS) installieren.
-
-**1c. Rust:**
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-Wähle **1) Proceed with standard installation**. Danach das Terminal **schließen und neu öffnen**
-(oder `source "$HOME/.cargo/env"` ausführen) und prüfen:
-
-```bash
-rustc --version
-```
+> **Du hast die ZIP-Datei schon heruntergeladen?** Dann ist kein neuer Download nötig. Wechsle in den entpackten Ordner
+> (im Terminal `cd ` tippen, den Ordner aus dem Finder ins Fenster ziehen, Enter) und führe aus:
+> `bash scripts/bootstrap.sh`. Das Skript verbindet den Ordner mit GitHub; abweichende Dateien werden vorher gesichert.
 
 ---
 
-## 2. Projekt herunterladen
+## 2. Immer wieder: ein Befehl
 
-> **Wichtig – warum du auf GitHub nur die Lizenz siehst:** Der gesamte Code liegt auf dem Branch
-> **`claude/serene-ride-x8ll06`**. GitHub zeigt dir beim Öffnen des Repos aber den Branch **`main`**, und der enthält
-> bisher nur die Lizenz. Du musst also entweder den Branch umschalten (siehe unten) oder den Code in `main`
-> übernehmen (Pull Request, siehe Ende dieses Abschnitts).
-
-### Variante A – ZIP herunterladen (einfachste Variante, kein Git nötig)
-
-Direkter Download-Link (im Browser öffnen, in GitHub eingeloggt sein, falls das Repo privat ist):
-
-<https://github.com/dconair/jellystation/archive/refs/heads/claude/serene-ride-x8ll06.zip>
-
-Oder per Klick:
-
-1. <https://github.com/dconair/jellystation> öffnen.
-2. Oben links auf die Schaltfläche **„main“** klicken (Branch-Auswahl) → **`claude/serene-ride-x8ll06`** wählen.
-   Jetzt siehst du alle Ordner und Dateien (`src`, `src-tauri`, `docs`, `scripts` …).
-3. Grüner Button **„<> Code“** → **„Download ZIP“**.
-4. Die ZIP-Datei im Ordner *Downloads* per Doppelklick entpacken. Es entsteht ein Ordner, z. B.
-   `jellystation-claude-serene-ride-x8ll06`. Diesen verschiebst du nach *Dokumente* und nennst ihn `jellystation`.
-5. Im Terminal dorthin wechseln:
-
-   ```bash
-   cd ~/Documents/jellystation
-   ```
-
-### Variante B – mit Git klonen
+Neues Terminal-Fenster öffnen und tippen:
 
 ```bash
-cd ~/Documents
-git clone --branch claude/serene-ride-x8ll06 https://github.com/dconair/jellystation.git
-cd jellystation
+jellystation
 ```
 
-### Variante C – Claude Code erledigt Download und Installation (siehe Abschnitt 9)
+Das macht der Befehl der Reihe nach:
 
-### Optional: Code dauerhaft auf `main` zeigen
+1. holt den neuesten Stand von GitHub und zeigt, was sich geändert hat (*„Aktualisiert: abc1234 → def5678“* samt Liste);
+2. installiert neue Pakete nur dann, wenn sich etwas an den Abhängigkeiten geändert hat;
+3. zeigt oben die Version (*„JellyStation 0.1.0 (def5678 – Betreff)“*);
+4. startet das App-Fenster.
 
-Damit du beim Öffnen des Repos sofort alles siehst, muss der Branch in `main` übernommen werden:
-auf GitHub oben **„Pull requests“ → „New pull request“**, *base:* `main`, *compare:*
-`claude/serene-ride-x8ll06` → **„Create pull request“** → **„Merge pull request“**. (Alternativ lässt du Claude den
-Pull Request erstellen.) Danach gelten die Befehle oben auch ohne `--branch …`.
+Der allererste Start kompiliert den Rust-Teil und dauert **5–15 Minuten**; danach geht es in Sekunden.
 
----
-
-## 3. Pakete installieren und App im Entwicklungsmodus starten
-
-```bash
-npm install
-npm run tauri dev
-```
-
-- Beim **ersten Mal** kompiliert Rust alle Abhängigkeiten – das dauert **5–15 Minuten**. Danach startet es in Sekunden.
-- Es öffnet sich das Fenster „JellyStation“. Änderungen am Code erscheinen live.
-- Beenden: im Terminal `Strg + C`.
-
-> Falls beim ersten Kompilieren trotzdem eine Fehlermeldung erscheint: Der Rust-Teil wurde bisher unter Linux
-> kompiliert (fehlerfrei, ohne Warnungen, inklusive Prüfung aller Berechtigungsdateien), aber noch nicht auf einem Mac
-> gebaut und gestartet. Kopiere eine Fehlermeldung einfach in Claude (oder in Claude Code, siehe Abschnitt 9) –
-> macOS-spezifische Abweichungen sind meist Kleinigkeiten.
-
----
-
-## 4. Fertige App bauen (Release)
-
-```bash
-npm run tauri build
-```
-
-Ergebnis:
-
-| Datei | Ort |
+| Befehl | Wirkung |
 | --- | --- |
-| App | `src-tauri/target/release/bundle/macos/JellyStation.app` |
-| Installer | `src-tauri/target/release/bundle/dmg/JellyStation_0.1.0_….dmg` |
+| `jellystation` | aktualisieren + App-Fenster starten |
+| `jellystation --web` | aktualisieren + nur die Browser-Vorschau (`http://localhost:1420`) – ohne Rust, schnell zum Anschauen |
+| `jellystation --build` | aktualisieren + fertige `JellyStation.app` bauen und öffnen |
+| `jellystation --no-update` | ohne Update starten (z. B. offline) |
+| `jellystation --status` | nur anzeigen, ob du aktuell bist – ändert nichts |
+| `jellystation --help` | Hilfe |
 
-Starten und installieren:
+Beenden: im Terminal `Strg + C`.
 
-```bash
-open src-tauri/target/release/bundle/macos/JellyStation.app
-# oder im Finder in den Ordner „Programme“ ziehen
-```
+### Habe ich die richtige (neueste) Version?
 
-Da du die App selbst gebaut hast, blockiert Gatekeeper sie nicht. (Auf einem *anderen* Mac würde sie als
-„nicht verifiziert“ gemeldet – dafür bräuchte man eine Apple-Entwickler-Signatur.)
+- **Im Terminal:** `jellystation --status` zeigt deinen Stand und den auf GitHub, und ob sie übereinstimmen.
+- **In der App:** *Einstellungen → Über JellyStation* zeigt Version und Commit (z. B. `0.1.0 · 7250fe6`) samt Beschreibung der letzten Änderung.
+- **Auf GitHub:** Auf dem Branch `claude/serene-ride-x8ll06` steht oben der neueste Commit – dieselbe Kurznummer.
 
----
-
-## 5. Vorbereitung für Spiele (optional, kann auch später passieren)
-
-**RPCS3 installieren:** macOS-Version von <https://rpcs3.net> laden, in **Programme** ziehen, einmal starten und
-die PS3-Firmware einrichten. Prüfe den erwarteten Pfad:
-
-```bash
-ls /Applications/RPCS3.app/Contents/MacOS/
-```
-
-Dort muss die Datei `rpcs3` liegen. Liegt sie woanders, passe den Pfad an in
-`src/config/games.ts` (`binary`) **und** `src-tauri/capabilities/emulators.json` (`cmd`).
-
-**Ordnerstruktur anlegen** – ein Unterordner pro System:
-
-```text
-Spiele/
-├─ PS3/   Gran Turismo 5.iso
-├─ PS2/   …
-└─ PS1/   …
-```
-
-Hinweis zu Dateitypen: `.iso` startet RPCS3 direkt. `.pkg`-Dateien sind bei RPCS3 Installationspakete – sie werden
-im Menü gelistet, müssen aber zuerst in RPCS3 über *File → Install .pkg* installiert werden.
-Verwende nur Spiele, die du legal besitzt.
-
-**Jellyfin-API-Key:** In Jellyfin unter *Dashboard → API-Schlüssel* einen neuen Schlüssel anlegen.
+Eigene Änderungen an Dateien gehen beim Update nicht verloren: Sie werden vorher automatisch in einen Git-Stash gesichert
+(`git stash list` zeigt sie).
 
 ---
 
-## 6. Der Setup-Assistent beim ersten Start
+## 3. Der Setup-Assistent beim ersten Start
 
-Beim ersten Start gibt es noch keine gespeicherte Konfiguration. Das Hauptmenü wird deshalb **nicht** geladen,
-stattdessen erscheint der Assistent. Er hat vier Schritte (die Symbole △ ○ ✕ □ oben zeigen den Fortschritt).
-Jeder Schritt lässt sich mit **Überspringen** auslassen, `Enter` = Weiter, `Esc` = Zurück.
+Beim ersten Start gibt es noch keine gespeicherte Konfiguration. Das Hauptmenü wird dann gar nicht erst geladen,
+stattdessen erscheint der Assistent. Er lässt sich mit der Tastatur **und** dem Controller bedienen
+(✕ weiter · ○ zurück · △ überspringen · □ testen/prüfen, D-Pad = Fokus wechseln).
 
-### Schritt 1 – Jellyfin
+**Schritt 1 – Jellyfin** · Adresse (z. B. `http://192.168.1.20:8096`) und API-Key eintragen, **Verbindung testen**.
+Den Key legst du in Jellyfin unter *Dashboard → API-Schlüssel* an.
 
 ![Schritt 1](images/setup-1-jellyfin.png)
 
-Server-URL (z. B. `http://192.168.1.20:8096`) und API-Key eintragen, dann **Verbindung testen**.
-Grün = Server erreichbar *und* Schlüssel gültig. Rot zeigt, was fehlt (Adresse falsch, Schlüssel ungültig …).
-
-### Schritt 2 – Spiele-Ordner
+**Schritt 2 – Spiele-Ordner** · **Ordner wählen …** öffnet den echten macOS-Dialog. Pro System ein Unterordner
+(`PS3/`, `PS2/`, …). Liegt der Ordner in *Dokumente*, *Schreibtisch* oder auf einem externen Laufwerk, fragt macOS einmalig
+nach Zugriff → **OK**.
 
 ![Schritt 2](images/setup-2-spiele.png)
 
-**Ordner wählen …** öffnet den nativen macOS-Dialog. Wähle den Basisordner (im Beispiel `Spiele`).
-Die App zeigt sofort, welche Systeme sie darin findet. Liegt der Ordner in *Dokumente*, *Schreibtisch* oder auf einem
-externen Laufwerk, fragt macOS einmalig, ob JellyStation zugreifen darf → **OK**.
-
-### Schritt 3 – Controller
+**Schritt 3 – Controller** · DualShock 4 per USB oder Bluetooth (`PS` + `SHARE` halten, bis die Leuchtleiste blinkt;
+am Mac unter *Systemeinstellungen → Bluetooth* verbinden), dann eine Taste drücken.
 
 | Wartet | Erkannt | Taste gedrückt |
 | --- | --- | --- |
 | ![wartet](images/setup-3a-controller-wartet.png) | ![erkannt](images/setup-3b-controller-erkannt.png) | ![ok](images/setup-3c-controller-ok.png) |
 
-DualShock 4 per USB-Kabel anschließen **oder** per Bluetooth koppeln: `PS` + `SHARE` gedrückt halten, bis die
-Leuchtleiste blinkt, dann am Mac unter *Systemeinstellungen → Bluetooth* „Wireless Controller“ verbinden.
-Danach eine beliebige Taste drücken – das Gamepad-Symbol leuchtet grün.
-
-### Schritt 4 – Prüfung
+**Schritt 4 – Prüfung** · prüft Jellyfin, Ordnerstruktur, RPCS3 unter `/Applications/RPCS3.app`, Emulator-Zuordnung und Controller.
+Gelb (!) = Hinweis, Rot (✕) = muss behoben werden; **Erneut prüfen**, danach **Einrichtung abschließen** – alles wird
+gespeichert und das Menü startet neu. *(Im Browser-Bild sind Ordner- und Emulator-Check gelb, weil sie nur in der Desktop-App prüfbar sind.)*
 
 ![Schritt 4](images/setup-4-pruefung.png)
 
-Die App prüft automatisch: Jellyfin erreichbar · Ordner vorhanden und sinnvoll aufgebaut · RPCS3 unter
-`/Applications/RPCS3.app` · hat jedes System einen Emulator · Controller erkannt.
-Gelb (!) = Hinweis, Rot (✕) = muss behoben werden. Mit **Erneut prüfen** wiederholst du den Check, nachdem du etwas
-korrigiert hast. **Einrichtung abschließen** speichert alles und startet das Hauptmenü neu.
+Später erneut aufrufen: *Einstellungen → Einrichtung erneut ausführen*. Zurücksetzen (Assistent erscheint wieder):
 
-*(Im Browser-Screenshot sind Ordner- und Emulator-Check gelb, weil sie nur in der Desktop-App prüfbar sind.)*
+```bash
+rm ~/Library/Application\ Support/dev.jellystation.app/settings.json
+```
 
----
-
-## 7. Danach
-
-- Die Einstellungen liegen in `~/Library/Application Support/dev.jellystation.app/settings.json`.
-  **Achtung:** Der API-Key steht dort im Klartext.
-- Erneut einrichten: im Menü unter **Einstellungen → Einrichtung erneut ausführen**.
-- Komplett zurücksetzen (Assistent erscheint wieder):
-
-  ```bash
-  rm ~/Library/Application\ Support/dev.jellystation.app/settings.json
-  ```
-
-- Bedienung: Pfeiltasten / D-Pad / linker Stick, `Enter` / ✕ bestätigen, `Esc` / ○ zurück, `M` Ton, `F11` Vollbild.
-- Ein Spiel starten: im Menü auf den Eintrag gehen und ✕ / `Enter` drücken. RPCS3 öffnet sich, das Menü bleibt im
-  Hintergrund geöffnet und zeigt „Läuft“.
+Die Einstellungen liegen dort im Klartext – **auch der API-Key**.
 
 ---
 
-## 8. Häufige Probleme
+## 4. Cover und Game-Art
 
-| Symptom | Ursache / Lösung |
+| Filme/Serien aus Jellyfin | Spiele | Einstellungen |
+| --- | --- | --- |
+| ![Jellyfin](images/xmb-jellyfin-cover.png) | ![Spiele](images/xmb-spiele.png) | ![Einstellungen](images/xmb-einstellungen.png) |
+
+- **Filme und Serien:** Sind Jellyfin-Adresse und API-Key gesetzt, lädt die App deine Titel samt Plakaten (bis zu 300 pro Art; mehr
+  wird in der Kopfzeile gemeldet). Ohne Verbindung (oder bei Fehlern, mit Hinweis in der Kopfzeile) siehst du Demo-Titel.
+  Das Abspielen kommt in einer späteren Version.
+- **Spiele:** Lege ein Bild **neben das Spiel** – gleicher Dateiname, Endung `png`, `jpg`, `jpeg` oder `webp`
+  (z. B. `Gran Turismo 5.iso` + `Gran Turismo 5.jpg`) – oder in einen Unterordner `covers/`, `media/covers/` oder `images/` des Systems.
+  Ohne Bild erzeugt die App ein passendes Platzhalter-Cover im PS3-Hüllen-Stil.
+- Bilder werden erst beim Scrollen in die Nähe geladen; neue Cover erscheinen nach einem Neustart der App.
+
+---
+
+## 5. Spiele starten (RPCS3)
+
+1. macOS-Version von <https://rpcs3.net> laden, in **Programme** ziehen, einmal starten und die PS3-Firmware einrichten.
+   Prüfen: `ls /Applications/RPCS3.app/Contents/MacOS/` muss die Datei `rpcs3` zeigen. Liegt sie woanders, Pfad anpassen in
+   `src/config/games.ts` (`binary`) **und** `src-tauri/capabilities/emulators.json` (`cmd`).
+2. Ordnerstruktur: `Spiele/PS3/Gran Turismo 5.iso`, `Spiele/PS2/…`, …
+3. Im Menü auf das Spiel gehen und ✕ / `Enter` drücken. RPCS3 öffnet sich, das Menü bleibt im Hintergrund und zeigt „Läuft“.
+
+`.iso` startet RPCS3 direkt. `.pkg` ist bei RPCS3 ein Installationspaket: Es wird gelistet, muss aber zuerst in RPCS3 über
+*File → Install .pkg* installiert werden. Für PS1/PS2 ist noch kein Emulator hinterlegt (Eintrag in `src/config/games.ts` ergänzen).
+Verwende nur Spiele, die du legal besitzt.
+
+---
+
+## 6. Bedienung
+
+| Aktion | Tastatur | Controller (DualShock 4) |
+| --- | --- | --- |
+| Navigieren | Pfeiltasten, Mausrad | D-Pad / linker Stick |
+| Öffnen | Enter | ✕ |
+| Zurück (zum ersten Eintrag) | Esc / Backspace | ○ |
+| Ton an/aus | M | |
+| Vollbild | F11 | |
+
+---
+
+## 7. Häufige Probleme
+
+| Symptom | Lösung |
 | --- | --- |
-| `command not found: cargo` | Terminal neu öffnen oder `source "$HOME/.cargo/env"` |
-| `xcrun: error: invalid active developer path` | Schritt 1a (`xcode-select --install`) nachholen |
-| Erster Build dauert ewig | Normal (5–15 Min.), nur beim ersten Mal |
-| Port 1420 belegt | Anderes `npm run dev`/`tauri dev` beenden |
+| `jellystation: command not found` | Neues Terminal-Fenster öffnen (oder `source ~/.zshrc`). Fehlt der Befehl weiter: `bash ~/JellyStation/scripts/install-launcher.sh` |
+| `command not found: npm` / `cargo` | Einrichtung (Abschnitt 1) erneut ausführen – installiert fehlende Werkzeuge |
+| Update meldet „Aktualisieren nicht möglich“ | Internet prüfen; die App startet mit dem vorhandenen Stand weiter |
+| Erster Start dauert ewig | Normal (5–15 Min., Rust wird kompiliert), nur beim ersten Mal |
+| Port 1420 belegt | Eine andere `jellystation`-Instanz beenden (`Strg + C`) |
 | Spiele-Ordner „nicht erlaubt“ im Check | Ordner im Schritt 2 **über den Dialog** wählen (nicht tippen) |
-| Start-Fehler „not allowed“ / „scope“ | Emulator-Pfad stimmt nicht mit `capabilities/emulators.json` überein |
-| Controller wird nicht erkannt | Erst eine Taste drücken (Browser/WebKit geben Pads erst dann frei); Fenster muss im Vordergrund sein |
-| Menü zeigt „Vorschau-Modus · Demo-Spiele“ | Spiele-Ordner nicht gefunden → im Setup erneut wählen |
+| Start-Fehler „not allowed“ / „scope“ | Emulator-Pfad passt nicht zu `src-tauri/capabilities/emulators.json` |
+| Controller nicht erkannt | Erst eine Taste drücken; das App-Fenster muss im Vordergrund sein |
+| „Vorschau-Modus · Demo-Spiele“ | Spiele-Ordner nicht gefunden → *Einstellungen → Einrichtung erneut ausführen* |
+| Kein Ton | Mit `M` prüfen, ob „Ton aus“ in der Kopfzeile steht; ein erster Tastendruck oder Klick aktiviert die Audioausgabe |
+
+---
+
+## 8. Ist das Repo öffentlich oder privat?
+
+Aktuell ist `dconair/jellystation` **öffentlich**; dann funktionieren Einrichtung und `jellystation` ohne Anmeldung.
+Stellst du es auf **privat** (GitHub → Settings → General → Danger Zone → Change visibility), brauchst du einmalig:
+
+```bash
+brew install gh
+gh auth login      # im Browser anmelden
+gh auth setup-git
+```
+
+Danach laufen Updates wie gewohnt. Der Einrichtungsbefehl aus Abschnitt 1 (`curl …raw.githubusercontent.com…`) funktioniert bei einem
+privaten Repo nicht mehr; dann einmal manuell klonen: `gh repo clone dconair/jellystation ~/JellyStation -- --branch claude/serene-ride-x8ll06`
+und `bash ~/JellyStation/scripts/bootstrap.sh`.
 
 ---
 
 ## 9. Kann Claude (Claude Code) das lokal alles selbst erledigen?
 
-**Ja – größtenteils.** Wenn du **Claude Code auf deinem Mac** im Projektordner startest, kann Claude dort selbst
-Befehle ausführen: Werkzeuge prüfen, `npm install`, `npm run tauri build`, Fehler lesen, Code reparieren und neu
-bauen – ohne dass du etwas abtippst. Das Skript `scripts/setup-mac.sh` bündelt dafür alle Schritte; Claude kann es
-einfach aufrufen.
-
-So geht es:
-
-1. Claude Code einmalig installieren und anmelden (Anleitung: <https://code.claude.com/docs>).
-2. Im Terminal einen Ordner wählen und Claude Code starten:
-
-   ```bash
-   cd ~/Documents
-   claude
-   ```
-
-3. Dann diesen Satz eingeben (Claude lädt den Code selbst herunter, installiert alles und baut die App):
-
-   > *Lade das GitHub-Repo dconair/jellystation (Branch claude/serene-ride-x8ll06) in den Ordner ~/Documents/jellystation,
-   > führe dort `bash scripts/setup-mac.sh --install-missing --open` aus und behebe auftretende Fehler.*
-
-   Liegt der Code schon lokal (Variante A/B), reicht: `cd jellystation && claude` und
-   *„Richte das Projekt ein, baue die App und starte sie.“*
-
-**Was trotzdem nicht „vollautomatisch ohne dich“ geht** – ehrlich:
-
-- **Der Start ist manuell.** Diese Cloud-Sitzung hat keinen Zugriff auf deinen Mac. Claude Code musst du lokal
-  selbst starten (und dich einmal anmelden); es ist dann eine *neue* Sitzung, die nur das Repo und diese Anleitung kennt.
-- **Freigaben:** Claude Code fragt standardmäßig vor jedem Befehl um Erlaubnis. Du kannst Befehle vorab erlauben
-  oder einen großzügigeren Berechtigungsmodus wählen – dann fällt das Bestätigen weg. Das ist deine Entscheidung.
-- **Dinge, die nur ein Mensch tun kann:** das Installationsfenster der Xcode-Tools bestätigen, ein evtl. nötiges
-  Admin-Passwort (Homebrew/`sudo`), macOS-Rückfragen zum Dateizugriff, im Setup-Assistenten den Ordner auswählen,
-  den Controller koppeln, RPCS3 samt Firmware und deine legal erworbenen Spiele bereitstellen und den
-  Jellyfin-API-Key erzeugen.
-- **Der Mac-Build ist noch ungetestet.** Der Rust-Teil kompiliert unter Linux, aber nativ gestartet (Ordnerdialog,
-  Emulator-Start, Store) wurde er noch nicht. Hakt es beim ersten Mal, ist genau das der Fall, in dem Claude Code lokal
-  am meisten hilft: Es sieht die echte Fehlermeldung und kann sie sofort beheben.
-
----
-
-## Schnellweg: ein Befehl
-
-Im Projektordner:
+**Größtenteils ja.** Startest du **Claude Code auf deinem Mac** im Ordner `~/JellyStation`, kann Claude dort selbst Befehle ausführen:
+`jellystation`, Fehlermeldungen lesen, Code reparieren, neu bauen. Anleitung zur Installation: <https://code.claude.com/docs>.
 
 ```bash
-bash scripts/setup-mac.sh --install-missing --open
+cd ~/JellyStation
+claude
 ```
 
-Das Skript prüft Xcode-Tools, Node und Rust (und installiert fehlende, wenn du `--install-missing` angibst),
-führt `npm ci` aus, baut die App und öffnet sie. Weitere Optionen: `--dev` (Entwicklungsmodus statt Build),
-ohne `--install-missing` wird nichts am System installiert, sondern nur gemeldet, was fehlt.
+Dann zum Beispiel: *„Aktualisiere das Projekt und starte die App. Wenn etwas fehlschlägt, behebe es.“*
+
+Was trotzdem nicht ohne dich geht:
+
+- **Den Start musst du selbst machen** (Terminal öffnen, `claude`, einmal anmelden). Die Cloud-Sitzung, in der der Code entsteht, erreicht deinen Mac nicht.
+- **Freigaben:** Claude Code fragt standardmäßig vor jedem Befehl. Du kannst Befehle vorab erlauben oder einen großzügigeren Modus wählen.
+- **Nur du kannst:** Xcode-Installationsfenster bestätigen, Mac-Passwort eingeben, macOS-Dateizugriffsfragen beantworten,
+  im Assistenten den Ordner wählen, den Controller koppeln, RPCS3 samt Firmware und deine Spiele bereitstellen, den Jellyfin-API-Key erzeugen.
+- **Der Mac-Start ist noch ungetestet:** Rust-Teil und Skripte wurden unter Linux geprüft, nicht auf macOS. Hakt es beim ersten Mal,
+  ist genau das der Fall, in dem Claude Code lokal am meisten hilft.

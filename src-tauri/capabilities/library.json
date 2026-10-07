@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "library",
-  "description": "Nur lesender Zugriff: Ordner auflisten und Existenz prüfen. Zusätzlich zu diesen festen Pfaden wird der im Setup per Dialog gewählte Spiele-Ordner zur Laufzeit freigegeben (und per persisted-scope gemerkt).",
+  "description": "Nur lesender Zugriff: Ordner auflisten, Existenz prüfen und Cover-Bilder lesen. Zusätzlich zu diesen festen Pfaden wird der im Setup per Dialog gewählte Spiele-Ordner zur Laufzeit freigegeben (und per persisted-scope gemerkt).",
   "windows": ["main"],
   "permissions": [
     {
@@ -15,6 +15,10 @@
     },
     {
       "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "$HOME/JellyStation/Games" }, { "path": "$HOME/JellyStation/Games/**" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
       "allow": [{ "path": "$HOME/JellyStation/Games" }, { "path": "$HOME/JellyStation/Games/**" }]
     }
   ]

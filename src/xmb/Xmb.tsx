@@ -3,10 +3,23 @@ import type { CSSProperties } from "react";
 import type { XmbCategory, XmbEntry } from "../data/types";
 import { useGamepad } from "../input/useGamepad";
 import type { PadAction } from "../input/useGamepad";
+import { ArtImage } from "../art/ArtImage";
 import { Background } from "./Background";
 import { CategoryIcon } from "./CategoryIcon";
+import { DetailCard, useDetailLayers } from "./DetailCard";
+import { Float } from "./Float";
 import { toggleFullscreen } from "./fullscreen";
-import { ROW_Y, categoryX, itemOpacity, itemY } from "./layout";
+import { Hints } from "./Hints";
+import {
+  ART_RANGE,
+  ITEM_PITCH,
+  ITEM_PITCH_ART,
+  ITEM_WINDOW,
+  ROW_Y,
+  categoryX,
+  itemOpacity,
+  itemY,
+} from "./layout";
 import { isMuted, playSfx, setMuted } from "./sound";
 import { useClock } from "./useClock";
 import "./xmb.css";
@@ -25,9 +38,29 @@ interface NavState {
   categoryId: string;
   /** Pro Kategorie der zuletzt fokussierte Eintrag. */
   focus: Record<string, number>;
+  /**
+   * Nach einem weiten Fokussprung (z. B. ○ zurück zum Anfang einer langen Liste): der alte Fokus.
+   * Seine Einträge bleiben noch kurz im DOM, damit sie weich ausblenden statt zu verschwinden.
+   */
+  trail: Record<string, number>;
 }
 
+/** So lange (ms) bleiben die Einträge des alten Fokus nach einem weiten Sprung erhalten. */
+const TRAIL_MS = 1000;
+/** Gerendert wird nur dieser Bereich um den Fokus; alles dahinter ist ohnehin unsichtbar. */
+const RENDER_RANGE = ITEM_WINDOW + 1;
+
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+
+/** Indizes der Einträge, die gerendert werden: um den Fokus und ggf. um den alten Fokus (Nachlauf). */
+function renderIndices(count: number, focus: number, trail: number | undefined) {
+  const centers = trail === undefined ? [focus] : [trail, focus];
+  const set = new Set<number>();
+  for (const c of centers) {
+    for (let i = Math.max(0, c - RENDER_RANGE); i <= Math.min(count - 1, c + RENDER_RANGE); i++) set.add(i);
+  }
+  return [...set].sort((a, b) => a - b);
+}
 
 const dateFormat = new Intl.DateTimeFormat("de-DE", {
   weekday: "short",
@@ -40,6 +73,7 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
   const [nav, setNav] = useState<NavState>(() => ({
     categoryId: categories[Math.min(1, categories.length - 1)].id,
     focus: {},
+    trail: {},
   }));
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [activatedId, setActivatedId] = useState<string | null>(null);
@@ -60,8 +94,24 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
   const focusedEntry = category.entries[focusIndex];
 
   const commit = useCallback((next: NavState) => {
-    navRef.current = next;
-    setNav(next);
+    const prev = navRef.current;
+    let trail = next.trail;
+    for (const id of Object.keys(next.focus)) {
+      const from = prev.focus[id] ?? 0;
+      if (Math.abs(from - next.focus[id]) <= 1) continue;
+      trail = { ...trail, [id]: from };
+      window.setTimeout(() => {
+        const cur = navRef.current;
+        if (cur.trail[id] !== from) return;
+        const { [id]: _gone, ...rest } = cur.trail;
+        const cleared = { ...cur, trail: rest };
+        navRef.current = cleared;
+        setNav(cleared);
+      }, TRAIL_MS);
+    }
+    const merged = trail === next.trail ? next : { ...next, trail };
+    navRef.current = merged;
+    setNav(merged);
   }, []);
 
   const notify = useCallback((text: string) => setToast({ id: Date.now(), text }), []);
@@ -108,6 +158,9 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
           onActivateRef.current?.(entry, cat, notify);
           return;
         }
+        default:
+          // △ / □ haben im Hauptmenü (noch) keine Funktion.
+          return;
       }
     },
     [commit, notify],
@@ -182,8 +235,24 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
     if (controller) notify(`${controller} verbunden`);
   }, [controller, notify]);
 
-  const clock = useMemo(() => `${dateFormat.format(now)}  ${timeFormat.format(now)}`, [now]);
+  const clock = useMemo(
+    () => ({ date: dateFormat.format(now), time: timeFormat.format(now) }),
+    [now],
+  );
   const anyRunning = (runningIds?.size ?? 0) > 0;
+
+  // Spalten mit Cover-Kacheln brauchen mehr Zeilenabstand als Spalten mit Icon-Kacheln.
+  const pitchById = useMemo(
+    () =>
+      new Map(
+        categories.map((c) => [c.id, c.entries.some((e) => e.art) ? ITEM_PITCH_ART : ITEM_PITCH]),
+      ),
+    [categories],
+  );
+
+  const detailLayers = useDetailLayers(
+    focusedEntry ? { entry: focusedEntry, icon: category.icon } : null,
+  );
 
   return (
     <div className="xmb" aria-label="XrossMediaBar">
@@ -191,10 +260,13 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
       <div className="xmb-vignette" aria-hidden="true" />
 
       <header className="xmb-header">
-        {notice && <span className="xmb-notice">{notice}</span>}
+        {notice && <span className="xmb-chip xmb-notice">{notice}</span>}
+        {muted && <span className="xmb-chip xmb-muted">Ton aus</span>}
         {controller && <span className="xmb-pad">{controller}</span>}
-        {muted && <span className="xmb-muted">Ton aus</span>}
-        <span className="xmb-clock">{clock}</span>
+        <span className="xmb-clock">
+          <span className="xmb-clock__date">{clock.date}</span>
+          <span className="xmb-clock__time">{clock.time}</span>
+        </span>
       </header>
 
       <div className="xmb-stage">
@@ -221,9 +293,9 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
                   }
                 }}
               >
-                <span className="xmb-category__float">
+                <Float active={active} period={4200} className="xmb-category__float">
                   <CategoryIcon name={cat.icon} />
-                </span>
+                </Float>
                 <span className="xmb-category__label">{cat.label}</span>
               </button>
             );
@@ -235,6 +307,7 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
           const colActive = ci === catIndex;
           const f = focusOf(cat.id, cat.entries.length);
           const x = categoryX(ci, catIndex);
+          const pitch = pitchById.get(cat.id) ?? ITEM_PITCH;
           return (
             <div
               key={cat.id}
@@ -243,23 +316,37 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
               aria-label={cat.label}
               aria-hidden={!colActive}
             >
-              {cat.entries.map((entry, ei) => {
+              {renderIndices(cat.entries.length, f, nav.trail[cat.id]).map((ei) => {
+                const entry = cat.entries[ei];
                 const focused = colActive && ei === f;
                 const running = runningIds?.has(entry.id) ?? false;
+                // Weit entfernte Einträge teilen sich eine unsichtbare Parkposition: Das hält die
+                // Zahl der laufenden Animationen klein, auch bei Bibliotheken mit tausenden Titeln.
+                const parked = clamp(ei - f, -(ITEM_WINDOW + 1), ITEM_WINDOW + 1) + f;
+                const opacity = itemOpacity(parked, f);
+                const trailing = nav.trail[cat.id];
+                // Cover nur für Einträge in Fokusnähe (inkl. der ausblendenden nach einem Sprung).
+                const near = (range: number) =>
+                  Math.abs(ei - f) <= range || (trailing !== undefined && Math.abs(ei - trailing) <= range);
                 return (
                   <div
                     key={entry.id}
                     role="option"
                     aria-selected={focused}
+                    aria-posinset={ei + 1}
+                    aria-setsize={cat.entries.length}
                     className={
                       "xmb-item" +
+                      (entry.art ? " has-art" : pitch === ITEM_PITCH_ART ? " in-art-col" : "") +
                       (focused ? " is-focused" : "") +
+                      (opacity < 0.05 ? " is-hidden" : "") +
+                      (Math.abs(ei - f) > RENDER_RANGE ? " is-trailing" : "") +
                       (activatedId === entry.id ? " is-activated" : "")
                     }
                     style={
                       {
-                        transform: `translate3d(${x}rem, ${itemY(ei, f)}rem, 0)`,
-                        opacity: itemOpacity(ei, f),
+                        transform: `translate3d(${x}rem, ${itemY(parked, f, pitch)}rem, 0)`,
+                        opacity,
                         "--hue": entry.hue,
                         "--stagger": Math.min(Math.abs(ei - f), 6),
                       } as CSSProperties
@@ -276,11 +363,19 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
                     }}
                   >
                     <div className="xmb-item__inner">
-                      <span className="xmb-item__float">
-                        <span className="xmb-item__tile">
-                          <CategoryIcon name={cat.icon} />
-                        </span>
-                      </span>
+                      <Float active={focused} period={3800} className="xmb-item__float">
+                        {entry.art ? (
+                          <span className="xmb-item__cover">
+                            {near(ART_RANGE + 1) && (
+                              <ArtImage entry={entry} active={colActive && near(ART_RANGE)} className="xmb-art" />
+                            )}
+                          </span>
+                        ) : (
+                          <span className="xmb-item__tile">
+                            <CategoryIcon name={cat.icon} variant="tile" />
+                          </span>
+                        )}
+                      </Float>
                       <span className="xmb-item__text">
                         <span className="xmb-item__title">{entry.title}</span>
                         {entry.subtitle && (
@@ -297,30 +392,12 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
         })}
       </div>
 
-      {/* Detailkarte des fokussierten Eintrags */}
-      {focusedEntry && (
-        <aside
-          key={focusedEntry.id}
-          className="xmb-detail"
-          style={{ "--hue": focusedEntry.hue } as CSSProperties}
-        >
-          <div className="xmb-detail__poster">
-            <CategoryIcon name={category.icon} />
-          </div>
-          <h2>{focusedEntry.title}</h2>
-          {focusedEntry.subtitle && <p className="xmb-detail__meta">{focusedEntry.subtitle}</p>}
-          {focusedEntry.description && <p>{focusedEntry.description}</p>}
-        </aside>
-      )}
+      {/* Detailkarte des fokussierten Eintrags (alte Karte blendet aus, neue ein) */}
+      {detailLayers.map((layer) => (
+        <DetailCard key={layer.key} entry={layer.entry} icon={layer.icon} leaving={layer.leaving} />
+      ))}
 
-      <footer className="xmb-hints" aria-hidden="true">
-        <span><kbd>←</kbd><kbd>→</kbd> Kategorie</span>
-        <span><kbd>↑</kbd><kbd>↓</kbd> Eintrag</span>
-        <span><kbd>{controller ? "✕" : "⏎"}</kbd> Öffnen</span>
-        <span><kbd>{controller ? "○" : "Esc"}</kbd> Zurück</span>
-        <span><kbd>M</kbd> Ton</span>
-        <span><kbd>F11</kbd> Vollbild</span>
-      </footer>
+      <Hints />
 
       {toast && (
         <div key={toast.id} className="xmb-toast" role="status">

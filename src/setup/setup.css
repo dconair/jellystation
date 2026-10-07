@@ -1,11 +1,27 @@
+/*
+ * Setup-Assistent im Stil der PS3-Systemdialoge: dunkelblau-transluzentes Panel mit feinem Lichtrand,
+ * leichte Schrift, flache halbtransparente Flächen. Fokus = helle Umrandung + weiches, pulsierendes Leuchten.
+ * Alles in rem – das Layout skaliert damit 1:1 mit dem Fenster (siehe html in index.css).
+ */
+
 .setup {
+  --setup-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* gleiches Überschwingen wie --xmb-ease */
+  --setup-glow: 150, 190, 255;
+  --setup-ok: #9af2c0;
+  --setup-warn: #ffd98a;
+  --setup-fail: #ff9d9d;
   position: fixed;
   inset: 0;
   display: grid;
+  /* feste Spur statt "auto": sonst wüchse sie mit dem Inhalt und schöbe das Panel aus dem Fenster */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
   overflow: hidden;
   color: #fff;
-  --ease: cubic-bezier(0.3, 1.08, 0.4, 1);
+  font-family: var(--font-ui);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.55);
 }
 
 .setup input,
@@ -13,160 +29,345 @@
   user-select: text;
 }
 
-.setup-panel {
-  position: relative;
-  width: min(64rem, 92vw);
-  max-height: 92%;
-  display: flex;
-  flex-direction: column;
-  gap: 1.4rem;
-  padding: 2.2rem 2.6rem 1.8rem;
-  border-radius: 1.4rem;
-  background: rgba(8, 14, 40, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow:
-    0 2rem 5rem rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(1.4rem);
-  animation: setup-in 0.8s var(--ease) both;
+.setup-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.1) 30%, rgba(0, 0, 0, 0.55) 100%);
 }
 
-.setup-head {
+/* ---------- Panel ---------- */
+
+.setup-panel {
+  position: relative;
+  isolation: isolate;
   display: flex;
+  flex-direction: column;
+  width: min(66rem, 94%);
+  height: min(46rem, 94%);
+  padding: 0 2.8rem;
+  border-radius: 0.6rem;
+  background: linear-gradient(
+    180deg,
+    rgba(44, 72, 146, 0.5) 0%,
+    rgba(16, 32, 80, 0.62) 40%,
+    rgba(6, 14, 42, 0.74) 100%
+  );
+  border: 1px solid rgba(190, 212, 255, 0.2);
+  box-shadow:
+    0 2.4rem 5.5rem rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 0, 12, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 3.2rem rgba(90, 130, 230, 0.1);
+  -webkit-backdrop-filter: blur(1.6rem) saturate(1.15);
+  backdrop-filter: blur(1.6rem) saturate(1.15);
+  animation: setup-in 0.9s var(--setup-ease) both;
+}
+
+/* Glanzlicht am oberen Rand */
+.setup-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.03) 18%, transparent 38%);
+}
+
+/* ---------- Titelzeile ---------- */
+
+.setup-head {
+  flex: none;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-end;
   gap: 2rem;
+  padding: 1.5rem 0 1.25rem;
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3) 10%, rgba(255, 255, 255, 0.3) 90%, transparent) 1;
+}
+
+.setup-title {
+  min-width: 0;
 }
 
 .setup-logo {
-  font-size: 2rem;
-  font-weight: 300;
-  letter-spacing: 0.18em;
+  margin-bottom: 0.45rem;
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: 0.34em;
   text-transform: uppercase;
+  line-height: 1;
+  opacity: 0.55;
 }
 
 .setup-sub {
-  margin-top: 0.2rem;
-  font-size: 1rem;
-  letter-spacing: 0.12em;
-  opacity: 0.6;
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
-/* Fortschritt mit den vier PlayStation-Symbolen */
+/* Fortschritt: vier gleich große Marken mit den PlayStation-Symbolen */
 .setup-steps {
   display: flex;
-  gap: 1.4rem;
+  align-items: center;
+  flex: none;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.setup-steps li {
+.setup-steps__item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  opacity: 0.45;
+  color: var(--ps-triangle);
   transition: opacity 0.4s ease;
 }
 
-.setup-steps li.is-active,
-.setup-steps li.is-done {
-  opacity: 1;
+.setup-steps__item[data-symbol="circle"] {
+  color: var(--ps-circle);
+}
+.setup-steps__item[data-symbol="cross"] {
+  color: var(--ps-cross);
+}
+.setup-steps__item[data-symbol="square"] {
+  color: var(--ps-square);
 }
 
-.setup-steps__symbol {
+/* Verbindungslinie vor jeder Marke (außer der ersten) */
+.setup-steps__item + .setup-steps__item::before {
+  content: "";
+  width: 1.5rem;
+  height: 1px;
+  margin: 0 0.9rem;
+  background: rgba(255, 255, 255, 0.22);
+  transition: background 0.4s ease;
+}
+
+.setup-steps__item.is-active::before,
+.setup-steps__item.is-done::before {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.setup-steps__mark {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  flex: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-right: 0.7rem;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  font-size: 1.05rem;
-  transition:
-    background 0.4s ease,
-    box-shadow 0.4s ease;
+  transition: transform 0.6s var(--setup-ease);
 }
 
-.setup-steps li.is-active .setup-steps__symbol {
-  background: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 1rem rgba(255, 255, 255, 0.6);
+/* Ring, Füllung und Leuchten laufen über currentColor = Tastenfarbe */
+.setup-steps__mark::before,
+.setup-steps__mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
 }
 
-.setup-steps li.is-done .setup-steps__symbol {
-  background: rgba(93, 255, 154, 0.25);
-  border-color: #5dff9a;
+.setup-steps__mark::before {
+  border: 1px solid currentColor;
+  opacity: 0.5;
 }
 
-.setup-body {
-  min-height: 24rem;
-  overflow-y: auto;
-  animation: setup-step 0.6s var(--ease) both;
+.setup-steps__mark::after {
+  background: currentColor;
+  opacity: 0;
 }
 
-.setup-body h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.9rem;
+.setup-steps__mark .ps-symbol {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+.setup-steps__title {
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: opacity 0.4s ease;
+}
+
+/* offen: gedimmt, grau */
+.setup-steps__item.is-open .setup-steps__mark {
+  color: rgba(255, 255, 255, 0.4);
+}
+.setup-steps__item.is-open .setup-steps__mark::before {
+  opacity: 0.45;
+}
+.setup-steps__item.is-open .setup-steps__title {
+  opacity: 0.45;
+}
+
+/* aktiv: Originalfarbe, leuchtend, leicht größer */
+.setup-steps__item.is-active .setup-steps__mark {
+  transform: scale(1.12);
+}
+.setup-steps__item.is-active .setup-steps__mark::before {
+  opacity: 1;
+  box-shadow:
+    0 0 1.1rem currentColor,
+    inset 0 0 0.7rem currentColor;
+}
+.setup-steps__item.is-active .setup-steps__mark::after {
+  opacity: 0.16;
+}
+.setup-steps__item.is-active .setup-steps__title {
   font-weight: 400;
 }
 
-.setup-lead {
-  margin: 0 0 1.4rem;
-  font-size: 1.15rem;
-  line-height: 1.5;
+/* erledigt: Farbe gedämpft, Fläche getönt, Häkchen */
+.setup-steps__item.is-done .setup-steps__mark::before {
+  opacity: 0.7;
+}
+.setup-steps__item.is-done .setup-steps__mark::after {
+  opacity: 0.2;
+}
+.setup-steps__item.is-done .setup-steps__title {
   opacity: 0.8;
+}
+
+.setup-steps__done {
+  position: absolute;
+  z-index: 2;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  color: currentColor;
+  filter: drop-shadow(0 0 0.25rem rgba(0, 0, 0, 0.5));
+}
+
+/* ---------- Inhalt ---------- */
+
+/* Der Körper scrollt, nicht das Panel. Negativer Rand + Polster geben dem Fokus-Leuchten Platz,
+   das sonst am Scrollbereich abgeschnitten würde. */
+.setup-body {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -1.6rem;
+  padding: 1.5rem 1.6rem 1.2rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  animation: setup-step 0.6s var(--setup-ease) both;
+}
+
+.setup-body::-webkit-scrollbar {
+  width: 0.5rem;
+}
+.setup-body::-webkit-scrollbar-thumb {
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.28);
+}
+.setup-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.setup-body h2 {
+  margin: 0 0 0.6rem;
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.setup-lead {
+  max-width: 58rem;
+  margin: 0 0 1.7rem;
+  font-size: 1.2rem;
+  line-height: 1.55;
+  opacity: 0.72;
 }
 
 .setup-lead em {
   font-style: normal;
-  color: #cfe0ff;
+  color: #d4e3ff;
+  opacity: 1;
 }
 
 .setup-lead kbd {
-  padding: 0 0.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  display: inline-block;
+  padding: 0.05rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.08);
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 0.95em;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
 }
 
-/* Formularfelder */
+/* ---------- Formularzeilen: Beschriftung links, Wert rechts ---------- */
+
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+}
+
 .setup-field {
-  display: block;
-  margin-bottom: 1.1rem;
+  display: grid;
+  grid-template-columns: 10.5rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 1.4rem;
+  row-gap: 0.5rem;
+  margin: 0;
 }
 
 .setup-field > span {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-size: 0.95rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.65;
+  font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
 }
 
-.setup-field small {
-  display: block;
-  margin-top: 0.4rem;
-  font-size: 0.95rem;
+.setup-field > small {
+  grid-column: 2;
+  font-size: 1rem;
+  line-height: 1.4;
   opacity: 0.6;
 }
 
 .setup-input-row {
   display: flex;
+  align-items: stretch;
   gap: 0.8rem;
+  min-width: 0;
 }
 
 .setup input {
-  flex: 1;
+  width: 100%;
   min-width: 0;
-  padding: 0.75rem 1.1rem;
-  border-radius: 0.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.08);
+  height: 3.2rem;
+  padding: 0 1.1rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0.1rem 0.4rem rgba(0, 0, 20, 0.35);
   color: #fff;
   font: inherit;
   font-size: 1.25rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-shadow: none;
   outline: none;
   cursor: text;
   transition:
@@ -175,114 +376,195 @@
     background 0.3s ease;
 }
 
-.setup input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
+.setup-input-row input {
+  flex: 1;
+  width: auto;
 }
 
-.setup input:focus {
-  border-color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 0 1.2rem rgba(150, 190, 255, 0.45);
+.setup input::placeholder {
+  color: rgba(255, 255, 255, 0.34);
+  font-weight: 300;
 }
 
 .setup input[readonly] {
   cursor: default;
 }
 
-/* PlayStation-typische Pillen-Buttons */
-.ps-btn {
+.setup input:focus {
+  border-color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.12);
+  animation: setup-glow 2.4s ease-in-out infinite;
+}
+
+/* ---------- Buttons ---------- */
+
+.setup .ps-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.7rem 1.5rem;
-  border-radius: 3rem;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.1);
+  justify-content: center;
+  flex: none;
+  height: 3.2rem;
+  /* oben etwas Polster: die Schrift sitzt sonst ~0,08 em zu hoch in der Mitte (gemessen, Linienhöhe 1) */
+  padding: 0.16em 1.5rem 0;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
   font: inherit;
   font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-shadow: inherit;
   white-space: nowrap;
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
   transition:
     background 0.25s ease,
-    box-shadow 0.25s ease,
-    transform 0.4s var(--ease),
-    opacity 0.25s ease;
+    border-color 0.25s ease,
+    box-shadow 0.3s ease,
+    opacity 0.25s ease,
+    transform 0.5s var(--setup-ease);
 }
 
-.ps-btn:hover:not(:disabled),
-.ps-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.24);
-  box-shadow: 0 0 1.2rem rgba(255, 255, 255, 0.35);
-  transform: translateY(-0.12rem);
-  outline: none;
+.setup .ps-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
-.ps-btn:disabled {
+.setup .ps-btn:focus {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.9);
+  transform: scale(1.03);
+  animation: setup-glow 2.4s ease-in-out infinite;
+}
+
+.setup .ps-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.setup .ps-btn:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
-.ps-btn--ghost {
-  border-color: rgba(255, 255, 255, 0.25);
+/* Tastenhinweis in der Fußzeile: kein Button-Kasten, nur Symbol + Text */
+.setup .ps-btn--hint {
+  gap: 0.6rem;
+  height: 3rem;
+  padding: 0 1.1rem 0 0.9rem;
+  border-color: transparent;
   background: transparent;
+  font-weight: 300;
 }
 
-.ps-btn--primary {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.22));
-  border-color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
+/* nur der Text rückt nach unten, das Symbol bleibt in der Mitte */
+.setup .ps-btn--hint > span {
+  padding-top: 0.16em;
 }
 
-.ps-glyph {
-  font-size: 1.1em;
-  opacity: 0.85;
+.setup .ps-btn--hint .ps-symbol {
+  display: block;
+  flex: none;
+  filter: drop-shadow(0 0 0.35rem rgba(0, 0, 0, 0.45));
 }
 
-/* Rückmeldungen */
-.setup-test {
-  display: flex;
-  align-items: center;
-  gap: 1.2rem;
-  margin-top: 1.4rem;
+.setup .ps-btn--hint:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
 }
+
+.setup .ps-btn--primary {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 400;
+}
+
+/* ---------- Rückmeldungen ---------- */
 
 .setup-result {
-  font-size: 1.15rem;
-  animation: xmb-fade-in 0.4s ease both;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.2rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 300;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  animation: setup-fade 0.4s ease both;
+}
+
+/* Statuspunkt vor dem Text */
+.setup-result::before {
+  content: "";
+  flex: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0.7rem currentColor;
 }
 
 .setup-result.is-ok {
-  color: #7dffb0;
+  color: var(--setup-ok);
 }
-
 .setup-result.is-warn {
-  color: #ffd479;
+  color: var(--setup-warn);
 }
-
 .setup-result.is-fail {
-  color: #ff8d8d;
+  color: var(--setup-fail);
+}
+.setup-result.is-idle {
+  color: rgba(255, 255, 255, 0.55);
+}
+.setup-result.is-idle::before {
+  box-shadow: none;
+  opacity: 0.6;
+}
+.setup-result.is-busy {
+  color: rgba(255, 255, 255, 0.85);
+}
+.setup-result.is-busy::before {
+  width: 0.9rem;
+  height: 0.9rem;
+  background: none;
+  box-shadow: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  animation: setup-spin 0.8s linear infinite;
 }
 
-.setup-result.is-idle {
-  opacity: 0.6;
+.setup-save-error {
+  margin-top: 1rem;
 }
 
 .setup-preview {
-  margin: 0 0 1rem;
+  margin: 0;
+  padding-left: 11.9rem; /* fluchtet mit der Wertspalte der Formularzeilen */
   font-size: 1.1rem;
-  color: #cfe0ff;
+  line-height: 1.4;
+  color: #d4e3ff;
 }
 
 .setup-tree {
-  margin: 0 0 1rem;
-  padding: 0.9rem 1.2rem;
-  border-radius: 0.6rem;
-  background: rgba(0, 0, 0, 0.3);
+  margin: 0 0 1.1rem;
+  padding: 0.9rem 1.3rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 4, 24, 0.35);
   font:
-    1rem/1.5 "SF Mono",
+    1.05rem/1.55 ui-monospace,
+    "SF Mono",
     Menlo,
+    Consolas,
     monospace;
+  letter-spacing: 0;
+  text-shadow: none;
+  overflow-x: auto;
   opacity: 0.85;
 }
 
@@ -293,24 +575,24 @@
   opacity: 0.6;
 }
 
-/* Controller-Schritt */
+.setup-note--center {
+  text-align: center;
+}
+
+/* ---------- Controller-Schritt ---------- */
+
 .pad-orb {
   position: relative;
   display: grid;
   place-items: center;
   width: 12rem;
   height: 12rem;
-  margin: 0.4rem auto 1rem;
+  margin: 0.2rem auto 1rem;
   color: rgba(255, 255, 255, 0.4);
   transition:
     color 0.5s ease,
     filter 0.5s ease,
-    transform 0.6s var(--ease);
-}
-
-.pad-orb .xmb-icon-svg {
-  width: 6.5rem;
-  height: 6.5rem;
+    transform 0.6s var(--setup-ease);
 }
 
 .pad-orb__ring {
@@ -318,7 +600,27 @@
   inset: 0;
   border-radius: 50%;
   border: 2px solid currentColor;
-  opacity: 0.5;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.08), transparent 70%);
+  opacity: 0.55;
+}
+
+/* ViewBox ist auf die Mitte der Silhouette gelegt – Breite/Höhe bestimmen nur die Größe */
+.pad-glyph {
+  position: relative;
+  display: block;
+  width: 8.6rem;
+  height: auto;
+  overflow: visible;
+}
+
+.pad-glyph__face {
+  opacity: 0.35;
+  transition: opacity 0.5s ease;
+}
+
+.pad-orb.is-connected .pad-glyph__face,
+.pad-orb.is-pressed .pad-glyph__face {
+  opacity: 1;
 }
 
 .pad-orb.is-idle {
@@ -326,43 +628,46 @@
 }
 
 .pad-orb.is-connected {
-  color: #a9c8ff;
-  filter: drop-shadow(0 0 1.4rem rgba(120, 170, 255, 0.8));
+  color: #b4cfff;
+  filter: drop-shadow(0 0 1.2rem rgba(120, 170, 255, 0.7));
   animation: pad-pulse 1.4s ease-in-out infinite;
 }
 
 .pad-orb.is-pressed {
-  color: #7dffb0;
-  filter: drop-shadow(0 0 2rem rgba(93, 255, 154, 0.9));
-  transform: scale(1.08);
+  color: var(--setup-ok);
+  filter: drop-shadow(0 0 1.6rem rgba(93, 255, 154, 0.7));
+  transform: scale(1.06);
 }
 
 .pad-status {
-  text-align: center;
-  margin: 0 0 1rem;
+  justify-content: center;
+  margin: 0 0 0.6rem;
 }
 
-/* Prüfliste */
+/* ---------- Prüfliste ---------- */
+
 .setup-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
 }
 
 .setup-checks li {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 0.7rem 1rem;
-  border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 1.1rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
   transition:
     background 0.4s ease,
-    border-color 0.4s ease;
+    border-color 0.4s ease,
+    opacity 0.4s ease;
 }
 
 .setup-checks li.is-pending {
@@ -370,89 +675,105 @@
 }
 
 .setup-checks li.is-ok {
-  border-color: rgba(93, 255, 154, 0.45);
+  border-color: rgba(154, 242, 192, 0.35);
 }
 
 .setup-checks li.is-warn {
-  border-color: rgba(255, 212, 121, 0.5);
+  border-color: rgba(255, 217, 138, 0.4);
 }
 
 .setup-checks li.is-fail {
-  border-color: rgba(255, 141, 141, 0.6);
-  background: rgba(255, 80, 80, 0.1);
+  border-color: rgba(255, 157, 157, 0.55);
+  background: linear-gradient(90deg, rgba(255, 90, 90, 0.16), rgba(255, 90, 90, 0.05));
 }
 
 .check-icon {
   display: grid;
   place-items: center;
-  flex: none;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
-  font-size: 1.1rem;
-  font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.55);
 }
 
-.is-ok .check-icon {
-  color: #7dffb0;
-  border-color: #7dffb0;
+.check-icon svg {
+  display: block;
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
-.is-warn .check-icon {
-  color: #ffd479;
-  border-color: #ffd479;
+.is-ok > .check-icon {
+  color: var(--setup-ok);
+  border-color: var(--setup-ok);
+  box-shadow: 0 0 0.8rem rgba(154, 242, 192, 0.3);
 }
 
-.is-fail .check-icon {
-  color: #ff8d8d;
-  border-color: #ff8d8d;
+.is-warn > .check-icon {
+  color: var(--setup-warn);
+  border-color: var(--setup-warn);
+}
+
+.is-fail > .check-icon {
+  color: var(--setup-fail);
+  border-color: var(--setup-fail);
 }
 
 .check-text {
   display: flex;
   flex-direction: column;
+  gap: 0.15rem;
   min-width: 0;
 }
 
 .check-text strong {
   font-size: 1.2rem;
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 1.25;
 }
 
 .check-text small {
   font-size: 1rem;
   line-height: 1.4;
-  opacity: 0.7;
+  opacity: 0.68;
   overflow-wrap: anywhere;
 }
 
 .spinner {
-  width: 1rem;
-  height: 1rem;
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
-  animation: spin 0.8s linear infinite;
+  animation: setup-spin 0.8s linear infinite;
 }
 
-/* Fußzeile */
+/* ---------- Fußzeile = Tastenhinweis-Leiste ---------- */
+
 .setup-actions {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  gap: 0.5rem;
+  padding: 1rem 0 1.3rem;
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24) 10%, rgba(255, 255, 255, 0.24) 90%, transparent) 1;
 }
 
 .setup-actions__spacer {
   flex: 1;
+  min-width: 0;
+  padding: 0 1rem;
 }
 
 .setup-summary {
   font-size: 1.05rem;
-  opacity: 0.75;
+  opacity: 0.7;
+  white-space: nowrap;
 }
+
+/* ---------- Animationen ---------- */
 
 @keyframes setup-in {
   from {
@@ -476,6 +797,30 @@
   }
 }
 
+@keyframes setup-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* sanft pulsierendes Fokus-Leuchten */
+@keyframes setup-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.3),
+      0 0 0.9rem rgba(var(--setup-glow), 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.5),
+      0 0 1.6rem rgba(var(--setup-glow), 0.7);
+  }
+}
+
 @keyframes pad-pulse {
   0%,
   100% {
@@ -483,12 +828,12 @@
     opacity: 0.75;
   }
   50% {
-    transform: scale(1.05);
+    transform: scale(1.04);
     opacity: 1;
   }
 }
 
-@keyframes spin {
+@keyframes setup-spin {
   to {
     transform: rotate(360deg);
   }
@@ -500,5 +845,13 @@
   .setup *::after {
     animation: none !important;
     transition-duration: 0.01s !important;
+  }
+
+  /* ohne Puls bleibt das Leuchten des Fokus als ruhiger, fester Schein erhalten */
+  .setup input:focus,
+  .setup .ps-btn:focus {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.4),
+      0 0 1.2rem rgba(var(--setup-glow), 0.55);
   }
 }
