@@ -152,7 +152,8 @@ export function buildDeviceProfileFor(e: EngineProbe, o: DeviceProfileOptions = 
   const mp3 = can('audio/mp4; codecs="mp3"') || can('audio/mp4; codecs="mp4a.69"') || can('audio/mp4; codecs="mp4a.6B"');
   const ac3 = can('audio/mp4; codecs="ac-3"');
   const eac3 = ac3 && can('audio/mp4; codecs="ec-3"');
-  const opusMp4 = can('audio/mp4; codecs="opus"');
+  // Opus in MP4: WebKit meldet es teils, spielt es aber nicht – dort zählt (wie in jellyfin-web) nur die CAF-Probe (Safari 17+).
+  const opusMp4 = webkit ? can('audio/x-caf; codecs="opus"') : can('audio/mp4; codecs="opus"');
   const opusWebm = can('audio/webm; codecs="opus"');
   const vorbisWebm = can('audio/webm; codecs="vorbis"');
   const flac = can('audio/mp4; codecs="flac"') || can("audio/flac");
@@ -191,14 +192,15 @@ export function buildDeviceProfileFor(e: EngineProbe, o: DeviceProfileOptions = 
     mode === "mse" && hlsV("vp09.00.10.08") && "vp9",
     mode === "mse" && !e.mobile && hlsV("av01.0.05M.08") && "av1",
   );
-  // Die erste Tonart ist das Ziel beim Umwandeln: AAC, wo möglich (stereo und Surround, überall dekodierbar).
+  // Der erste Eintrag ist das Ziel, wenn der Server den Ton umwandeln muss: AAC, wo möglich (stereo und Surround,
+  // überall dekodierbar). AC-3/E-AC-3 stehen am Ende – sie sollen Quellen im selben Format durchreichen, nicht Ziel sein.
   const hlsAudioMp4 = list(
     hlsA("mp4a.40.2") && "aac",
-    hlsA("ac-3") && "ac3",
-    hlsA("ec-3") && "eac3",
+    (mode === "native" ? opusMp4 : hlsA("opus")) && "opus",
     hlsA("flac") && "flac",
     hlsA("alac") && "alac",
-    hlsA("opus") && "opus",
+    hlsA("ac-3") && "ac3",
+    hlsA("ec-3") && "eac3",
   );
   const hlsAudioTs = list(hlsA("mp4a.40.2") && "aac", hlsA("ac-3") && "ac3", hlsA("ec-3") && "eac3");
   const channels = String(o.maxAudioChannels ?? (webkit || chromium ? 6 : 2));
@@ -285,42 +287,52 @@ export function buildDeviceProfileFor(e: EngineProbe, o: DeviceProfileOptions = 
   if (dolbyProfile5) hevcRange += "|DOVI";
   if (dolbyProfile8) hevcRange += "|DOVIWithHDR10|DOVIWithHLG|DOVIWithSDR|DOVIWithHDR10Plus";
 
+  // Bedingungen nur für Codecs, die diese Engine überhaupt kennt (sonst bliebe totes Gepäck im Profil).
   const interlaced = cond("NotEquals", "IsInterlaced", "true");
-  codecProfiles.push({
-    Type: "Video",
-    Codec: "h264",
-    Conditions: [
-      cond("EqualsAny", "VideoProfile", h264Profiles),
-      cond("EqualsAny", "VideoRangeType", "SDR"),
-      cond("LessThanEqual", "VideoLevel", String(maxH264Level)),
-      interlaced,
-    ],
-  });
-  codecProfiles.push({
-    Type: "Video",
-    Codec: "hevc",
-    Conditions: [
-      cond("EqualsAny", "VideoProfile", hevcProfiles),
-      cond("EqualsAny", "VideoRangeType", hevcRange),
-      cond("LessThanEqual", "VideoLevel", String(maxHevcLevel)),
-      interlaced,
-      // Safari/WebKit nimmt nur die Kennung hvc1/dvh1 und höchstens 60 Bilder/s (Erkenntnis aus jellyfin-web).
-      ...(webkit
-        ? [cond("EqualsAny", "VideoCodecTag", "hvc1|dvh1", true), cond("LessThanEqual", "VideoFramerate", "60", true)]
-        : []),
-    ],
-  });
-  codecProfiles.push({ Type: "Video", Codec: "vp9", Conditions: [cond("EqualsAny", "VideoRangeType", vp9Range)] });
-  codecProfiles.push({
-    Type: "Video",
-    Codec: "av1",
-    Conditions: [
-      cond("EqualsAny", "VideoProfile", "main"),
-      cond("EqualsAny", "VideoRangeType", av1Range),
-      cond("LessThanEqual", "VideoLevel", String(maxAv1Level)),
-      interlaced,
-    ],
-  });
+  const playable = (codec: string) => mp4Video.includes(codec) || webmVideo.includes(codec) || hlsVideo.includes(codec);
+  if (playable("h264")) {
+    codecProfiles.push({
+      Type: "Video",
+      Codec: "h264",
+      Conditions: [
+        cond("EqualsAny", "VideoProfile", h264Profiles),
+        cond("EqualsAny", "VideoRangeType", "SDR"),
+        cond("LessThanEqual", "VideoLevel", String(maxH264Level)),
+        interlaced,
+      ],
+    });
+  }
+  if (playable("hevc")) {
+    codecProfiles.push({
+      Type: "Video",
+      Codec: "hevc",
+      Conditions: [
+        cond("EqualsAny", "VideoProfile", hevcProfiles),
+        cond("EqualsAny", "VideoRangeType", hevcRange),
+        cond("LessThanEqual", "VideoLevel", String(maxHevcLevel)),
+        interlaced,
+        // Safari/WebKit nimmt nur die Kennung hvc1/dvh1 und höchstens 60 Bilder/s (Erkenntnis aus jellyfin-web).
+        ...(webkit
+          ? [cond("EqualsAny", "VideoCodecTag", "hvc1|dvh1", true), cond("LessThanEqual", "VideoFramerate", "60", true)]
+          : []),
+      ],
+    });
+  }
+  if (playable("vp9")) {
+    codecProfiles.push({ Type: "Video", Codec: "vp9", Conditions: [cond("EqualsAny", "VideoRangeType", vp9Range)] });
+  }
+  if (playable("av1")) {
+    codecProfiles.push({
+      Type: "Video",
+      Codec: "av1",
+      Conditions: [
+        cond("EqualsAny", "VideoProfile", "main"),
+        cond("EqualsAny", "VideoRangeType", av1Range),
+        cond("LessThanEqual", "VideoLevel", String(maxAv1Level)),
+        interlaced,
+      ],
+    });
+  }
 
   return {
     Name: "JellyStation",

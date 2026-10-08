@@ -6,7 +6,7 @@ import type { PadAction } from "../../input/useGamepad";
 import { playSfx } from "../../xmb/sound";
 import { MaybeFrame, useFrameClaim } from "./OverlayFrame";
 import type { OverlayAlign } from "./OverlayFrame";
-import { CheckIcon, DotSpinner, HintBar } from "./parts";
+import { CheckIcon, DotSpinner, HintBar, useResizeGuard } from "./parts";
 import { clamp01, computeLayout, initialFocus, nextScroll, resolveFocus } from "./listLayout";
 import type { Slot } from "./listLayout";
 import type { HintAction, PopupFooter, PopupHint, PopupItem, PopupWidth } from "./types";
@@ -21,7 +21,7 @@ export interface PopupListProps {
    * Gewünschter Fokus. Ändert sich der Wert, springt der Fokus dorthin (sobald die Zeile existiert);
    * dazwischen bewegt der Nutzer ihn frei. Ohne Angabe: die „abgehakte“ Zeile, sonst die erste anwählbare.
    */
-  focusId?: string;
+  focusId?: string | null;
   /** ✕ / Enter / Klick auf die fokussierte Zeile. */
   onSelect: (id: string, item: PopupItem) => void;
   /** ○ / Esc / Backspace / Klick neben das Panel. */
@@ -193,7 +193,7 @@ export function PopupList(props: PopupListProps) {
     title,
     subtitle,
     items,
-    focusId,
+    focusId: focusProp,
     onAlt,
     altLabel = "Optionen",
     onSquare,
@@ -209,10 +209,13 @@ export function PopupList(props: PopupListProps) {
     dim,
   } = props;
 
+  const focusId = focusProp ?? undefined;
   const uid = useId();
   const titleId = `${uid}-title`;
   const subtitleId = `${uid}-sub`;
+  const panelRef = useRef<HTMLElement>(null);
   useFrameClaim();
+  useResizeGuard(panelRef);
 
   const propsRef = useRef(props);
   propsRef.current = props;
@@ -492,8 +495,9 @@ export function PopupList(props: PopupListProps) {
   const position = focusSlot && focusSlot.selPos >= 0 ? `${focusSlot.selPos + 1} / ${layout.selectable.length}` : undefined;
 
   return (
-    <MaybeFrame frame={frame} align={align} dim={dim} onBack={() => propsRef.current.onBack()} active={active}>
+    <MaybeFrame frame={frame} reuse align={align} dim={dim} onBack={() => propsRef.current.onBack()} active={active}>
       <section
+        ref={panelRef}
         className={`pop-panel pop-panel--${width}${active ? "" : " is-inactive"}${ready ? " is-ready" : ""}`}
         role="dialog"
         aria-modal="true"

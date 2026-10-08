@@ -45,7 +45,5 @@ export interface PopupFooter {
   kind?: PopupTone;
 }
 
+/** Breite des Panels: schmal ≈ 26 rem, normal ≈ 38 rem, breit ≈ 52 rem (siehe popup.css). */
 export type PopupWidth = "narrow" | "normal" | "wide";
-
-/** Breiten in rem. */
-export const POPUP_WIDTH: Record<PopupWidth, number> = { narrow: 26, normal: 38, wide: 52 };

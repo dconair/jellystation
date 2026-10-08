@@ -1,25 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import type { XmbCategory, XmbEntry } from "../data/types";
+import type { CategoryIconName, XmbCategory, XmbEntry } from "../data/types";
 import { useGamepad } from "../input/useGamepad";
 import type { PadAction } from "../input/useGamepad";
 import { ArtImage } from "../art/ArtImage";
 import { Background } from "./Background";
 import { CategoryIcon } from "./CategoryIcon";
-import { DetailCard, useDetailLayers } from "./DetailCard";
-import { Float } from "./Float";
+import { DetailCard } from "./DetailCard";
+import type { DetailData } from "./DetailCard";
 import { toggleFullscreen } from "./fullscreen";
 import { Hints } from "./Hints";
 import {
   ART_RANGE,
+  ITEM_FOCUS_SCALE_COVER,
+  ITEM_FOCUS_SCALE_TILE,
   ITEM_PITCH,
   ITEM_PITCH_ART,
-  ITEM_WINDOW,
-  ROW_Y,
-  categoryX,
-  itemOpacity,
-  itemY,
 } from "./layout";
+import { MotionEngine } from "./MotionEngine";
 import { isMuted, playSfx, setMuted } from "./sound";
 import { watchState } from "./progress";
 import { useClock } from "./useClock";
@@ -42,33 +40,17 @@ interface XmbProps {
   onSecondary?: (entry: XmbEntry, category: XmbCategory, notify: (text: string) => void) => void;
 }
 
+/** Logischer Zustand (sofort aktuell). Die sichtbare Position folgt ihm in der MotionEngine per Feder. */
 interface NavState {
   categoryId: string;
   /** Pro Kategorie der zuletzt fokussierte Eintrag. */
   focus: Record<string, number>;
-  /**
-   * Nach einem weiten Fokussprung (z. B. ○ zurück zum Anfang einer langen Liste): der alte Fokus.
-   * Seine Einträge bleiben noch kurz im DOM, damit sie weich ausblenden statt zu verschwinden.
-   */
-  trail: Record<string, number>;
 }
-
-/** So lange (ms) bleiben die Einträge des alten Fokus nach einem weiten Sprung erhalten. */
-const TRAIL_MS = 1000;
-/** Gerendert wird nur dieser Bereich um den Fokus; alles dahinter ist ohnehin unsichtbar. */
-const RENDER_RANGE = ITEM_WINDOW + 1;
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
-/** Indizes der Einträge, die gerendert werden: um den Fokus und ggf. um den alten Fokus (Nachlauf). */
-function renderIndices(count: number, focus: number, trail: number | undefined) {
-  const centers = trail === undefined ? [focus] : [trail, focus];
-  const set = new Set<number>();
-  for (const c of centers) {
-    for (let i = Math.max(0, c - RENDER_RANGE); i <= Math.min(count - 1, c + RENDER_RANGE); i++) set.add(i);
-  }
-  return [...set].sort((a, b) => a - b);
-}
+const prefersReducedMotion = () =>
+  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const dateFormat = new Intl.DateTimeFormat("de-DE", {
   weekday: "short",
@@ -104,16 +86,241 @@ function WatchMarks({ entry }: { entry: XmbEntry }) {
   ) : null;
 }
 
+/* ------------------------------------------------------------------ Kategorie-Leiste */
+
+interface CategoryButtonProps {
+  motion: MotionEngine;
+  id: string;
+  label: string;
+  icon: CategoryIconName;
+  active: boolean;
+  onPick: (id: string) => void;
+}
+
+/** Ort, Größe, Deckkraft, Leuchten und Beschriftung setzt die MotionEngine pro Bild – hier steht nur der Aufbau. */
+const CategoryButton = memo(function CategoryButton({ motion, id, label, icon, active, onPick }: CategoryButtonProps) {
+  const button = useRef<HTMLButtonElement>(null);
+  const bob = useRef<HTMLSpanElement>(null);
+  const scale = useRef<HTMLSpanElement>(null);
+  const glow = useRef<HTMLSpanElement>(null);
+  const text = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    if (!button.current || !bob.current || !scale.current) return;
+    return motion.attachCategory(id, {
+      button: button.current,
+      bob: bob.current,
+      scale: scale.current,
+      glow: glow.current,
+      label: text.current,
+    });
+  }, [motion, id]);
+
+  return (
+    <button
+      ref={button}
+      type="button"
+      tabIndex={-1}
+      className={`xmb-category${active ? " is-active" : ""}`}
+      onClick={() => onPick(id)}
+    >
+      <span ref={bob} className="xmb-category__bob">
+        <span ref={scale} className="xmb-category__scale">
+          {/* Leuchten: zweite Kopie mit statischem Filter, nur die Deckkraft wird bewegt */}
+          <span ref={glow} className="xmb-category__glow" aria-hidden="true">
+            <CategoryIcon name={icon} variant="tile" />
+          </span>
+          <CategoryIcon name={icon} />
+        </span>
+      </span>
+      <span ref={text} className="xmb-category__label">
+        {label}
+      </span>
+    </button>
+  );
+});
+
+/* ------------------------------------------------------------------ Spalten und Einträge */
+
+interface ItemProps {
+  motion: MotionEngine;
+  catId: string;
+  icon: CategoryIconName;
+  entry: XmbEntry;
+  index: number;
+  count: number;
+  /** Logisch fokussiert (und Spalte aktiv). Die Hervorhebung selbst folgt stetig der Position. */
+  focused: boolean;
+  colActive: boolean;
+  /** Cover darf geladen werden (Eintrag liegt nahe am Fokus). */
+  artActive: boolean;
+  pitchArt: boolean;
+  running: boolean;
+  activated: boolean;
+  onSelect: (catId: string, index: number) => void;
+}
+
+const Item = memo(function Item({
+  motion,
+  catId,
+  icon,
+  entry,
+  index,
+  count,
+  focused,
+  artActive,
+  pitchArt,
+  running,
+  activated,
+  onSelect,
+}: ItemProps) {
+  const outer = useRef<HTMLDivElement>(null);
+  const float = useRef<HTMLSpanElement>(null);
+  const scale = useRef<HTMLSpanElement>(null);
+  const text = useRef<HTMLSpanElement>(null);
+  const shade = useRef<HTMLSpanElement>(null);
+  const glow = useRef<HTMLSpanElement>(null);
+  const title = useRef<HTMLSpanElement>(null);
+  const hasArt = Boolean(entry.art);
+  const focusScale = hasArt ? ITEM_FOCUS_SCALE_COVER : ITEM_FOCUS_SCALE_TILE;
+
+  // Vor dem ersten Paint anmelden: Die Maschine setzt Ort und Deckkraft sofort – nichts blitzt an (0,0) auf.
+  useLayoutEffect(() => {
+    if (!outer.current || !float.current || !scale.current || !text.current) return;
+    return motion.attachItem(
+      catId,
+      index,
+      {
+        outer: outer.current,
+        float: float.current,
+        scale: scale.current,
+        text: text.current,
+        shade: shade.current,
+        glow: glow.current,
+        title: title.current,
+      },
+      focusScale,
+    );
+  }, [motion, catId, index, focusScale, hasArt]);
+
+  return (
+    <div
+      ref={outer}
+      role="option"
+      aria-selected={focused}
+      aria-posinset={index + 1}
+      aria-setsize={count}
+      className={
+        "xmb-item" +
+        (hasArt ? " has-art" : pitchArt ? " in-art-col" : "") +
+        (focused ? " is-focused" : "") +
+        (activated ? " is-activated" : "")
+      }
+      style={{ "--hue": entry.hue } as CSSProperties}
+      onClick={() => onSelect(catId, index)}
+    >
+      <div className="xmb-item__inner">
+        <span ref={float} className="xmb-item__float">
+          <span ref={scale} className="xmb-item__scale">
+            <span ref={glow} className="xmb-item__glow" aria-hidden="true" />
+            {hasArt ? (
+              <span className="xmb-item__cover">
+                <ArtImage entry={entry} active={artActive} className="xmb-art" />
+                <WatchMarks entry={entry} />
+                <span ref={shade} className="xmb-item__shade" aria-hidden="true" />
+              </span>
+            ) : (
+              <span className="xmb-item__tile">
+                <CategoryIcon name={icon} variant="tile" />
+                <span ref={shade} className="xmb-item__shade" aria-hidden="true" />
+              </span>
+            )}
+          </span>
+        </span>
+        <span ref={text} className="xmb-item__text">
+          <span ref={title} className="xmb-item__title">
+            {entry.title}
+          </span>
+          {entry.subtitle && <span className="xmb-item__subtitle">{entry.subtitle}</span>}
+          {running && <span className="xmb-item__badge">Läuft</span>}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+interface ColumnProps {
+  motion: MotionEngine;
+  cat: XmbCategory;
+  active: boolean;
+  focus: number;
+  pitchArt: boolean;
+  ranges: Array<[number, number]>;
+  runningIds?: ReadonlySet<string>;
+  activatedId: string | null;
+  onSelect: (catId: string, index: number) => void;
+}
+
+function Column({ motion, cat, active, focus, pitchArt, ranges, runningIds, activatedId, onSelect }: ColumnProps) {
+  const el = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => (el.current ? motion.attachColumn(cat.id, el.current) : undefined), [motion, cat.id]);
+
+  const items = [];
+  for (const [lo, hi] of ranges) {
+    for (let ei = lo; ei <= hi; ei++) {
+      const entry = cat.entries[ei];
+      items.push(
+        <Item
+          key={entry.id}
+          motion={motion}
+          catId={cat.id}
+          icon={cat.icon}
+          entry={entry}
+          index={ei}
+          count={cat.entries.length}
+          focused={active && ei === focus}
+          colActive={active}
+          artActive={active && Math.abs(ei - focus) <= ART_RANGE}
+          pitchArt={pitchArt}
+          running={runningIds?.has(entry.id) ?? false}
+          activated={activatedId === entry.id}
+          onSelect={onSelect}
+        />,
+      );
+    }
+  }
+  return (
+    <div
+      ref={el}
+      className={`xmb-column${active ? " is-active" : ""}`}
+      role="listbox"
+      aria-label={cat.label}
+      aria-hidden={!active}
+    >
+      {items}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ Hauptkomponente */
+
 export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled = true, onSecondary }: XmbProps) {
   const [nav, setNav] = useState<NavState>(() => ({
     categoryId: categories[Math.min(1, categories.length - 1)].id,
     focus: {},
-    trail: {},
   }));
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const [activatedId, setActivatedId] = useState<string | null>(null);
   const [muted, setMutedState] = useState(isMuted);
   const now = useClock();
+  const [, requestRender] = useReducer((n: number) => n + 1, 0);
+
+  // Bewegungsmaschine: hält die sichtbaren Positionen und schreibt sie pro Bild direkt in den DOM.
+  const [motion] = useState(() => {
+    const m = new MotionEngine();
+    m.setReduced(prefersReducedMotion());
+    return m;
+  });
 
   // Navigationszustand ist ID-basiert: Kategorien dürfen nachträglich (z. B. nach dem
   // Bibliotheks-Scan) dazukommen, ohne dass der Fokus springt.
@@ -128,26 +335,25 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
   const focusIndex = focusOf(category.id, category.entries.length);
   const focusedEntry = category.entries[focusIndex];
 
-  const commit = useCallback((next: NavState) => {
-    const prev = navRef.current;
-    let trail = next.trail;
-    for (const id of Object.keys(next.focus)) {
-      const from = prev.focus[id] ?? 0;
-      if (Math.abs(from - next.focus[id]) <= 1) continue;
-      trail = { ...trail, [id]: from };
-      window.setTimeout(() => {
-        const cur = navRef.current;
-        if (cur.trail[id] !== from) return;
-        const { [id]: _gone, ...rest } = cur.trail;
-        const cleared = { ...cur, trail: rest };
-        navRef.current = cleared;
-        setNav(cleared);
-      }, TRAIL_MS);
-    }
-    const merged = trail === next.trail ? next : { ...next, trail };
-    navRef.current = merged;
-    setNav(merged);
-  }, []);
+  /** Übernimmt einen neuen logischen Zustand und gibt der Maschine sofort die neuen Ziele. */
+  const commit = useCallback(
+    (next: NavState) => {
+      const prev = navRef.current;
+      const cats = categoriesRef.current;
+      if (next.categoryId !== prev.categoryId) {
+        const ci = cats.findIndex((c) => c.id === next.categoryId);
+        if (ci >= 0) motion.retargetCategory(next.categoryId, ci);
+      }
+      for (const id of Object.keys(next.focus)) {
+        if (next.focus[id] === (prev.focus[id] ?? 0)) continue;
+        const cat = cats.find((c) => c.id === id);
+        if (cat) motion.retargetColumn(id, next.focus[id], cat.entries.length);
+      }
+      navRef.current = next;
+      setNav(next);
+    },
+    [motion],
+  );
 
   const notify = useCallback((text: string) => setToast({ id: Date.now(), text }), []);
 
@@ -217,6 +423,35 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
   const onActivateRef = useRef(onActivate);
   onActivateRef.current = onActivate;
 
+  /** Klick auf einen Eintrag: fokussieren, bzw. bestätigen, wenn er schon fokussiert ist. */
+  const onSelectItem = useCallback(
+    (catId: string, index: number) => {
+      if (!inputEnabledRef.current) return;
+      const state = navRef.current;
+      if (state.categoryId !== catId) return; // Eintrag einer ausblendenden Spalte
+      const cat = categoriesRef.current.find((c) => c.id === catId);
+      if (!cat) return;
+      const fi = clamp(state.focus[catId] ?? 0, 0, Math.max(0, cat.entries.length - 1));
+      if (index === fi) dispatch("confirm");
+      else {
+        commit({ ...state, focus: { ...state.focus, [catId]: index } });
+        playSfx("move");
+      }
+    },
+    [commit, dispatch],
+  );
+
+  const onPickCategory = useCallback(
+    (id: string) => {
+      if (!inputEnabledRef.current) return;
+      const state = navRef.current;
+      if (state.categoryId === id) return;
+      commit({ ...state, categoryId: id });
+      playSfx("category");
+    },
+    [commit],
+  );
+
   const { controller } = useGamepad({ onAction: dispatch });
 
   // Tastatur
@@ -258,7 +493,7 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
     return () => window.removeEventListener("keydown", onKey);
   }, [dispatch]);
 
-  // Mausrad / Trackpad (gedrosselt, damit die Animation Zeit zum Schweben hat)
+  // Mausrad / Trackpad (gedrosselt: mehr als ~7 Schritte pro Sekunde braucht niemand)
   const lastWheel = useRef(0);
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
@@ -302,9 +537,55 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
     [categories],
   );
 
-  const detailLayers = useDetailLayers(
-    focusedEntry ? { entry: focusedEntry, icon: category.icon } : null,
-  );
+  /* ---- Detailkarte: genau eine; die Maschine blendet aus, lässt tauschen und blendet den neueren Eintrag ein ---- */
+  const wanted: DetailData | null = focusedEntry
+    ? { key: `${category.id}/${focusedEntry.id}`, entry: focusedEntry, icon: category.icon }
+    : null;
+  const wantedRef = useRef(wanted);
+  wantedRef.current = wanted;
+  const [shown, setShown] = useState<DetailData | null>(wanted);
+  const swapDetail = useCallback(() => setShown(wantedRef.current), []);
+
+  useEffect(() => {
+    motion.setHost({ requestRender, swapDetail });
+    motion.start();
+    // Reduzierte Bewegung live verfolgen (Betriebssystem-Einstellung kann sich ändern)
+    const mq = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null;
+    const onChange = () => motion.setReduced(Boolean(mq?.matches));
+    onChange();
+    if (mq) {
+      // Ältere WebKit-Versionen (macOS 10.x) kennen nur das veraltete addListener.
+      if (mq.addEventListener) mq.addEventListener("change", onChange);
+      else mq.addListener(onChange);
+    }
+    return () => {
+      motion.stop();
+      motion.setHost(null);
+      if (mq) {
+        if (mq.removeEventListener) mq.removeEventListener("change", onChange);
+        else mq.removeListener(onChange);
+      }
+    };
+  }, [motion, swapDetail]);
+
+  // Angezeigt wird der "gewünschte" Eintrag, sobald es derselbe ist (Daten-Updates ohne Überblendung)
+  // oder die Bewegung reduziert ist; sonst bleibt der alte stehen, bis die Karte unsichtbar ist.
+  const shownData = motion.isReduced || (shown && wanted && shown.key === wanted.key) ? wanted : shown;
+
+  // Nach jedem Render: Maschine mit dem logischen Zustand abgleichen (vor dem Paint)
+  useLayoutEffect(() => {
+    motion.sync(
+      categories.map((c) => ({
+        id: c.id,
+        count: c.entries.length,
+        pitch: pitchById.get(c.id) ?? ITEM_PITCH,
+        focus: focusOf(c.id, c.entries.length),
+      })),
+      catIndex,
+    );
+    motion.setDetailWanted(wanted ? wanted.key : null);
+    motion.setDetailShown(shownData ? shownData.key : null);
+  });
 
   return (
     <div className="xmb" aria-label="XrossMediaBar">
@@ -324,131 +605,42 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
       <div className="xmb-stage">
         {/* Horizontale Achse: Kategorien */}
         <nav className="xmb-categories" aria-label="Kategorien">
-          {categories.map((cat, i) => {
-            const active = i === catIndex;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                tabIndex={-1}
-                className={`xmb-category${active ? " is-active" : ""}`}
-                style={
-                  {
-                    transform: `translate3d(${categoryX(i, catIndex)}rem, ${ROW_Y}rem, 0)`,
-                    "--dist": Math.abs(i - catIndex),
-                  } as CSSProperties
-                }
-                onClick={() => {
-                  if (!active) {
-                    commit({ ...navRef.current, categoryId: cat.id });
-                    playSfx("category");
-                  }
-                }}
-              >
-                <Float active={active} period={4200} className="xmb-category__float">
-                  <CategoryIcon name={cat.icon} />
-                </Float>
-                <span className="xmb-category__label">{cat.label}</span>
-              </button>
-            );
-          })}
+          {categories.map((cat, i) => (
+            <CategoryButton
+              key={cat.id}
+              motion={motion}
+              id={cat.id}
+              label={cat.label}
+              icon={cat.icon}
+              active={i === catIndex}
+              onPick={onPickCategory}
+            />
+          ))}
         </nav>
 
-        {/* Vertikale Achse: Einträge der Kategorien (nur die aktive ist sichtbar) */}
+        {/* Vertikale Achse: Einträge der Kategorien (sichtbar ist, wer nahe an der Leiste steht) */}
         {categories.map((cat, ci) => {
-          const colActive = ci === catIndex;
           const f = focusOf(cat.id, cat.entries.length);
-          const x = categoryX(ci, catIndex);
           const pitch = pitchById.get(cat.id) ?? ITEM_PITCH;
           return (
-            <div
+            <Column
               key={cat.id}
-              className={`xmb-column${colActive ? " is-active" : ""}`}
-              role="listbox"
-              aria-label={cat.label}
-              aria-hidden={!colActive}
-            >
-              {renderIndices(cat.entries.length, f, nav.trail[cat.id]).map((ei) => {
-                const entry = cat.entries[ei];
-                const focused = colActive && ei === f;
-                const running = runningIds?.has(entry.id) ?? false;
-                // Weit entfernte Einträge teilen sich eine unsichtbare Parkposition: Das hält die
-                // Zahl der laufenden Animationen klein, auch bei Bibliotheken mit tausenden Titeln.
-                const parked = clamp(ei - f, -(ITEM_WINDOW + 1), ITEM_WINDOW + 1) + f;
-                const opacity = itemOpacity(parked, f);
-                const trailing = nav.trail[cat.id];
-                // Cover nur für Einträge in Fokusnähe (inkl. der ausblendenden nach einem Sprung).
-                const near = (range: number) =>
-                  Math.abs(ei - f) <= range || (trailing !== undefined && Math.abs(ei - trailing) <= range);
-                return (
-                  <div
-                    key={entry.id}
-                    role="option"
-                    aria-selected={focused}
-                    aria-posinset={ei + 1}
-                    aria-setsize={cat.entries.length}
-                    className={
-                      "xmb-item" +
-                      (entry.art ? " has-art" : pitch === ITEM_PITCH_ART ? " in-art-col" : "") +
-                      (focused ? " is-focused" : "") +
-                      (opacity < 0.05 ? " is-hidden" : "") +
-                      (Math.abs(ei - f) > RENDER_RANGE ? " is-trailing" : "") +
-                      (activatedId === entry.id ? " is-activated" : "")
-                    }
-                    style={
-                      {
-                        transform: `translate3d(${x}rem, ${itemY(parked, f, pitch)}rem, 0)`,
-                        opacity,
-                        "--hue": entry.hue,
-                        "--stagger": Math.min(Math.abs(ei - f), 6),
-                      } as CSSProperties
-                    }
-                    onClick={() => {
-                      if (ei === f) dispatch("confirm");
-                      else {
-                        commit({
-                          ...navRef.current,
-                          focus: { ...navRef.current.focus, [cat.id]: ei },
-                        });
-                        playSfx("move");
-                      }
-                    }}
-                  >
-                    <div className="xmb-item__inner">
-                      <Float active={focused} period={3800} className="xmb-item__float">
-                        {entry.art ? (
-                          <span className="xmb-item__cover">
-                            {near(ART_RANGE + 1) && (
-                              <ArtImage entry={entry} active={colActive && near(ART_RANGE)} className="xmb-art" />
-                            )}
-                            <WatchMarks entry={entry} />
-                          </span>
-                        ) : (
-                          <span className="xmb-item__tile">
-                            <CategoryIcon name={cat.icon} variant="tile" />
-                          </span>
-                        )}
-                      </Float>
-                      <span className="xmb-item__text">
-                        <span className="xmb-item__title">{entry.title}</span>
-                        {entry.subtitle && (
-                          <span className="xmb-item__subtitle">{entry.subtitle}</span>
-                        )}
-                        {running && <span className="xmb-item__badge">Läuft</span>}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+              motion={motion}
+              cat={cat}
+              active={ci === catIndex}
+              focus={f}
+              pitchArt={pitch === ITEM_PITCH_ART}
+              ranges={motion.windowOf(cat.id, cat.entries.length, f)}
+              runningIds={runningIds}
+              activatedId={activatedId}
+              onSelect={onSelectItem}
+            />
           );
         })}
       </div>
 
-      {/* Detailkarte des fokussierten Eintrags (alte Karte blendet aus, neue ein) */}
-      {detailLayers.map((layer) => (
-        <DetailCard key={layer.key} entry={layer.entry} icon={layer.icon} leaving={layer.leaving} />
-      ))}
+      {/* Detailkarte des fokussierten Eintrags (eine Karte: aus → tauschen → ein) */}
+      <DetailCard data={shownData} motion={motion} />
 
       <Hints />
 

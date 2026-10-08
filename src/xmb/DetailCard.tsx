@@ -1,69 +1,49 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import { ArtImage } from "../art/ArtImage";
 import type { CategoryIconName, XmbEntry } from "../data/types";
 import { CategoryIcon } from "./CategoryIcon";
+import type { MotionEngine } from "./MotionEngine";
 import { formatClock, formatRemaining, watchState } from "./progress";
 
 export interface DetailData {
+  /** Eindeutig je Eintrag und Kategorie: damit erkennt die Maschine, ob der Inhalt getauscht werden muss. */
+  key: string;
   entry: XmbEntry;
   icon: CategoryIconName;
 }
 
-export interface DetailLayer extends DetailData {
-  /** Eigener Schlüssel pro Einblendung, damit React die Karte beim Wechsel neu aufbaut. */
-  key: number;
-  leaving: boolean;
-}
-
-/** Zeit, nach der eine ausgeblendete Karte aus dem DOM entfernt wird (länger als die CSS-Animation). */
-const LEAVE_MS = 400;
-
 /**
- * Hält die aktuelle Detailkarte und – kurz – die vorherige, damit der Wechsel weich
- * überblendet (alt blendet aus, neu blendet leicht verzögert ein) statt hart zu springen.
+ * Rechte Detailkarte: großes Cover (oder Icon-Kachel) mit Titel, Untertitel und Beschreibung.
+ *
+ * Es gibt genau EINE Karte im DOM. Deckkraft und Versatz setzt die Bewegungsmaschine pro Bild: Bei einem
+ * Fokuswechsel blendet die Karte schnell aus, die Maschine lässt den Inhalt erst tauschen, wenn sie fast
+ * unsichtbar ist, und blendet dann den NEUEREN Eintrag ein – beim schnellen Durchblättern wird nur einmal
+ * getauscht, nie gestapelt.
  */
-export function useDetailLayers(current: DetailData | null): DetailLayer[] {
-  const seq = useRef(1);
-  const [layers, setLayers] = useState<DetailLayer[]>(() =>
-    current ? [{ ...current, key: 0, leaving: false }] : [],
+export function DetailCard({ data, motion }: { data: DetailData | null; motion: MotionEngine }) {
+  const ref = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    return el ? motion.attachDetail(el) : undefined;
+  }, [motion]);
+
+  const entry = data?.entry;
+  const hasArt = Boolean(entry?.art);
+  const poster = hasArt && entry?.artShape === "poster";
+  const cls = "xmb-detail" + (poster ? " is-poster" : hasArt ? " is-landscape" : " is-icon");
+  return (
+    <aside ref={ref} className={cls} style={{ "--hue": entry?.hue ?? 0 } as CSSProperties}>
+      {data && <DetailBody key={data.key} entry={data.entry} icon={data.icon} />}
+    </aside>
   );
-
-  const entry = current?.entry;
-  const icon = current?.icon;
-  useEffect(() => {
-    setLayers((prev) => {
-      const live = prev.find((l) => !l.leaving);
-      if (live && entry && live.entry.id === entry.id) {
-        // Gleicher Eintrag (z. B. geänderter Untertitel): Daten tauschen, nicht neu einblenden.
-        if (live.entry === entry && live.icon === icon) return prev;
-        return prev.map((l) => (l === live ? { ...l, entry, icon: icon! } : l));
-      }
-      // Höchstens zwei ausblendende Karten übereinander, auch bei schnellem Durchblättern.
-      const fading = prev.map((l) => (l.leaving ? l : { ...l, leaving: true })).slice(-2);
-      return entry ? [...fading, { entry, icon: icon!, key: seq.current++, leaving: false }] : fading;
-    });
-  }, [entry, icon]);
-
-  const hasLeaving = layers.some((l) => l.leaving);
-  useEffect(() => {
-    if (!hasLeaving) return;
-    const id = window.setTimeout(() => setLayers((prev) => prev.filter((l) => !l.leaving)), LEAVE_MS);
-    return () => window.clearTimeout(id);
-  }, [hasLeaving, layers]);
-
-  return layers;
 }
 
-/** Rechte Detailkarte: großes Cover (oder Icon-Kachel) mit Titel, Untertitel und Beschreibung. */
-export function DetailCard({ entry, icon, leaving }: DetailData & { leaving: boolean }) {
+function DetailBody({ entry, icon }: Pick<DetailData, "entry" | "icon">) {
   const hasArt = Boolean(entry.art);
   const watch = watchState(entry);
-  const poster = hasArt && entry.artShape === "poster";
-  const cls =
-    "xmb-detail" + (poster ? " is-poster" : hasArt ? " is-landscape" : " is-icon") + (leaving ? " is-leaving" : "");
   return (
-    <aside className={cls} style={{ "--hue": entry.hue } as CSSProperties} aria-hidden={leaving || undefined}>
+    <>
       <div className="xmb-detail__art">
         {watch && watch.ratio > 0 && (
           <span className="xmb-progress xmb-progress--detail" aria-hidden="true">
@@ -89,6 +69,6 @@ export function DetailCard({ entry, icon, leaving }: DetailData & { leaving: boo
       )}
       {watch && watch.played && <p className="xmb-detail__resume">Gesehen</p>}
       {entry.description && <p className="xmb-detail__text">{entry.description}</p>}
-    </aside>
+    </>
   );
 }

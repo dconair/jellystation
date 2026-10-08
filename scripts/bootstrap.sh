@@ -6,9 +6,11 @@
 # Das Skript
 #   1. prüft macOS und sorgt für git (startet bei Bedarf die Installation der Xcode Command Line Tools),
 #   2. lädt JellyStation nach ~/JellyStation (oder aktualisiert den vorhandenen Ordner),
-#   3. installiert fehlende Werkzeuge und Pakete (scripts/setup-mac.sh --install-missing --prepare),
+#   3. installiert fehlende Werkzeuge und Pakete und richtet die Emulatoren (RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin)
+#      samt Ordnern ~/JellyStation/Games/<System> und ~/JellyStation/BIOS ein (scripts/setup-mac.sh --install-missing --prepare),
 #   4. richtet den Befehl "jellystation" ein (scripts/install-launcher.sh).
 # Danach genügt in einem neuen Terminal-Fenster:  jellystation
+# Es fehlen dann nur noch die Spiele (und BIOS/Firmware): Sie kommen selbst in ~/JellyStation/Games/<System>/.
 #
 # Bewusst als  bash -c "$(curl …)"  und nicht als  curl … | bash  gedacht: So bleibt die Tastatur des
 # Terminals angeschlossen, und Rückfragen (Mac-Passwort, Xcode, Homebrew) funktionieren.
@@ -108,6 +110,24 @@ adopt_zip() {
   ok "Mit GitHub verbunden"
 }
 
+# Spiele- und BIOS-Ordner im Programmordner (Standard: ~/JellyStation/Games und ~/JellyStation/BIOS) gehören dem Nutzer.
+# Git darf sie nie anfassen: Sonst würde "git stash -u" beim Update alle Spiele wegsichern. Der Eintrag steht nur in
+# .git/info/exclude (lokal), nicht im Projekt.
+protect_user_dirs() {
+  local dir="$1" ex d
+  [ -e "$dir/.git" ] || return 0
+  [ -d "$dir/Games" ] || [ -d "$dir/BIOS" ] || return 0
+  ex="$(git -C "$dir" rev-parse --git-path info/exclude 2>/dev/null || true)"
+  [ -n "$ex" ] || return 0
+  case "$ex" in /*) ;; *) ex="$dir/$ex" ;; esac
+  for d in Games BIOS; do
+    [ -d "$dir/$d" ] || continue
+    grep -qxF -e "/$d" -e "/$d/" "$ex" 2>/dev/null && continue
+    # ohne abschließenden Schrägstrich: gilt dann auch, wenn der Ordner ein Link auf eine andere Platte ist
+    if mkdir -p "$(dirname "$ex")" 2>/dev/null; then printf '/%s\n' "$d" >> "$ex" 2>/dev/null || true; fi
+  done
+}
+
 # Bestehenden Git-Ordner auf den Stand von GitHub bringen (eigene Änderungen werden vorher gesichert).
 update_existing() {
   local dir="$1" out rc=0 new old porcelain stamp changed backup before after
@@ -115,6 +135,7 @@ update_existing() {
   [ -n "$(git -C "$dir" config user.name 2>/dev/null || true)" ] || export GIT_AUTHOR_NAME="JellyStation" GIT_COMMITTER_NAME="JellyStation"
   [ -n "$(git -C "$dir" config user.email 2>/dev/null || true)" ] || export GIT_AUTHOR_EMAIL="jellystation@localhost" GIT_COMMITTER_EMAIL="jellystation@localhost"
   git -C "$dir" remote get-url origin >/dev/null 2>&1 || git -C "$dir" remote add origin "$REMOTE_URL"
+  protect_user_dirs "$dir"
 
   out="$(LC_ALL=C git -C "$dir" "${GIT_NET_OPTS[@]}" fetch --quiet --no-tags origin \
     "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>&1)" || rc=$?
@@ -220,7 +241,10 @@ main() {
   [ -f "$target/scripts/install-launcher.sh" ] \
     || die "scripts/install-launcher.sh fehlt in $target – der Ordner ist veraltet. Bitte erneut starten, sobald GitHub erreichbar ist."
 
-  say "3/4 Werkzeuge und Pakete vorbereiten (kann einige Minuten dauern)"
+  say "3/4 Werkzeuge, Pakete, Emulatoren und Ordner vorbereiten (kann einige Minuten dauern)"
+  if ! grep -q 'install-emulators' "$target/scripts/setup-mac.sh" 2>/dev/null; then
+    warn "Dieser Ordner ist älter: die Emulator-Einrichtung fehlt noch. Sie kommt mit dem nächsten erfolgreichen Update (dann: jellystation --emulators)."
+  fi
   bash "$target/scripts/setup-mac.sh" --install-missing --prepare
 
   say "4/4 Befehl \"jellystation\" einrichten"
@@ -230,6 +254,10 @@ main() {
   info "Der Befehl aktualisiert JellyStation vor jedem Start automatisch."
   info "Der erste Start kompiliert den Rust-Teil und dauert einige Minuten – das ist normal."
   info "Ordner: $target"
+  if [ -d "$HOME/JellyStation/Games" ]; then
+    info "Spiele kommen in $HOME/JellyStation/Games/<System>/ (z. B. .../PS2/) – die Ordner sind angelegt."
+    info "BIOS und Firmware gehören nicht zum Lieferumfang: Hinweise je Emulator stehen in $HOME/JellyStation/BIOS/."
+  fi
 }
 
 # Erst die ganze Datei lesen, dann ausführen (wichtig, falls das Skript sich beim Update selbst ersetzt).

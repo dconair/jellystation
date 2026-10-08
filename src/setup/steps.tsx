@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { EMULATORS, GAMES_BASE_DIR } from "../config/games";
+import { GAMES_BASE_DIR } from "../config/games";
+import { EMULATORS, supportedFolderNames } from "../emulators/catalog";
 import { normalizeServerUrl } from "../jellyfin/testConnection";
 import type { ConnectionResult } from "../jellyfin/testConnection";
 import { pickGameFiles, scanGamesDir } from "../library/scanGames";
@@ -179,8 +180,9 @@ export function GamesStep({ draft, onChange }: GamesStepProps) {
 ├─ PS2/   …
 └─ PS1/   …`}</pre>
       <p className="setup-note">
-        Emulatoren werden unter ihrem Standardpfad erwartet:{" "}
-        {Object.values(EMULATORS).map((e) => `${e.name} → ${e.binary}`).join(", ")}
+        Unterstützt werden {EMULATORS.map((e) => `${e.name} (${e.consoles})`).join(" · ")}. Sie werden automatisch
+        gefunden und lassen sich später unter Einstellungen → Emulatoren installieren. Der Ordnername bestimmt den
+        Emulator: {supportedFolderNames().join(", ")}.
       </p>
     </>
   );

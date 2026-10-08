@@ -35,5 +35,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "shell": {
+      "open": "https://[A-Za-z0-9.-]+(/[^\\s]*)?"
+    }
   }
 }

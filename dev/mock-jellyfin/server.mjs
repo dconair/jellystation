@@ -23,6 +23,8 @@ import zlib from "node:zlib";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_API_KEY = "abc123";
+/** Token eines normalen Benutzers (Alice): darf die Benutzerliste nicht lesen, wohl aber `/Users/Me`. */
+export const USER_TOKEN = "alice-token";
 const TICKS = 10_000_000;
 const CLIP_SEC = 30;
 const RUN_TICKS = CLIP_SEC * TICKS;
@@ -60,7 +62,7 @@ const MOVIE_ROWS = [
 const SERIES_ROWS = [
   ["Testserie", 2024, ["Test"], "Zwei Staffeln: Folge 1 gesehen, Folge 2 angefangen.", true, 2],
   ["Serie fertig", 2023, ["Test"], "Alles gesehen.", true, 1],
-  ["Serie neu", 2025, ["Test"], "Noch nichts gesehen (der Server nennt dafür kein \"Als Nächstes\").", true, 1],
+  ["Serie neu", 2025, ["Test"], "Noch nichts gesehen (der Mock nennt dafür kein \"Als Nächstes\").", true, 1],
   ["Breaking Bad", 2008, ["Drama"], "Ein Chemielehrer steigt in die Drogenproduktion ein.", true, 5],
   ["Dark", 2017, ["Mystery", "Drama"], "Das Verschwinden eines Kindes erschüttert eine Kleinstadt.", true, 3],
   ["Einzelstaffel-Serie", 2020, ["Krimi"], "Nur eine Staffel.", true, 1],
@@ -271,6 +273,8 @@ const DEFAULT_CONFIG = {
   defaultSubtitle: -1,
   /** Künstliche Verzögerung für jede Antwort (ms). */
   delayMs: 0,
+  /** 1 = die Quellen-Id (MediaSource.Id) ist nicht die Titel-Id (wie bei Titeln mit mehreren Versionen). */
+  altSourceIds: 0,
 };
 
 function freshState() {
@@ -396,7 +400,12 @@ export async function startMockJellyfin(options = {}) {
           ]
         : []),
     ];
-    for (const [via, token] of candidates) if (token) return { ok: token === apiKey, via, token };
+    for (const [via, token] of candidates) {
+      if (!token) continue;
+      // Neben dem (Administrator-)API-Key gibt es den Token eines normalen Benutzers: gehört zu Alice, ist kein Administrator.
+      const userToken = token === USER_TOKEN ? DEFAULT_USERS[0].id : undefined;
+      return { ok: token === apiKey || !!userToken, via, token, userToken };
+    }
     return { ok: false, via: null, token: undefined };
   }
   /** Client-Angaben aus dem Authorization-Header (der Server liest sie für Sitzungen/Transkodierungen mit). */
@@ -552,13 +561,20 @@ export async function startMockJellyfin(options = {}) {
     if (sc === "ratelimit") return sendJson(req, res, 200, { MediaSources: [], ErrorCode: "RateLimitExceeded" });
 
     const spec = sc === "transcode" || sc === "notranscode" ? FILES.mkv : FILES.webm;
+    const msid = state.config.altSourceIds ? md5(`quelle-${item.id}`) : item.id;
+    // Wie der echte Server: wer eine Quelle verlangt, bekommt nur sie – gibt es keine mit dieser Id, ist die Liste leer.
+    if (body.MediaSourceId && String(body.MediaSourceId).toLowerCase() !== msid.toLowerCase()) {
+      return sendJson(req, res, 200, { MediaSources: [], ErrorCode: "NoCompatibleStream" });
+    }
+    // ... und Tonspur-/Untertitelwunsch gilt nur zusammen mit der Quellen-Id (MediaInfoHelper.SetDeviceSpecificData).
+    const honorTracks = !!body.MediaSourceId;
     const prof = body.DeviceProfile ?? {};
     const reasons = new Set();
     const streams = spec.streams.map((s) => ({ ...s, IsForced: false, IsDefault: !!s.IsDefault, IsInterlaced: !!s.IsInterlaced }));
     const audioStreams = streams.filter((s) => s.Type === "Audio");
-    const wantAudio = Number.isInteger(body.AudioStreamIndex) ? body.AudioStreamIndex : state.config.defaultAudio;
+    const wantAudio = honorTracks && Number.isInteger(body.AudioStreamIndex) ? body.AudioStreamIndex : state.config.defaultAudio;
     const audio = audioStreams.find((s) => s.Index === wantAudio) ?? audioStreams[0];
-    const wantSub = body.SubtitleStreamIndex !== undefined && body.SubtitleStreamIndex !== null ? body.SubtitleStreamIndex : state.config.defaultSubtitle;
+    const wantSub = honorTracks && body.SubtitleStreamIndex !== undefined && body.SubtitleStreamIndex !== null ? body.SubtitleStreamIndex : state.config.defaultSubtitle;
     const sub = streams.find((s) => s.Type === "Subtitle" && s.Index === wantSub);
 
     // --- Direktwiedergabe nach dem gesendeten Profil beurteilen (vereinfachte Fassung des echten StreamBuilders) ---
@@ -595,14 +611,14 @@ export async function startMockJellyfin(options = {}) {
       if (s.Type !== "Subtitle") continue;
       s.DeliveryMethod = deliveryOf(s);
       if (s.DeliveryMethod === "External") {
-        s.DeliveryUrl = `/Videos/${item.id}/${item.id}/Subtitles/${s.Index}/0/Stream.vtt?ApiKey=${auth.token}`;
+        s.DeliveryUrl = `/Videos/${item.id}/${msid}/Subtitles/${s.Index}/0/Stream.vtt?ApiKey=${auth.token}`;
         s.IsExternalUrl = false;
       }
     }
 
     const source = {
       Protocol: "File",
-      Id: item.id,
+      Id: msid,
       Path: `/media/${item.name}.${spec.container}`,
       Type: "Default",
       Container: spec.container,
@@ -635,7 +651,7 @@ export async function startMockJellyfin(options = {}) {
       const t = (prof.TranscodingProfiles ?? []).find((p) => p.Type === "Video" && p.Protocol === "hls");
       const q = [
         `DeviceId=${client.deviceId}`,
-        `MediaSourceId=${item.id}`,
+        `MediaSourceId=${msid}`,
         `VideoCodec=${csv(t.VideoCodec)[0] ?? "h264"}`,
         `AudioCodec=${csv(t.AudioCodec)[0] ?? "aac"}`,
         ...(audio ? [`AudioStreamIndex=${audio.Index}`] : []),
@@ -869,6 +885,8 @@ export async function startMockJellyfin(options = {}) {
       status: 0,
     };
     state.log.push(entry);
+    // Ein langer Testlauf (HLS-Segmente!) soll den Speicher nicht füllen: nur die letzten 20 000 Anfragen bleiben.
+    if (state.log.length > 20000) state.log.splice(0, state.log.length - 20000);
     res.on("finish", () => {
       entry.status = res.statusCode;
     });
@@ -905,7 +923,13 @@ export async function startMockJellyfin(options = {}) {
       if (low === "/system/info") return sendJson(req, res, 200, { ServerName: "Mock-Jelly", Version: "10.10.7", Id: "mock-server-id" });
 
       /* --- Benutzer --- */
+      if (low === "/users/me" && req.method === "GET") {
+        // Wie der echte Server: ein API-Key gehört keinem Benutzer → 400.
+        const me = auth.userToken ? userById(auth.userToken) : undefined;
+        return me ? sendJson(req, res, 200, userDto(me)) : sendText(req, res, 400, "");
+      }
       if (low === "/users" && req.method === "GET") {
+        if (auth.userToken) return sendText(req, res, 403, "Forbidden"); // Benutzer-Token: keine Administrator-Rechte
         const mode = state.scenario.users;
         if (mode === "users403") return sendText(req, res, 403, "Forbidden");
         if (mode === "users500") return sendText(req, res, 500, "Internal Server Error");
@@ -928,10 +952,17 @@ export async function startMockJellyfin(options = {}) {
         if (type !== "Series" && type !== "Movie") all = [];
         if (mode === "emptyall" || (mode === "emptyseries" && type === "Series")) all = [];
         const user = userById(userId);
+        // Wie der echte Server nach SortName (mit deutscher Sortierung: "Ä" bei "A") ordnen.
+        if (/sortname/i.test(String(param(url, "SortBy") ?? "SortName"))) {
+          const desc = String(param(url, "SortOrder") ?? "").toLowerCase() === "descending";
+          const collator = new Intl.Collator("de");
+          all = [...all].sort((a, b) => (desc ? -1 : 1) * collator.compare(a.name, b.name));
+        }
         return sendJson(req, res, 200, { Items: all.slice(0, limit).map((it) => itemDto(it, user?.id, withData)), TotalRecordCount: all.length, StartIndex: 0 });
       }
       if ((m = /^\/items\/([^/]+)$/.exec(low)) && req.method === "GET") {
-        if (state.scenario.userdata === "legacy") return sendText(req, res, 404, ""); // Server ≤ 10.8 kennt nur /Users/{id}/Items/{id}
+        // Server ≤ 10.8 kennen nur /Users/{id}/Items/{id}; auf GET /Items/{id} antworten sie mit 405 (dort gibt es nur POST/DELETE).
+        if (state.scenario.userdata === "legacy") return sendText(req, res, 405, "");
         const item = ITEM_BY_ID.get(m[1]);
         if (!item) return sendText(req, res, 404, "");
         const user = userById(param(url, "userId"));
@@ -968,7 +999,8 @@ export async function startMockJellyfin(options = {}) {
           eps.forEach((e, i) => {
             if (user && stored(user.id, e.id)?.played) last = i;
           });
-          // Wie beim echten Server: Serien ohne gesehene Folge tauchen bei "Als Nächstes" nicht auf.
+          // Serien ohne gesehene Folge: leere Antwort (echte Server antworten hier je nach Version leer oder mit Folge 1 –
+          // der Client muss mit beidem zurechtkommen).
           if (last >= 0 && last + 1 < eps.length) out.push(eps[last + 1]);
         }
         const limit = Number(param(url, "limit") ?? 100);
@@ -978,7 +1010,9 @@ export async function startMockJellyfin(options = {}) {
       /* --- Wiedergabe --- */
       if ((m = /^\/items\/([^/]+)\/playbackinfo$/.exec(low)) && req.method === "POST") {
         const item = ITEM_BY_ID.get(m[1]);
-        if (!item || item.type === "Series") return sendText(req, res, item ? 400 : 404, "");
+        if (!item) return sendText(req, res, 404, "");
+        // Serien haben keine Quelle: der echte Server meldet "kein kompatibler Stream".
+        if (item.type === "Series") return sendJson(req, res, 200, { MediaSources: [], ErrorCode: "NoCompatibleStream" });
         if (state.scenario.playback === "slowinfo") await sleep(3000);
         return playbackInfo(req, res, item, body, url, auth, client);
       }

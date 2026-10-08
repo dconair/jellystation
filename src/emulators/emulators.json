@@ -1,0 +1,178 @@
+{
+  "_comment": [
+    "Datenquelle für scripts/install-emulators.sh (Installation der Emulatoren und Ordner) – das Gegenstück zu src/emulators/catalog.ts (App).",
+    "Ändert sich ein Emulator im Katalog, hier dasselbe ändern. Der Abgleich passiert mit:  node dev/check-emulator-data.mjs",
+    "(vergleicht ids, systems, appPattern, bundleIds, brewCask und downloadUrl mit catalog.ts und prüft das Format dieser Datei).",
+    "Felder, die mit _ beginnen (wie dieses), sind Kommentare und werden ignoriert.",
+    "",
+    "Aufbau eines Emulators: id, name, consoles, systems[] (Ordnernamen klein und ohne Leer-, Binde- und Unterstriche, wie normalizeSystem() sie bildet),",
+    "appPattern (Regex für den Namen der .app, ohne Groß-/Kleinschreibung; nur Schreibweisen, die auch die Shell als ERE versteht), bundleIds[],",
+    "brewCask (Name des Homebrew-Casks oder null), downloadUrl (Download-Seite für die manuelle Anleitung), setupNote, biosNote,",
+    "appSupportDirs[] (Ordner im Benutzerordner, die als BIOS-Ablage des Emulators angelegt werden).",
+    "install.kind: brew-cask | github-release | direct-url | manual. install.fallback: weitere Wege (github-release, direct-url), die der Reihe nach probiert werden,",
+    "wenn der erste scheitert; danach folgt immer die manuelle Anleitung (downloadUrl). install.github: arm64 / x86_64 / any = 'besitzer/repo'",
+    "(arm64 = Apple Silicon, x86_64 = Intel, any = ein Repo für beide), releasesPath = latest (Standard) oder tags/<Tag>.",
+    "install.assetMatch: include = Regex-Liste, ALLE müssen auf den Dateinamen passen; exclude = Regex-Liste, KEINE darf passen (ohne Groß-/Kleinschreibung).",
+    "install.directUrl: arm64 / x86_64 / any = feste https-Adressen. install.allowedHosts: nur von diesen Servern wird geladen ('*.beispiel.de' erlaubt).",
+    "",
+    "UNGEPRÜFT auf einem echten Mac / im echten Netz sind alle Angaben unter install für rpcs3 und duckstation:",
+    "Repository-Namen, Dateinamen-Muster, Endungen und die Download-Adresse von DuckStation. Das Skript rät keine Dateinamen,",
+    "sondern fragt die Quelle zur Laufzeit ab (GitHub-API) und fällt bei jedem Misserfolg auf eine klare manuelle Anleitung zurück.",
+    "Geprüft (Homebrew-API, Stand Oktober 2026): Casks pcsx2 (PCSX2.app), ppsspp-emulator (PPSSPPSDL.app), dolphin (Dolphin.app).",
+    "Es gibt keinen Cask für RPCS3 und DuckStation."
+  ],
+  "version": 1,
+
+  "library": {
+    "_comment": "~ steht für den Benutzerordner. Die Spiele-Unterordner heißen so, wie normalizeSystem() (catalog.ts) sie einem Emulator zuordnet: PS1 → DuckStation, PS2 → PCSX2, PS3 → RPCS3, PSP → PPSSPP, GameCube und Wii → Dolphin.",
+    "baseDir": "~/JellyStation/Games",
+    "systemFolders": ["PS1", "PS2", "PS3", "PSP", "GameCube", "Wii"],
+    "biosDir": "~/JellyStation/BIOS"
+  },
+
+  "download": {
+    "_comment": [
+      "Gemeinsame Regeln für Downloads von GitHub (install.kind = github-release, Rückfall github-release).",
+      "githubApi: Basis-Adresse der API (für Tests mit JELLYSTATION_GITHUB_API überschreibbar).",
+      "archHints: Teile des Dateinamens, an denen die Bauart erkannt wird (ohne Groß-/Kleinschreibung). 'universal' läuft auf beiden.",
+      "extensionOrder: bevorzugte Archivarten, die erste hat Vorrang (dmg vor zip vor tar vor 7z)."
+    ],
+    "githubApi": "https://api.github.com",
+    "archHints": {
+      "arm64": "arm64|aarch64|apple",
+      "x86_64": "x64|x86[-_]?64|amd64|intel",
+      "universal": "universal|fat"
+    },
+    "extensionOrder": [
+      "\\.dmg$",
+      "\\.zip$",
+      "\\.(tar\\.(gz|xz|bz2)|tgz|txz|tbz2)$",
+      "\\.7z$"
+    ]
+  },
+
+  "emulators": [
+    {
+      "id": "rpcs3",
+      "name": "RPCS3",
+      "consoles": "PlayStation 3",
+      "systems": ["ps3", "playstation3"],
+      "appPattern": "^RPCS3.*\\.app$",
+      "bundleIds": ["net.rpcs3.rpcs3"],
+      "brewCask": null,
+      "downloadUrl": "https://rpcs3.net/download",
+      "setupNote": "Beim ersten Start in RPCS3 die PS3-Firmware installieren (Datei → Firmware installieren).",
+      "biosNote": "Es wird kein BIOS gebraucht, aber die offizielle PS3-Firmware (Datei PS3UPDAT.PUP). Sie wird nicht mitgeliefert und muss selbst besorgt werden (Sony stellt sie auf der PlayStation-Support-Seite bereit). Einspielen in RPCS3 über Datei → Firmware installieren.",
+      "appSupportDirs": [],
+      "install": {
+        "_comment": [
+          "Kein Homebrew-Cask. UNGEPRÜFT: macOS-Builds liegen vermutlich in den GitHub-Repos RPCS3/rpcs3-binaries-mac-arm64 (Apple Silicon) und RPCS3/rpcs3-binaries-mac (Intel);",
+          "Archiv evtl. .7z, .dmg oder .zip, Dateinamen unbekannt. Deshalb wird das Asset zur Laufzeit per Muster gewählt (assetMatch) und bei fehlendem Treffer",
+          "werden die letzten 10 Releases durchsucht. Der Repo-Name liefert den Kontext 'mac', darum ist 'mac' im Dateinamen keine Pflicht.",
+          "Bei Apple Silicon ohne passenden Build wird der Intel-Build genommen (Rosetta 2). Letzter Rückfall: manuelle Anleitung (downloadUrl)."
+        ],
+        "kind": "github-release",
+        "github": {
+          "arm64": "RPCS3/rpcs3-binaries-mac-arm64",
+          "x86_64": "RPCS3/rpcs3-binaries-mac",
+          "releasesPath": "latest"
+        },
+        "assetMatch": {
+          "include": ["\\.(dmg|zip|7z|tar\\.gz|tar\\.xz|tgz)$"],
+          "exclude": ["debug", "symbols?", "dsym", "\\.sha(1|256|512)?$", "sha(1|256|512)sums?", "\\.(sig|asc)$", "\\.txt$", "blockmap"]
+        },
+        "fallback": [],
+        "allowedHosts": ["github.com", "api.github.com", "objects.githubusercontent.com", "*.githubusercontent.com"]
+      }
+    },
+    {
+      "id": "duckstation",
+      "name": "DuckStation",
+      "consoles": "PlayStation 1",
+      "systems": ["ps1", "psx", "psone", "playstation", "playstation1"],
+      "appPattern": "^DuckStation.*\\.app$",
+      "bundleIds": ["org.duckstation.duckstation"],
+      "brewCask": null,
+      "downloadUrl": "https://www.duckstation.org/",
+      "setupNote": "Beim ersten Start ein PS1-BIOS im DuckStation-Einrichtungsassistenten angeben.",
+      "biosNote": "Ein PS1-BIOS wird gebraucht (z. B. scph1001.bin, scph5501.bin oder scph7001.bin – je nach Region). Es wird nicht mitgeliefert und muss selbst von der eigenen Konsole gesichert werden. DuckStation sucht es im Ordner „bios“ seines Datenordners.",
+      "appSupportDirs": ["~/Library/Application Support/DuckStation/bios"],
+      "install": {
+        "_comment": [
+          "Kein Homebrew-Cask. Download-Muster (Windows-Variante von der Projektseite bestätigt): https://github.com/stenzek/duckstation/releases/download/latest/duckstation-windows-x64-release.zip",
+          "UNGEPRÜFT: das macOS-Gegenstück duckstation-mac-release.zip. Schlägt der direkte Download fehl, wird das Release mit dem Tag 'latest' abgefragt (Asset muss 'mac' enthalten).",
+          "appSupportDirs (UNGEPRÜFT): ~/Library/Application Support/DuckStation ist der übliche Datenordner unter macOS."
+        ],
+        "kind": "direct-url",
+        "directUrl": {
+          "any": "https://github.com/stenzek/duckstation/releases/download/latest/duckstation-mac-release.zip"
+        },
+        "fallback": ["github-release"],
+        "github": {
+          "any": "stenzek/duckstation",
+          "releasesPath": "tags/latest"
+        },
+        "assetMatch": {
+          "include": ["mac", "\\.(dmg|zip|7z|tar\\.gz|tar\\.xz|tgz)$"],
+          "exclude": ["debug", "symbols?", "dsym", "\\.sha(1|256|512)?$", "sha(1|256|512)sums?", "\\.(sig|asc)$", "\\.txt$", "blockmap"]
+        },
+        "allowedHosts": ["github.com", "api.github.com", "objects.githubusercontent.com", "*.githubusercontent.com"]
+      }
+    },
+    {
+      "id": "pcsx2",
+      "name": "PCSX2",
+      "consoles": "PlayStation 2",
+      "systems": ["ps2", "playstation2"],
+      "appPattern": "^PCSX2.*\\.app$",
+      "bundleIds": ["net.pcsx2.pcsx2"],
+      "brewCask": "pcsx2",
+      "downloadUrl": "https://pcsx2.net/downloads",
+      "setupNote": "Beim ersten Start ein PS2-BIOS im PCSX2-Einrichtungsassistenten angeben.",
+      "biosNote": "Ein PS2-BIOS wird gebraucht (Dateien wie scph*.bin oder .rom0/.rom1 – je nach Region). Es wird nicht mitgeliefert und muss selbst von der eigenen Konsole gesichert werden. PCSX2 sucht es im Ordner „bios“ seines Datenordners.",
+      "appSupportDirs": ["~/Library/Application Support/PCSX2/bios"],
+      "install": {
+        "_comment": "Homebrew-Cask 'pcsx2' (geprüft: installiert PCSX2.app). Ohne Homebrew bleibt nur die manuelle Anleitung.",
+        "kind": "brew-cask",
+        "fallback": [],
+        "allowedHosts": ["github.com", "objects.githubusercontent.com", "*.githubusercontent.com"]
+      }
+    },
+    {
+      "id": "ppsspp",
+      "name": "PPSSPP",
+      "consoles": "PlayStation Portable",
+      "systems": ["psp", "playstationportable"],
+      "appPattern": "^PPSSPP.*\\.app$",
+      "bundleIds": ["org.ppsspp.ppsspp"],
+      "brewCask": "ppsspp-emulator",
+      "downloadUrl": "https://www.ppsspp.org/download",
+      "biosNote": "Für PPSSPP ist kein BIOS und keine Firmware nötig.",
+      "appSupportDirs": [],
+      "install": {
+        "_comment": "Homebrew-Cask 'ppsspp-emulator' (geprüft: installiert PPSSPPSDL.app). Ohne Homebrew bleibt nur die manuelle Anleitung.",
+        "kind": "brew-cask",
+        "fallback": [],
+        "allowedHosts": ["www.ppsspp.org", "github.com", "*.githubusercontent.com"]
+      }
+    },
+    {
+      "id": "dolphin",
+      "name": "Dolphin",
+      "consoles": "GameCube und Wii",
+      "systems": ["gc", "gcn", "ngc", "gamecube", "nintendogamecube", "wii", "nintendowii"],
+      "appPattern": "^Dolphin.*\\.app$",
+      "bundleIds": ["org.dolphin-emu.dolphin"],
+      "brewCask": "dolphin",
+      "downloadUrl": "https://dolphin-emu.org/download/",
+      "biosNote": "Für GameCube- und Wii-Spiele ist kein BIOS nötig. Optional (nur für den GameCube-Startbildschirm): die Datei IPL.bin von der eigenen Konsole; sie wird nicht mitgeliefert.",
+      "appSupportDirs": [],
+      "install": {
+        "_comment": "Homebrew-Cask 'dolphin' (geprüft: installiert Dolphin.app, lädt von dl.dolphin-emu.org). Es gibt keine feste 'neueste Version'-Adresse, deshalb kein direkter Rückfall.",
+        "kind": "brew-cask",
+        "fallback": [],
+        "allowedHosts": ["dl.dolphin-emu.org"]
+      }
+    }
+  ]
+}

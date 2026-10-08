@@ -275,16 +275,23 @@ function describeReasons(method: PlayMethod, reasons: string[], src: PlanSource,
   return `Der Server ${verb}: ${[...new Set(parts)].join(", ")}.`;
 }
 
-/** Container-Name für die Stream-URL: der Server nennt meist genau einen, ältere liefern ffprobe-Listen ("matroska,webm"). */
-function streamContainer(raw: string): string {
+/**
+ * Container-Name für die Stream-URL. Neuere Server nennen genau einen ("mkv"); ältere liefern die ffprobe-Liste
+ * ("matroska,webm") – dann entscheidet die Endung der Datei, sonst der erste bekannte Name.
+ */
+function streamContainer(raw: string, path: string): string {
   const tokens = raw
     .toLowerCase()
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean)
     .map((t) => (t === "matroska" ? "mkv" : t));
-  const preferred = ["mp4", "m4v", "webm", "mkv", "mov", "ts", "avi", "wmv", "ogv", "3gp"];
-  return preferred.find((p) => tokens.includes(p)) ?? tokens[0] ?? "";
+  if (tokens.length === 1) return tokens[0];
+  // "mkv" vor "webm": In der Liste "matroska,webm" steckt beides; ein MKV als "webm" auszuliefern bricht in Chromium, umgekehrt nicht.
+  const known = ["mp4", "m4v", "mkv", "webm", "mov", "ts", "avi", "wmv", "ogv", "3gp"];
+  const ext = /\.([a-z0-9]{2,4})$/i.exec(path.trim())?.[1]?.toLowerCase();
+  if (ext && known.includes(ext) && (tokens.length === 0 || tokens.includes(ext) || ext === "mkv")) return ext;
+  return known.find((k) => tokens.includes(k)) ?? tokens[0] ?? "";
 }
 
 function randomId(): string {
@@ -353,11 +360,13 @@ function parseStreams(value: unknown): RawStream[] {
 interface PlaybackInfo {
   sources: Obj[];
   playSessionId: string;
+  /** Fehlercode des Servers (`NotAllowed`, `NoCompatibleStream`, `RateLimitExceeded`), sonst leer. */
+  errorCode: string;
 }
 
 async function requestPlaybackInfo(ctx: JfContext, itemId: string, opts: PlanOptions): Promise<PlaybackInfo> {
   const profile = buildDeviceProfile(opts.maxBitrate ? { maxStreamingBitrate: Math.min(opts.maxBitrate, MAX_INT32) } : {});
-  // Position, Audio- und Untertitelwunsch gehören in den Körper (die Query-Fassung ist veraltet); nur userId bleibt in der Query.
+  // Audio- und Untertitelwunsch gehören in den Körper (die Query-Fassung ist veraltet); nur userId bleibt in der Query.
   const body: Obj = {
     UserId: ctx.userId,
     MaxStreamingBitrate: profile.MaxStreamingBitrate,
@@ -398,21 +407,42 @@ async function requestPlaybackInfo(ctx: JfContext, itemId: string, opts: PlanOpt
     throw new JfError("Antwort des Servers ist kein gültiges JSON", "protocol");
   }
   if (!json) throw new JfError("Unerwartete Antwort des Servers", "protocol");
+  const sources = (Array.isArray(json.MediaSources) ? json.MediaSources : []).map(obj).filter((s): s is Obj => !!s);
+  return { sources, playSessionId: str(json.PlaySessionId), errorCode: str(json.ErrorCode) };
+}
 
-  const code = str(json.ErrorCode);
-  if (code === "NotAllowed") throw new JfError("Wiedergabe für diesen Benutzer nicht erlaubt", "unplayable");
-  if (code === "RateLimitExceeded") {
+/** Wirft die deutsche Meldung zu einem Fehlercode bzw. einer leeren Quellenliste. */
+function assertSources(info: PlaybackInfo): void {
+  if (info.errorCode === "NotAllowed") throw new JfError("Wiedergabe für diesen Benutzer nicht erlaubt", "unplayable");
+  if (info.errorCode === "RateLimitExceeded") {
     throw new JfError("Zu viele gleichzeitige Wiedergaben – das Limit des Servers ist erreicht", "unplayable");
   }
-  if (code === "NoCompatibleStream") {
+  if (info.errorCode === "NoCompatibleStream") {
     throw new JfError(
       "Keine kompatible Quelle: Der Server kann dieses Video weder direkt noch umgewandelt für diesen Player bereitstellen",
       "unplayable",
     );
   }
-  const sources = (Array.isArray(json.MediaSources) ? json.MediaSources : []).map(obj).filter((s): s is Obj => !!s);
-  if (sources.length === 0) throw new JfError("Keine abspielbare Quelle gefunden", "unplayable");
-  return { sources, playSessionId: str(json.PlaySessionId) };
+  if (info.sources.length === 0) throw new JfError("Keine abspielbare Quelle gefunden", "unplayable");
+}
+
+/**
+ * PlaybackInfo holen. Der Server wertet Tonspur- und Untertitelwunsch nur aus, wenn zugleich die Quellen-Id mitkommt
+ * (sonst ignoriert er sie still). Bei normalen Titeln ist die Quellen-Id die Titel-Id; passt das nicht (mehrere Versionen,
+ * andere Schreibweise), wird die Quelle erst erfragt und die Anfrage mit ihrer Id wiederholt.
+ */
+async function fetchPlaybackInfo(ctx: JfContext, itemId: string, opts: PlanOptions): Promise<PlaybackInfo> {
+  const wantsTracks = opts.audioIndex !== undefined || opts.subtitleIndex !== undefined;
+  if (!wantsTracks || opts.mediaSourceId) return requestPlaybackInfo(ctx, itemId, opts);
+
+  const guess = await requestPlaybackInfo(ctx, itemId, { ...opts, mediaSourceId: itemId });
+  if (guess.sources.length > 0 && guess.errorCode === "") return guess;
+  if (guess.errorCode !== "" && guess.errorCode !== "NoCompatibleStream") return guess; // z. B. NotAllowed: erneut fragen ändert nichts
+
+  const probe = await requestPlaybackInfo(ctx, itemId, { ...opts, audioIndex: undefined, subtitleIndex: undefined });
+  if (probe.sources.length === 0 || probe.errorCode !== "") return probe;
+  const id = str(chooseSource(probe.sources, itemId).Id);
+  return id ? requestPlaybackInfo(ctx, itemId, { ...opts, mediaSourceId: id }) : probe;
 }
 
 const norm = (id: string) => id.toLowerCase().replace(/-/g, "");
@@ -469,21 +499,24 @@ async function plan(ctx: JfContext, itemId: string, opts: PlanOptions, internal:
         (item) => ({ ok: true as const, item }),
         (error: unknown) => ({ ok: false as const, error }),
       );
-  const info = await requestPlaybackInfo(
-    ctx,
-    itemId,
-    internal.noDirect ? { ...opts, forceTranscode: true } : opts,
+  const infoResult = fetchPlaybackInfo(ctx, itemId, internal.noDirect ? { ...opts, forceTranscode: true } : opts).then(
+    (info) => ({ ok: true as const, info }),
+    (error: unknown) => ({ ok: false as const, error }),
   );
-  const loaded = await itemResult;
+  const [loaded, got] = await Promise.all([itemResult, infoResult]);
   let item: JfItem | undefined;
   if (loaded.ok) {
     item = loaded.item;
   } else if (isAbortError(loaded.error) || (loaded.error instanceof JfError && loaded.error.kind === "notfound")) {
     throw loaded.error;
   }
+  // Serien, Staffeln und Ordner haben keine Quelle – das ist die verständlichere Meldung als "keine kompatible Quelle".
   if (item && ["Series", "Season", "BoxSet", "Folder", "CollectionFolder", "UserView"].includes(item.type)) {
     throw new JfError(`„${item.name || "Dieser Eintrag"}“ ist kein Film und keine Folge – bitte eine Folge wählen`, "unplayable");
   }
+  if (!got.ok) throw got.error;
+  const info = got.info;
+  assertSources(info);
 
   const ms = chooseSource(info.sources, itemId, opts.mediaSourceId);
   if (!isPlayable(ms)) {
@@ -536,7 +569,7 @@ async function plan(ctx: JfContext, itemId: string, opts: PlanOptions, internal:
 
   /* --- Methode und URL --- */
   const staticUrl = (): string => {
-    const container = streamContainer(str(ms.Container));
+    const container = streamContainer(str(ms.Container), str(ms.Path));
     const parts = [
       "static=true",
       `mediaSourceId=${encodeURIComponent(mediaSourceId)}`,
@@ -578,7 +611,8 @@ async function plan(ctx: JfContext, itemId: string, opts: PlanOptions, internal:
   }
 
   /* --- Sicherheitsnetz: Direktwiedergabe liefert immer die erste Tonspur --- */
-  const firstAudio = audioStreams[0]?.index;
+  // "Erste Tonspur" wie beim Server (MediaSourceInfo.IsSecondaryAudio): die erste eingebettete; externe zählen nie als zweite.
+  const firstAudio = (audioStreams.find((a) => !a.isExternal) ?? audioStreams[0])?.index;
   if (
     method === "DirectPlay" &&
     audioIndex !== null &&
@@ -664,8 +698,13 @@ async function plan(ctx: JfContext, itemId: string, opts: PlanOptions, internal:
     audioIndex: effectiveAudio,
     subtitleIndex,
     subtitleUrl: (index) => mediaUrl(ctx, subtitlePath(index)),
-    fetchSubtitle: (index) =>
-      jfText(ctx, subtitlePath(index), { timeoutMs: 15_000 }, { 404: "Untertitel nicht gefunden" }),
+    fetchSubtitle: async (index) => {
+      const track = subtitles.find((s) => s.index === index);
+      if (!track) throw new JfError("Untertitel nicht gefunden", "notfound");
+      // Bild-Untertitel (PGS …) gibt es nur eingebrannt; der Server könnte sie nicht als Text liefern.
+      if (!track.textBased) throw new JfError("Bild-Untertitel lassen sich nicht als Text laden", "unplayable");
+      return jfText(ctx, subtitlePath(index), { timeoutMs: 15_000 }, { 404: "Untertitel nicht gefunden" });
+    },
     burnedSubtitle,
     reason: usable && ms.SupportsDirectPlay !== true ? describeReasons(method, reasons, source, opts.forceTranscode === true) : "",
     resumeSec,

@@ -5,9 +5,16 @@
 #   jellystation --web         aktualisieren, dann nur die Browser-Vorschau öffnen (http://localhost:1420)
 #   jellystation --build       aktualisieren, die Release-App bauen und öffnen
 #   jellystation --no-update   ohne Update starten (mit --web oder --build kombinierbar)
-#   jellystation --status      nur den Stand anzeigen (lokal und GitHub); ändert nichts
+#   jellystation --status      nur den Stand anzeigen (lokal und GitHub, Emulatoren); ändert nichts
+#   jellystation --emulators   Emulatoren jetzt prüfen und fehlende nachinstallieren (auch wenn es zuletzt nicht klappte)
+#   jellystation --update-emulators   Emulatoren zusätzlich auf den neuesten Stand bringen
+#   jellystation --no-emulators       die Emulator-Prüfung diesmal überspringen
 #   jellystation -y, --yes     Rückfragen automatisch mit "Ja" beantworten
 #   jellystation -h, --help    diese Hilfe
+#
+# Bei jedem Start prüft JellyStation kurz, ob die Emulatoren (RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin) installiert
+# sind, und sagt nur etwas, wenn welche fehlen. Was nicht automatisch installiert werden konnte, wird höchstens alle
+# 24 Stunden erneut versucht (Merkdatei ~/.jellystation/emulators.check); dazwischen erinnert eine Zeile daran.
 #
 # Ohne den Befehl "jellystation" (siehe scripts/install-launcher.sh) geht es genauso mit:
 #   bash scripts/jellystation.sh [Optionen]
@@ -16,10 +23,13 @@
 #   JELLYSTATION_BRANCH       Branch, dem JellyStation folgt (Standard: claude/serene-ride-x8ll06)
 #   JELLYSTATION_REMOTE_URL   GitHub-Adresse, falls der Ordner erst verbunden werden muss
 #                             (Standard: https://github.com/dconair/jellystation.git)
-#   JELLYSTATION_DRY_RUN=1    nur anzeigen, was ausgeführt würde (npm, Start), nichts davon tun
+#   JELLYSTATION_DRY_RUN=1    nur anzeigen, was ausgeführt würde (npm, Emulatoren, Start), nichts davon tun
+#   JELLYSTATION_EMULATORS=skip   die Emulator-Prüfung und -Installation ganz auslassen
 set -euo pipefail
 
-# Interne Option --mark-deps: merkt sich den Stand der Pakete (wird von setup-mac.sh nach npm ci aufgerufen).
+# Interne Optionen (werden von setup-mac.sh nach der Einrichtung aufgerufen):
+#   --mark-deps       merkt sich den Stand der Pakete, damit der erste Start sie nicht gleich noch einmal installiert
+#   --mark-emulators  merkt sich den Stand der Emulatoren (Merkdatei), damit der erste Start nicht gleich dasselbe wiederholt
 
 BRANCH="${JELLYSTATION_BRANCH:-claude/serene-ride-x8ll06}"
 REMOTE_URL="${JELLYSTATION_REMOTE_URL:-https://github.com/dconair/jellystation.git}"
@@ -39,6 +49,14 @@ UPDATE=1
 STATUS=0
 ASSUME_YES=0
 MARK_DEPS=0
+MARK_EMU=0
+EMU_FORCE=0      # --emulators: jetzt prüfen/nachinstallieren, auch ohne Merkdatei
+EMU_UPDATE=0     # --update-emulators: auch auf den neuesten Stand bringen
+EMU_SKIP=0       # --no-emulators
+EMU_INSTALLER="$SCRIPT_DIR/install-emulators.sh"
+EMU_MARKER="${JELLYSTATION_HOME:-${HOME:-}}/.jellystation/emulators.check"
+EMU_RETRY_SECONDS=86400
+EMU_TOTAL="" EMU_INSTALLED="" EMU_MISSING="" EMU_MISSING_NAMES="" EMU_MANUAL=""
 
 # ---------------------------------------------------------------- Ausgabe ----
 
@@ -217,6 +235,24 @@ adopt_repo() {
   return 0
 }
 
+# Spiele- und BIOS-Ordner im Programmordner (Standard: ~/JellyStation/Games und ~/JellyStation/BIOS) gehören dem Nutzer.
+# Git darf sie nie anfassen: Sonst würde "git stash -u" beim Update alle Spiele wegsichern. Der Eintrag steht nur in
+# .git/info/exclude (lokal), nicht im Projekt.
+protect_user_dirs() {
+  local ex d
+  is_repo || return 0
+  [ -d "$REPO_DIR/Games" ] || [ -d "$REPO_DIR/BIOS" ] || return 0
+  ex="$(g rev-parse --git-path info/exclude 2>/dev/null || true)"
+  [ -n "$ex" ] || return 0
+  case "$ex" in /*) ;; *) ex="$REPO_DIR/$ex" ;; esac
+  for d in Games BIOS; do
+    [ -d "$REPO_DIR/$d" ] || continue
+    grep -qxF -e "/$d" -e "/$d/" "$ex" 2>/dev/null && continue
+    # ohne abschließenden Schrägstrich: gilt dann auch, wenn der Ordner ein Link auf eine andere Platte ist
+    if mkdir -p "$(dirname "$ex")" 2>/dev/null; then printf '/%s\n' "$d" >> "$ex" 2>/dev/null || true; fi
+  done
+}
+
 # Zählt Zeilen einer (evtl. leeren) Textvariablen.
 count_lines() { printf '%s\n' "$1" | awk 'NF { n++ } END { print n + 0 }'; }
 
@@ -309,6 +345,7 @@ update_repo() {
   elif ! g remote get-url origin >/dev/null 2>&1; then
     g remote add origin "$REMOTE_URL"
   fi
+  protect_user_dirs
 
   say "Suche Updates auf GitHub (Branch $BRANCH)"
   if ! fetch_remote; then
@@ -366,6 +403,7 @@ status_report() {
 
   if [ "$rc" -ne 0 ]; then
     [ "$rc" -eq 2 ] && out="couldn't find remote ref refs/heads/$BRANCH"
+    emu_status_row
     echo
     explain_fetch_failure "$out"
   else
@@ -376,6 +414,7 @@ status_report() {
     else
       row "GitHub" "${remote_hash:0:7} (Beschreibung erst nach dem Update sichtbar)"
     fi
+    emu_status_row
     echo
     if [ -z "$local_head" ]; then
       warn "Beim nächsten Start wird der Ordner auf die neueste Version gebracht."
@@ -466,6 +505,147 @@ ensure_deps() {
   fi
 }
 
+# -------------------------------------------------------------- Emulatoren ---
+
+# Lohnt sich die Emulator-Prüfung hier überhaupt? (nur auf dem Mac, nur mit dem Installationsskript)
+emu_available() {
+  [ "$(uname -s)" = "Darwin" ] && [ -f "$EMU_INSTALLER" ]
+}
+
+# Schnelle Prüfung ohne Ausgabe (install-emulators.sh --check --quiet --porcelain).
+# Setzt EMU_TOTAL, EMU_INSTALLED, EMU_MISSING (IDs, mit Komma), EMU_MISSING_NAMES, EMU_MANUAL.
+# Rückgabe: 0 = alles da, 1 = etwas fehlt, 2 = nicht prüfbar (dann bleiben die Werte leer)
+emu_probe() {
+  local out rc=0 k v
+  EMU_TOTAL="" EMU_INSTALLED="" EMU_MISSING="" EMU_MISSING_NAMES="" EMU_MANUAL=""
+  emu_available || return 2
+  out="$(bash "$EMU_INSTALLER" --check --quiet --porcelain 2>/dev/null)" || rc=$?
+  [ "$rc" -le 1 ] || return 2
+  while IFS='=' read -r k v; do
+    case "$k" in
+      total) EMU_TOTAL="$v" ;;
+      installed) EMU_INSTALLED="$v" ;;
+      missing) EMU_MISSING="$v" ;;
+      missing_names) EMU_MISSING_NAMES="$v" ;;
+      manual) EMU_MANUAL="$v" ;;
+    esac
+  done <<< "$out"
+  case "$EMU_TOTAL" in ''|0|*[!0-9]*) EMU_TOTAL="" EMU_INSTALLED=""; return 2 ;; esac
+  return "$rc"
+}
+
+# Zeile "Emulatoren: n/5 installiert" für --status (nichts, wenn es hier keine Emulator-Prüfung gibt)
+emu_status_row() {
+  local erc=0
+  emu_available || return 0
+  emu_probe || erc=$?
+  if [ "$erc" -eq 0 ]; then
+    row "Emulatoren:" "$EMU_INSTALLED/$EMU_TOTAL installiert"
+  elif [ "$erc" -eq 1 ]; then
+    row "Emulatoren:" "$EMU_INSTALLED/$EMU_TOTAL installiert (es fehlen: $EMU_MISSING_NAMES)"
+  fi
+  return 0
+}
+
+# Merkdatei ~/.jellystation/emulators.check:  time=<Sekunden seit 1970>, result=ok|offen, missing=<IDs mit Komma>
+EMU_MARK_TIME=0 EMU_MARK_MISSING=""
+emu_marker_read() {
+  local k v
+  EMU_MARK_TIME=0 EMU_MARK_MISSING=""
+  [ -f "$EMU_MARKER" ] || return 0
+  while IFS='=' read -r k v; do
+    case "$k" in
+      time) case "$v" in ''|*[!0-9]*) ;; *) EMU_MARK_TIME="$v" ;; esac ;;
+      missing) EMU_MARK_MISSING="$v" ;;
+    esac
+  done < "$EMU_MARKER"
+}
+
+emu_marker_write() {   # $1 = Ergebnis (ok|offen)
+  mkdir -p "$(dirname "$EMU_MARKER")" 2>/dev/null || return 0
+  printf 'time=%s\nresult=%s\nmissing=%s\n' "$(date +%s)" "$1" "$EMU_MISSING" > "$EMU_MARKER.tmp.$$" 2>/dev/null \
+    && mv "$EMU_MARKER.tmp.$$" "$EMU_MARKER" 2>/dev/null || rm -f "$EMU_MARKER.tmp.$$" 2>/dev/null || true
+}
+
+# Ist ein neuer Versuch fällig? Ja, wenn es noch keinen gab, er über 24 Stunden her ist (oder die Uhr zurückgestellt
+# wurde) oder ein Emulator fehlt, der beim letzten Versuch noch da war.
+emu_due() {
+  local now id
+  emu_marker_read
+  [ "$EMU_MARK_TIME" -gt 0 ] 2>/dev/null || return 0
+  now="$(date +%s)"
+  [ "$now" -ge "$EMU_MARK_TIME" ] || return 0
+  [ $((now - EMU_MARK_TIME)) -lt "$EMU_RETRY_SECONDS" ] || return 0
+  for id in ${EMU_MISSING//,/ }; do
+    case ",$EMU_MARK_MISSING," in *",$id,"*) ;; *) return 0 ;; esac
+  done
+  return 1
+}
+
+emu_reminder() {
+  local by_hand=""
+  if [ -n "$EMU_MANUAL" ]; then
+    by_hand=", von Hand: $EMU_MANUAL"
+  else
+    by_hand=", Download-Seiten: bash $(quote "$EMU_INSTALLER") --check"
+  fi
+  warn "Emulatoren fehlen noch: $EMU_MISSING_NAMES – nachholen mit  jellystation --emulators$by_hand"
+}
+
+# Installationsskript wirklich ausführen (oder im Trockenlauf nur anzeigen)
+emu_run_installer() {
+  local args=""
+  [ "$ASSUME_YES" = 0 ] || args="$args --yes"
+  [ "$EMU_UPDATE" = 0 ] || args="$args --update"
+  if [ "$DRY_RUN" = 1 ]; then
+    dry "bash $(quote "$EMU_INSTALLER")$args"
+    return 0
+  fi
+  # shellcheck disable=SC2086   # $args enthält nur die festen Schalter von oben
+  bash "$EMU_INSTALLER" $args || warn "Die Emulator-Einrichtung meldete ein Problem (Ausgabe oben) – gestartet wird trotzdem."
+}
+
+# Kurz prüfen und das Ergebnis in der Merkdatei festhalten (im Trockenlauf wird nichts geschrieben)
+emu_record() {
+  local rc=0
+  emu_probe || rc=$?
+  [ "$DRY_RUN" != 1 ] || return 0
+  if [ "$rc" -eq 0 ]; then emu_marker_write ok; elif [ "$rc" -eq 1 ]; then emu_marker_write offen; fi
+  return 0
+}
+
+# Emulatoren prüfen und bei Bedarf einrichten (vor dem Start).
+#   --emulators / --update-emulators: immer jetzt (ohne Rücksicht auf die Merkdatei)
+#   sonst: kurze stille Prüfung; fehlt etwas, wird höchstens alle 24 Stunden neu versucht, dazwischen erinnert eine Zeile
+ensure_emulators() {
+  local rc=0 forced=0
+  if [ "$EMU_FORCE" = 1 ] || [ "$EMU_UPDATE" = 1 ]; then forced=1; fi
+  if [ "$forced" = 0 ]; then
+    [ "$EMU_SKIP" = 0 ] || return 0
+    [ "${JELLYSTATION_EMULATORS:-}" != "skip" ] || return 0
+    [ "$MODE" != web ] || return 0   # die Browser-Vorschau startet keine Emulatoren
+  fi
+  emu_available || return 0
+
+  if [ "$forced" = 1 ]; then
+    say "Emulatoren"
+    emu_run_installer
+  else
+    emu_probe || rc=$?
+    [ "$rc" -eq 1 ] || return 0   # alles da (0) oder nicht prüfbar (2): nichts sagen
+    if ! emu_due; then
+      emu_reminder
+      return 0
+    fi
+    say "Emulatoren"
+    info "Es fehlen: $EMU_MISSING_NAMES"
+    emu_run_installer
+  fi
+
+  emu_record   # Stand nach dem Versuch merken
+  return 0
+}
+
 # ------------------------------------------------------------------ Start ---
 
 banner() {
@@ -482,6 +662,7 @@ banner() {
   else
     printf '  %sJellyStation %s%s  (Stand unbekannt: kein Git-Ordner)\n' "$C_BOLD" "${version:-?}" "$C_RESET"
   fi
+  if [ -n "$EMU_TOTAL" ]; then info "Emulatoren: $EMU_INSTALLED/$EMU_TOTAL installiert"; fi
   info "$label"
 }
 
@@ -553,8 +734,12 @@ main() {
       --build) set_mode build ;;
       --no-update) UPDATE=0 ;;
       --status) STATUS=1 ;;
+      --emulators) EMU_FORCE=1 ;;
+      --update-emulators) EMU_UPDATE=1 ;;
+      --no-emulators) EMU_SKIP=1 ;;
       -y|--yes) ASSUME_YES=1 ;;
       --mark-deps) MARK_DEPS=1 ;;
+      --mark-emulators) MARK_EMU=1 ;;
       -h|--help) print_help; return 0 ;;
       *)
         echo "Unbekannte Option: $arg" >&2
@@ -564,10 +749,20 @@ main() {
     esac
   done
 
+  if [ "$EMU_SKIP" = 1 ] && { [ "$EMU_FORCE" = 1 ] || [ "$EMU_UPDATE" = 1 ]; }; then
+    echo "--no-emulators lässt sich nicht mit --emulators oder --update-emulators kombinieren." >&2
+    return 2
+  fi
+
   prepare_path
 
   if [ "$MARK_DEPS" = 1 ]; then
     write_marker
+    return 0
+  fi
+
+  if [ "$MARK_EMU" = 1 ]; then
+    if emu_available && [ "${JELLYSTATION_EMULATORS:-}" != "skip" ]; then emu_record; fi
     return 0
   fi
 
@@ -590,6 +785,9 @@ main() {
       set -- --no-update
       [ "$MODE" = dev ] || set -- "$@" "--$MODE"
       [ "$ASSUME_YES" = 0 ] || set -- "$@" --yes
+      [ "$EMU_FORCE" = 0 ] || set -- "$@" --emulators
+      [ "$EMU_UPDATE" = 0 ] || set -- "$@" --update-emulators
+      [ "$EMU_SKIP" = 0 ] || set -- "$@" --no-emulators
       exec bash "$SCRIPT_PATH" "$@"
     fi
   else
@@ -597,6 +795,7 @@ main() {
   fi
 
   ensure_deps
+  ensure_emulators
   start_app
 }
 

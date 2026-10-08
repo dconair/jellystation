@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+echo "open $*" >> "${STUB_STATE:-/dev/null}/calls.log" 2>/dev/null
+exit 0

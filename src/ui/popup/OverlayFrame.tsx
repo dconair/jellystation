@@ -22,6 +22,8 @@ export interface OverlayFrameProps {
   onExited?: () => void;
   /** false = Klick und Rückfall-Eingabe sind aus (Overlay liegt unter einem anderen). */
   active?: boolean;
+  /** false = ○ / Esc nicht abfangen, nur der Klick auf den Hintergrund zählt (für Inhalt mit eigener Eingabe). */
+  keyboard?: boolean;
   className?: string;
 }
 
@@ -59,6 +61,7 @@ export function OverlayFrame({
   open = true,
   onExited,
   active = true,
+  keyboard = true,
   className,
 }: OverlayFrameProps) {
   const [claims, setClaims] = useState(0);
@@ -90,7 +93,7 @@ export function OverlayFrame({
 
   // Rückfall für eigenen Inhalt ohne eigene Eingabe
   useOverlayInput({
-    active: active && open && !!onBack && claims === 0,
+    active: active && open && keyboard && !!onBack && claims === 0,
     onAction: (action) => {
       if (action !== "back") return;
       playSfx("back");
@@ -100,7 +103,9 @@ export function OverlayFrame({
 
   // Liegt schon ein anderer Rahmen offen (Dialog über einer Liste), dunkelt der neue nur noch halb ab –
   // sonst wäre der Hintergrund dahinter fast schwarz.
-  const [stacked] = useState(() => typeof document !== "undefined" && document.querySelector(".pop-overlay") !== null);
+  const [stacked] = useState(
+    () => typeof document !== "undefined" && document.querySelector(".pop-overlay:not(.is-leaving)") !== null,
+  );
 
   if (!mounted) return null;
 
@@ -126,11 +131,16 @@ export function OverlayFrame({
 }
 
 /**
- * Hüllt ein Panel in einen OverlayFrame, falls es noch in keinem steckt (und `frame` nicht false ist).
- * So funktionieren PopupList und die Dialoge allein genauso wie innerhalb eines eigenen OverlayFrame.
+ * Hüllt ein Panel in einen OverlayFrame (außer bei `frame={false}`).
+ *
+ * - `reuse`: Steckt das Panel schon in einem OverlayFrame, wird dieser genutzt (PopupList in eigenem Rahmen:
+ *   Ausrichtung und Abdunklung bestimmt dann der Aufrufer).
+ * - Sonst bekommt jedes Panel einen eigenen Rahmen. So legt sich ein Dialog auch innerhalb eines fremden
+ *   OverlayFrame über die Liste, statt als zweite Spalte daneben zu landen.
  */
 export function MaybeFrame({
   frame = true,
+  reuse = false,
   align,
   dim,
   onBack,
@@ -138,6 +148,7 @@ export function MaybeFrame({
   children,
 }: {
   frame?: boolean;
+  reuse?: boolean;
   align?: OverlayAlign;
   dim?: boolean | number;
   onBack?: () => void;
@@ -145,9 +156,10 @@ export function MaybeFrame({
   children: ReactNode;
 }) {
   const inFrame = useInFrame();
-  if (!frame || inFrame) return <>{children}</>;
+  if (!frame || (reuse && inFrame)) return <>{children}</>;
   return (
-    <OverlayFrame align={align} dim={dim} onBack={onBack} active={active}>
+    // Der Inhalt behandelt ○/Esc selbst; der Rahmen übernimmt nur den Klick auf den Hintergrund.
+    <OverlayFrame align={align} dim={dim} onBack={onBack} active={active} keyboard={false}>
       {children}
     </OverlayFrame>
   );

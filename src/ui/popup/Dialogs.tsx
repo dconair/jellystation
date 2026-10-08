@@ -3,7 +3,7 @@ import type { PadAction } from "../../input/useGamepad";
 import { playSfx } from "../../xmb/sound";
 import { MaybeFrame, useFrameClaim } from "./OverlayFrame";
 import type { OverlayAlign } from "./OverlayFrame";
-import { DotSpinner, HintBar, KindIcon } from "./parts";
+import { DotSpinner, HintBar, KindIcon, useResizeGuard } from "./parts";
 import { clamp01 } from "./listLayout";
 import type { PopupHint } from "./types";
 import { useOverlayInput } from "./useOverlayInput";
@@ -19,17 +19,25 @@ interface DialogBase {
   dim?: boolean | number;
 }
 
-/** Text mit Zeilenumbrüchen als Absätze (leere Zeilen werden zu Abstand). */
-function Paragraphs({ text }: { text: string }) {
+/** Text mit Zeilenumbrüchen als Absätze (leere Zeilen werden zu Abstand); eine Liste zählt als eine Zeile je Eintrag. */
+function Paragraphs({ text }: { text: string | readonly string[] }) {
+  const lines = typeof text === "string" ? text.split("\n") : text;
   return (
     <>
-      {text.split("\n").map((line, i) => (
+      {lines.map((line, i) => (
         <p key={i} className={line.trim() === "" ? "pop-gap" : undefined}>
           {line}
         </p>
       ))}
     </>
   );
+}
+
+/** Einen scrollbaren Block um drei Zeilen (oder fast eine Seite) weiterschieben. */
+function scrollBox(el: HTMLElement | null, dir: 1 | -1, pageWise: boolean) {
+  if (!el || el.scrollHeight <= el.clientHeight) return;
+  const unit = pageWise ? el.clientHeight * 0.85 : (parseFloat(getComputedStyle(el).lineHeight) || 20) * 3;
+  el.scrollBy({ top: dir * unit, behavior: "smooth" });
 }
 
 /* ------------------------------------------------------------------ Auswahl-Leiste (Dialog-Optionen) */
@@ -78,7 +86,7 @@ function Choices({
             type="button"
             tabIndex={-1}
             className={`pop-choice${i === index ? " is-focused" : ""}${choice.danger ? " is-danger" : ""}`}
-            aria-pressed={i === index}
+            aria-current={i === index ? "true" : undefined}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => active && onPick(i)}
           >
@@ -94,8 +102,8 @@ function Choices({
 
 export interface ConfirmDialogProps extends DialogBase {
   title: string;
-  /** Text der Frage; „\n“ beginnt einen neuen Absatz. */
-  message: string;
+  /** Text der Frage; „\n“ beginnt einen neuen Absatz (oder eine Liste von Absätzen). */
+  message: string | readonly string[];
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm: () => void;
@@ -123,7 +131,10 @@ export function ConfirmDialog({
   dim,
 }: ConfirmDialogProps) {
   const uid = useId();
+  const panelRef = useRef<HTMLElement>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
   useFrameClaim();
+  useResizeGuard(panelRef);
   const [index, setIndex] = useState(danger ? 1 : 0);
   const indexRef = useRef(index);
   const cb = useRef({ onConfirm, onCancel });
@@ -165,6 +176,10 @@ export function ConfirmDialog({
           return pick(indexRef.current);
         case "back":
           return pick(1);
+        case "l1":
+          return scrollBox(messageRef.current, -1, true);
+        case "r1":
+          return scrollBox(messageRef.current, 1, true);
         default:
           return;
       }
@@ -179,6 +194,7 @@ export function ConfirmDialog({
   return (
     <MaybeFrame frame={frame} align={align} dim={dim} onBack={() => cb.current.onCancel()} active={active}>
       <section
+        ref={panelRef}
         className={`pop-panel pop-dialog pop-dialog--confirm${active ? "" : " is-inactive"}`}
         role={danger ? "alertdialog" : "dialog"}
         aria-modal="true"
@@ -192,13 +208,18 @@ export function ConfirmDialog({
             </h2>
           </div>
         </header>
-        <div id={`${uid}-msg`} className="pop-message">
+        <div id={`${uid}-msg`} ref={messageRef} className="pop-message">
           <Paragraphs text={message} />
         </div>
-        <Choices choices={choices} index={index} onPick={(i) => {
+        <Choices
+          choices={choices}
+          index={index}
+          onPick={(i) => {
             move(i);
             pick(i);
-          }} active={active} />
+          }}
+          active={active}
+        />
         <HintBar
           hints={hints}
           onHint={(a) => {
@@ -244,21 +265,24 @@ export function MessageDialog({
   dim,
 }: MessageDialogProps) {
   const uid = useId();
+  const panelRef = useRef<HTMLElement>(null);
   useFrameClaim();
+  useResizeGuard(panelRef);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const detailRef = useRef<HTMLPreElement>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
 
   const close = (sound: "confirm" | "back") => {
     playSfx(sound);
     onCloseRef.current();
   };
 
+  // ↑↓ blättern im Detailblock, ohne ihn (oder wenn er nichts zu scrollen hat) in der Meldung selbst
   const scrollDetail = (dir: 1 | -1, pageWise: boolean) => {
-    const el = detailRef.current;
-    if (!el) return;
-    const unit = pageWise ? el.clientHeight * 0.85 : (parseFloat(getComputedStyle(el).lineHeight) || 20) * 3;
-    el.scrollBy({ top: dir * unit, behavior: "smooth" });
+    const detailEl = detailRef.current;
+    const target = detailEl && detailEl.scrollHeight > detailEl.clientHeight ? detailEl : messageRef.current;
+    scrollBox(target, dir, pageWise);
   };
 
   useOverlayInput({
@@ -296,6 +320,7 @@ export function MessageDialog({
   return (
     <MaybeFrame frame={frame} align={align} dim={dim} onBack={() => onCloseRef.current()} active={active}>
       <section
+        ref={panelRef}
         className={`pop-panel pop-dialog pop-dialog--message is-${kind}${active ? "" : " is-inactive"}`}
         role={kind === "error" ? "alertdialog" : "dialog"}
         aria-modal="true"
@@ -311,12 +336,8 @@ export function MessageDialog({
           </div>
         </header>
         <div className="pop-dialog__body">
-          <div id={`${uid}-msg`} className="pop-message" role={kind === "error" ? "alert" : undefined}>
-            {lines.map((line, i) => (
-              <p key={i} className={line.trim() === "" ? "pop-gap" : undefined}>
-                {line}
-              </p>
-            ))}
+          <div id={`${uid}-msg`} ref={messageRef} className="pop-message" role={kind === "error" ? "alert" : undefined}>
+            <Paragraphs text={lines} />
           </div>
           {hasDetail && (
             <pre ref={detailRef} className="pop-detail" aria-label="Details">
@@ -368,7 +389,9 @@ export function ProgressDialog({
   dim,
 }: ProgressDialogProps) {
   const uid = useId();
+  const panelRef = useRef<HTMLElement>(null);
   useFrameClaim();
+  useResizeGuard(panelRef);
   const cancelRef = useRef(onCancel);
   cancelRef.current = onCancel;
 
@@ -411,8 +434,10 @@ export function ProgressDialog({
   const percent = Math.round(value * 100);
 
   return (
-    <MaybeFrame frame={frame} align={align} dim={dim} onBack={cancelRef.current ? cancel : undefined} active={active}>
+    // Kein Klick-daneben-bricht-ab: ein versehentlicher Mausklick soll keinen laufenden Vorgang abbrechen.
+    <MaybeFrame frame={frame} align={align} dim={dim} active={active}>
       <section
+        ref={panelRef}
         className={`pop-panel pop-dialog pop-dialog--progress${active ? "" : " is-inactive"}`}
         role="dialog"
         aria-modal="true"
@@ -439,6 +464,7 @@ export function ProgressDialog({
                   <div
                     className={`pop-meter__track${determinate ? "" : " is-indeterminate"}`}
                     role="progressbar"
+                    aria-label="Fortschritt"
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={determinate ? percent : undefined}

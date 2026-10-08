@@ -1,4 +1,5 @@
-import type { CSSProperties, MouseEvent, ReactNode } from "react";
+import { useEffect, useRef } from "react";
+import type { CSSProperties, MouseEvent, ReactNode, RefObject } from "react";
 import { PsSymbol } from "../PsSymbol";
 import type { PsSymbolName } from "../PsSymbol";
 import type { HintAction, PopupHint } from "./types";
@@ -103,4 +104,28 @@ export function KindIcon({ kind }: { kind: "info" | "error" | "success" }) {
       </svg>
     </span>
   );
+}
+
+/**
+ * Beim Ändern der Fenstergröße ändert sich 1rem – und damit würden alle rem-Werte der Transforms weich nachlaufen,
+ * während die Zeilen sofort springen: Der Inhalt „schwämme“ eine halbe Sekunde lang. Solange das Fenster seine
+ * Größe ändert (und kurz danach), sind die Übergänge im Panel deshalb aus (Klasse is-resizing, siehe popup.css).
+ * Das Klassen-Setzen geschieht direkt im resize-Ereignis, das vor der Stilberechnung des Frames läuft.
+ */
+export function useResizeGuard(ref: RefObject<HTMLElement | null>) {
+  const timer = useRef(0);
+  useEffect(() => {
+    const onResize = () => {
+      const el = ref.current;
+      if (!el) return;
+      el.classList.add("is-resizing");
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => el.classList.remove("is-resizing"), 220);
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.clearTimeout(timer.current);
+    };
+  }, [ref]);
 }

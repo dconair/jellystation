@@ -1,7 +1,7 @@
 import type { ArtSource } from "../data/types";
 import { isTauri } from "../platform";
 import { getDeviceId } from "./device";
-import { abortError, JfError } from "./errors";
+import { abortError, isAbortError, JfError } from "./errors";
 import { artHeaders, jfJson } from "./http";
 import type { JfAuth } from "./http";
 import { isValidServerUrl, normalizeServerUrl } from "./url";
@@ -91,6 +91,31 @@ export async function fetchJfUsers(auth: JfAuth, signal?: AbortSignal): Promise<
   return users;
 }
 
+/**
+ * Der Benutzer, zu dem die Anmeldung gehört (`GET /Users/Me`). Das gibt es nur bei einem Benutzer-Token – ein API-Key
+ * gehört keinem Benutzer. Dient als Rückfall, wenn jemand statt eines API-Keys den Token eines normalen Benutzers
+ * eingetragen hat (der darf die Benutzerliste nicht lesen).
+ */
+async function fetchCurrentUser(auth: JfAuth, signal?: AbortSignal): Promise<JfUser | null> {
+  try {
+    return parseUser(await jfJson<UserDto | null>(auth, "/Users/Me", { signal }), auth);
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    return null;
+  }
+}
+
+/** Benutzerliste; ist der Schlüssel kein Administrator (403), nur der eigene Benutzer des Tokens. Wirft sonst wie {@link fetchJfUsers}. */
+export async function fetchSelectableUsers(auth: JfAuth, signal?: AbortSignal): Promise<JfUser[]> {
+  try {
+    return await fetchJfUsers(auth, signal);
+  } catch (err) {
+    const me = err instanceof JfError && err.status === 403 ? await fetchCurrentUser(auth, signal) : null;
+    if (!me) throw err;
+    return [me];
+  }
+}
+
 const sameId = (a: string, b: string) => a.replace(/-/g, "").toLowerCase() === b.replace(/-/g, "").toLowerCase();
 const activityTime = (u: JfUser) => {
   const t = u.lastActivity ? Date.parse(u.lastActivity) : NaN;
@@ -132,7 +157,7 @@ export async function listJfUsers(
   cfg: { url: string; apiKey: string },
   opts: { signal?: AbortSignal } = {},
 ): Promise<JfUser[]> {
-  const users = await fetchJfUsers(authFor(cfg), opts.signal);
+  const users = await fetchSelectableUsers(authFor(cfg), opts.signal);
   return users
     .map((u, i) => ({ u, i }))
     .sort(
@@ -168,7 +193,7 @@ async function startMediaProxy(base: string, apiKey: string): Promise<{ prefix?:
  */
 export async function createJfContext(cfg: JfConfig, opts: { signal?: AbortSignal } = {}): Promise<JfContext> {
   const auth = authFor(cfg);
-  const users = await fetchJfUsers(auth, opts.signal);
+  const users = await fetchSelectableUsers(auth, opts.signal);
   const picked = pickJfUser(users, cfg.userId);
   if (!picked) throw new JfError("Auf dem Jellyfin-Server gibt es keinen Benutzer", "protocol");
   const proxy = await startMediaProxy(auth.base, auth.apiKey);

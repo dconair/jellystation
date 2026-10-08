@@ -1,7 +1,5 @@
 .xmb {
-  --xmb-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* leichtes Überschwingen = "schwebend" */
-  --xmb-soft: cubic-bezier(0.25, 0.8, 0.3, 1); /* ohne Überschwingen, für Helligkeit und Glanz */
-  --xmb-dur: 0.75s;
+  --xmb-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* nur noch für den Bestätigungs-Puls */
   --xmb-text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.55);
   /* Bei höheren Fenstern als 16:9 (z. B. 4:3) wird die Menü-Komposition mittig nach unten geschoben. */
   --stage-shift: max(0px, calc((100vh - 54rem) / 2));
@@ -103,6 +101,13 @@
   transform: translateY(var(--stage-shift));
 }
 
+/*
+ * Bewegung: Ort, Größe, Deckkraft, Leuchten und Schweben aller Kategorien und Einträge setzt die MotionEngine
+ * (MotionEngine.ts) pro Bild aus EINER Position je Achse. Deshalb stehen hier bewusst keine CSS-Übergänge für
+ * transform, opacity oder filter: Sie würden unabhängig von der Bewegung laufen und als Geisterbilder hängen bleiben.
+ * Das Leuchten sind Ebenen mit statischem Schatten, deren Deckkraft bewegt wird (animierte Filter sind teuer).
+ */
+
 /* ---------- Horizontale Achse: Kategorien ---------- */
 
 .xmb-category {
@@ -124,38 +129,41 @@
   cursor: pointer;
   outline: none; /* nach einem Klick soll kein Browser-Fokusrahmen im Menü auftauchen */
   -webkit-tap-highlight-color: transparent;
-  opacity: max(0.14, calc(0.6 - (var(--dist) - 1) * 0.1));
-  /* Leichte Staffelung: die Icons folgen dem neuen Fokus wie eine sanfte Welle. */
-  transition:
-    transform var(--xmb-dur) var(--xmb-ease) calc(min(var(--dist), 5) * 14ms),
-    opacity 0.5s ease;
+  opacity: 0; /* bis die MotionEngine den Knoten vor dem ersten Paint positioniert hat */
+  will-change: transform, opacity;
+}
+
+/* Schweben: eigene Ebene, die im Ruhezustand ohne Neuzeichnen bewegt wird (Größe/Streckung liegen darunter). */
+.xmb-category__bob {
+  display: block;
   will-change: transform;
 }
 
-.xmb-category.is-active {
-  opacity: 1;
+.xmb-category__scale {
+  position: relative;
+  display: block;
+  width: 3.4rem;
+  height: 3.4rem;
 }
 
 .xmb-category .xmb-icon-svg {
   display: block;
   width: 3.4rem;
   height: 3.4rem;
-  transform: scale(1);
   filter: drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.25));
-  transition:
-    transform var(--xmb-dur) var(--xmb-ease),
-    filter 0.6s var(--xmb-soft);
 }
 
-.xmb-category.is-active .xmb-icon-svg {
-  transform: scale(1.4);
-  filter: drop-shadow(0 0 0.35rem rgba(255, 255, 255, 0.55))
-    drop-shadow(0 0 1rem rgba(255, 255, 255, 0.45));
+/* Leuchten der aktiven Kategorie: Kopie hinter dem Icon, statischer Schatten, nur die Deckkraft ändert sich. */
+.xmb-category__glow {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
-/* Die Schwebe-Bewegung steuert <Float> (Float.tsx), damit nichts auf die Ruhelage zurückspringt. */
-.xmb-category__float {
-  display: block;
+.xmb-category__glow .xmb-icon-svg {
+  filter: drop-shadow(0 0 0.35rem rgba(255, 255, 255, 0.55)) drop-shadow(0 0 1rem rgba(255, 255, 255, 0.45));
 }
 
 .xmb-category__label {
@@ -171,42 +179,24 @@
   text-shadow: var(--xmb-text-shadow);
   opacity: 0;
   transform: translate(-50%, -0.7rem);
-  transition:
-    opacity 0.3s ease,
-    transform var(--xmb-dur) var(--xmb-ease);
-}
-
-.xmb-category.is-active .xmb-category__label {
-  opacity: 1;
-  transform: translate(-50%, 0);
-  transition:
-    opacity 0.5s ease 0.14s,
-    transform var(--xmb-dur) var(--xmb-ease) 0.1s;
 }
 
 /* ---------- Vertikale Achse: Einträge ---------- */
 
+/*
+ * Eine Spalte ist ein Punkt auf der Spaltenachse (x der Kategorie); die MotionEngine verschiebt sie mit der
+ * Kategorie-Leiste und blendet sie als Kreuzblende ein und aus.
+ */
 .xmb-column {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
   pointer-events: none;
-  opacity: 0;
   visibility: hidden;
-  transform: translateY(1.8rem);
-  transition:
-    opacity 0.3s ease,
-    transform 0.3s ease,
-    visibility 0s 0.3s;
-}
-
-.xmb-column.is-active {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-  transition:
-    opacity 0.55s ease 0.1s,
-    transform var(--xmb-dur) var(--xmb-ease) 0.1s,
-    visibility 0s;
+  opacity: 0;
+  will-change: transform, opacity;
 }
 
 /*
@@ -217,7 +207,6 @@
   --tile-w: 3.6rem;
   --tile-h: 3.6rem;
   --tile-gap: 1.3rem;
-  --focus-scale: 1.24;
   position: absolute;
   left: 0;
   top: 0;
@@ -226,36 +215,31 @@
   pointer-events: auto;
   cursor: pointer;
   white-space: nowrap;
-  /* Staffelung: der Fokus reagiert zuerst, entferntere Einträge folgen leicht versetzt. */
-  transition:
-    transform var(--xmb-dur) var(--xmb-ease) calc(var(--stagger) * 26ms),
-    opacity 0.55s ease calc(var(--stagger) * 14ms);
-  will-change: transform, opacity;
-  /* Neu eingehängte Einträge (z. B. nach einem Sprung zurück) blenden weich ein. */
-  animation: xmb-item-in 0.45s ease 0.1s backwards;
+  opacity: 0; /* bis die MotionEngine den Knoten vor dem ersten Paint positioniert hat */
 }
 
-/* Reste des alten Fokus nach einem weiten Sprung: schnell ausblenden, bevor die neuen Einträge einblenden. */
-.xmb-item.is-trailing {
-  transition:
-    transform var(--xmb-dur) var(--xmb-ease),
-    opacity 0.18s ease;
+/*
+ * Eigene Ebenen (will-change) gibt es nur in sichtbaren Spalten (data-live setzt die MotionEngine): Hunderte
+ * Ebenen für unsichtbare Listen würden jeden Bildaufbau (Commit) verteuern.
+ */
+.xmb-column[data-live="1"] .xmb-item {
+  will-change: transform, opacity;
 }
 
 .xmb-item.has-art {
   --tile-w: 8.8rem;
   --tile-h: 4.95rem; /* 16:9 */
   --tile-gap: 1.5rem;
-  --focus-scale: 1.2;
 }
 
 /* Icon-Eintrag in einer Spalte mit Covern: Text beginnt auf derselben Linie wie bei den Covern. */
-.xmb-item.in-art-col .xmb-item__text {
-  margin-left: calc((8.8rem - var(--tile-w)) / 2 + 1.5rem - var(--tile-gap));
+.xmb-item.in-art-col {
+  --text-nudge: calc((8.8rem - var(--tile-w)) / 2 + 1.5rem - var(--tile-gap));
 }
 
-.xmb-item.is-hidden {
-  pointer-events: none;
+.xmb-item.in-art-col .xmb-item__text {
+  margin-left: var(--text-nudge);
+  transform-origin: calc(var(--tile-w) / -2 - var(--tile-gap) - var(--text-nudge)) 50%;
 }
 
 .xmb-item__inner {
@@ -263,18 +247,65 @@
   align-items: center;
   gap: var(--tile-gap);
   height: 100%;
-  transform-origin: calc(var(--tile-w) / 2) 50%;
-  transform: scale(1);
-  transition: transform var(--xmb-dur) var(--xmb-ease);
 }
 
-.xmb-item.is-focused .xmb-item__inner {
-  transform: scale(var(--focus-scale));
-}
-
+/*
+ * Kachel/Cover schwebt (eigene Ebene, nur Verschiebung) und streckt sich mit der Bewegung; Kachel und Text werden
+ * um dieselbe Mitte (die der Kachel) skaliert. Der Text bleibt beim Schweben stehen.
+ */
 .xmb-item__float {
+  position: relative;
   display: block;
   flex: none;
+}
+
+.xmb-column[data-live="1"] .xmb-item__float {
+  will-change: transform;
+}
+
+.xmb-item__scale {
+  position: relative;
+  display: block;
+}
+
+.xmb-item__text {
+  transform-origin: calc(var(--tile-w) / -2 - var(--tile-gap)) 50%;
+}
+
+/* Leuchten des fokussierten Eintrags: statischer Schatten hinter der Kachel, Deckkraft = Fokus. */
+.xmb-item__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.85rem;
+  opacity: 0;
+  visibility: hidden; /* sichtbar nur beim Fokus (die MotionEngine schaltet) */
+  pointer-events: none;
+  box-shadow: 0 0 1.8rem hsl(var(--hue) 90% 72% / 0.55);
+}
+
+.xmb-column[data-live="1"] .xmb-item__glow {
+  will-change: opacity;
+}
+
+.xmb-item.has-art .xmb-item__glow {
+  border-radius: 0.5rem;
+  box-shadow:
+    0 0 1.6rem rgba(255, 255, 255, 0.4),
+    0 0 3.4rem hsl(var(--hue) 90% 70% / 0.35);
+}
+
+/* Abdunklung unfokussierter Kacheln: Deckkraft = 1 − Fokus (ersetzt den früheren, animierten brightness-Filter). */
+.xmb-item__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  pointer-events: none;
+  background: rgba(6, 10, 26, 0.12);
+}
+
+.xmb-item.has-art .xmb-item__shade {
+  background: rgba(6, 10, 26, 0.16);
 }
 
 /* Gemeinsamer Glanz für Kacheln und Cover: Lichtkante oben, diagonaler Schimmer, feiner Rand. */
@@ -320,20 +351,7 @@
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.12)),
     linear-gradient(145deg, hsl(var(--hue) 75% 58% / 0.78), hsl(var(--hue) 75% 24% / 0.78));
-  box-shadow:
-    0 0.35rem 1rem rgba(0, 0, 0, 0.32),
-    0 0 0 rgba(255, 255, 255, 0);
-  filter: brightness(0.9);
-  transition:
-    box-shadow 0.6s var(--xmb-soft),
-    filter 0.6s var(--xmb-soft);
-}
-
-.xmb-item.is-focused .xmb-item__tile {
-  filter: brightness(1.08);
-  box-shadow:
-    0 0.45rem 1.4rem rgba(0, 0, 0, 0.36),
-    0 0 1.8rem hsl(var(--hue) 90% 72% / 0.55);
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.32);
 }
 
 .xmb-item__tile .xmb-icon-svg {
@@ -352,21 +370,7 @@
   overflow: hidden;
   border-radius: 0.5rem;
   background: rgba(10, 16, 40, 0.5);
-  box-shadow:
-    0 0.45rem 1.2rem rgba(0, 0, 0, 0.42),
-    0 0 0 rgba(255, 255, 255, 0);
-  filter: brightness(0.86) saturate(0.92);
-  transition:
-    box-shadow 0.6s var(--xmb-soft),
-    filter 0.6s var(--xmb-soft);
-}
-
-.xmb-item.is-focused .xmb-item__cover {
-  filter: brightness(1.04) saturate(1.05);
-  box-shadow:
-    0 0.6rem 1.7rem rgba(0, 0, 0, 0.45),
-    0 0 1.6rem rgba(255, 255, 255, 0.4),
-    0 0 3.4rem hsl(var(--hue) 90% 70% / 0.35);
+  box-shadow: 0 0.45rem 1.2rem rgba(0, 0, 0, 0.42);
 }
 
 .xmb-item__text {
@@ -394,12 +398,11 @@
   line-height: 1.2;
   letter-spacing: 0.035em;
   color: rgba(255, 255, 255, 0.94);
-  transition: color 0.5s ease;
 }
 
+/* Die Schriftstärke (300 → 400) läuft stetig mit dem Fokus; die MotionEngine setzt sie pro Bild. */
 .xmb-item.is-focused .xmb-item__title {
   color: #fff;
-  font-weight: 400;
 }
 
 .xmb-item__subtitle {
@@ -432,13 +435,11 @@
   right: 3.5rem;
   width: 24rem;
   text-shadow: var(--xmb-text-shadow);
-  /* Die neue Karte folgt der alten mit leichtem Versatz, damit sich beide Texte nicht stapeln. */
-  animation: xmb-detail-in 0.6s var(--xmb-ease) 0.2s both;
-}
-
-.xmb-detail.is-leaving {
+  /* Genau eine Karte: Deckkraft und Versatz setzt die MotionEngine (aus → tauschen → ein). */
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  animation: xmb-detail-out 0.16s ease both;
+  will-change: opacity, transform;
 }
 
 .xmb-detail__art {
@@ -637,32 +638,6 @@
   }
 }
 
-@keyframes xmb-item-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes xmb-detail-in {
-  from {
-    opacity: 0;
-    transform: translateY(1rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes xmb-detail-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
 @keyframes xmb-toast {
   0% {
     opacity: 0;
@@ -686,11 +661,6 @@
     animation: none !important;
     transition-duration: 0.01s !important;
     transition-delay: 0s !important;
-  }
-
-  /* Ohne Ausblend-Animation wäre die alte Detailkarte sonst noch kurz über der neuen zu sehen. */
-  .xmb-detail.is-leaving {
-    visibility: hidden;
   }
 }
 

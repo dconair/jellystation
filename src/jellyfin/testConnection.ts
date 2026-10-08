@@ -1,5 +1,5 @@
 import { isTauri } from "../platform";
-import { pickJfUser, fetchJfUsers } from "./context";
+import { fetchSelectableUsers, pickJfUser } from "./context";
 import { getDeviceId } from "./device";
 import { isValidServerUrl, normalizeServerUrl } from "./url";
 
@@ -82,7 +82,7 @@ async function probeUser(
   userId: string | undefined,
 ): Promise<{ userName?: string; userCount?: number }> {
   try {
-    const users = await fetchJfUsers({ base, apiKey, deviceId: getDeviceId() }, AbortSignal.timeout(3000));
+    const users = await fetchSelectableUsers({ base, apiKey, deviceId: getDeviceId() }, AbortSignal.timeout(3000));
     const picked = pickJfUser(users, userId);
     return picked ? { userName: picked.user.name, userCount: users.length } : { userCount: 0 };
   } catch {

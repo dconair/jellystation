@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Teststub: "defaults read <Pfad ohne .plist> <Schlüssel>" liest die Info.plist (XML) mit sed.
+echo "defaults $*" >> "${STUB_STATE:?}/calls.log"
+[ "${1:-}" = read ] || exit 1
+plist="$2.plist"; key="$3"
+[ -f "$plist" ] || { echo "The domain/default pair of ($2, $key) does not exist" >&2; exit 1; }
+val="$(tr '\n' ' ' < "$plist" | sed -n "s|.*<key>$key</key>[[:space:]]*<string>\([^<]*\)</string>.*|\1|p")"
+[ -n "$val" ] || { echo "The domain/default pair of ($2, $key) does not exist" >&2; exit 1; }
+echo "$val"

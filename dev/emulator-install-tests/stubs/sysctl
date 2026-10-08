@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Teststub: hw.optional.arm64 = 1 auf Apple Silicon (STUB_ARM=1), auf Intel gibt es den Schlüssel nicht.
+if [ "${1:-}" = "-n" ] && [ "${2:-}" = "hw.optional.arm64" ]; then
+  if [ "${STUB_ARM:-0}" = 1 ]; then echo 1; exit 0; fi
+  echo "sysctl: unknown oid 'hw.optional.arm64'" >&2
+  exit 1
+fi
+echo "sysctl-Stub: unbekannte Abfrage: $*" >&2
+exit 1

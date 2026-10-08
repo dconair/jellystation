@@ -34,8 +34,8 @@
   overflow: hidden;
   background: radial-gradient(
     ellipse 85% 75% at 50% 46%,
-    rgba(5, 10, 32, calc(var(--pop-dim) * 0.82)) 0%,
-    rgba(2, 4, 14, calc(var(--pop-dim) * 1.25)) 100%
+    rgba(5, 10, 32, calc(var(--pop-dim) * 0.9)) 0%,
+    rgba(2, 4, 14, calc(var(--pop-dim) * 1.3)) 100%
   );
   animation: pop-fade-in 0.28s ease both;
 }
@@ -60,15 +60,16 @@
   pointer-events: auto;
 }
 
-.pop-overlay--left .pop-stage {
+/* Kindkombinator: Ein Rahmen in einem Rahmen (Dialog über einer ausgerichteten Liste) erbt die Ausrichtung nicht */
+.pop-overlay--left > .pop-stage {
   justify-content: flex-start;
   padding-left: 4rem;
 }
-.pop-overlay--right .pop-stage {
+.pop-overlay--right > .pop-stage {
   justify-content: flex-end;
   padding-right: 4rem;
 }
-.pop-overlay--bottom .pop-stage {
+.pop-overlay--bottom > .pop-stage {
   align-items: flex-end;
   padding-bottom: 3.6rem;
 }
@@ -85,9 +86,9 @@
   border-radius: 0.6rem;
   background: linear-gradient(
     180deg,
-    rgba(46, 76, 152, 0.88) 0%,
-    rgba(16, 34, 86, 0.94) 38%,
-    rgba(6, 14, 44, 0.97) 100%
+    rgba(46, 76, 152, 0.94) 0%,
+    rgba(16, 34, 86, 0.98) 38%,
+    rgba(6, 14, 44, 0.99) 100%
   );
   border: 1px solid rgba(190, 212, 255, 0.22);
   box-shadow:
@@ -105,13 +106,13 @@
   width: min(52rem, 94%);
 }
 
-.pop-overlay--right .pop-panel {
+.pop-overlay--right > .pop-stage > .pop-panel {
   animation-name: pop-rise-right;
 }
-.pop-overlay--left .pop-panel {
+.pop-overlay--left > .pop-stage > .pop-panel {
   animation-name: pop-rise-left;
 }
-.pop-overlay.is-leaving .pop-panel {
+.pop-overlay.is-leaving > .pop-stage > .pop-panel {
   animation: pop-sink 0.2s ease both;
 }
 
@@ -144,6 +145,13 @@
 .pop-panel.is-inactive .pop-bar__halo,
 .pop-panel.is-inactive .pop-choice-bar .pop-bar__halo {
   animation: none;
+}
+
+/* Fenstergröße ändert sich: rem-Werte laufen sonst weich nach, während die Zeilen springen (siehe useResizeGuard) */
+.pop-panel.is-resizing *,
+.pop-panel.is-resizing *::before,
+.pop-panel.is-resizing *::after {
+  transition: none !important;
 }
 
 /* ---------- Kopf ---------- */
@@ -668,6 +676,25 @@
 
 .pop-dialog--confirm > .pop-message {
   padding: 1.8rem 2.4rem 0.2rem;
+}
+
+/* Sehr lange Meldungen scrollen, statt aus dem Panel zu ragen (Kopf, Optionen und Hinweise bleiben stehen) */
+.pop-dialog--confirm > .pop-message,
+.pop-dialog__body > .pop-message {
+  flex: 0 1 auto;
+  min-height: 4rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.pop-message::-webkit-scrollbar {
+  width: 0.5rem;
+}
+.pop-message::-webkit-scrollbar-thumb {
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .pop-message p {

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Teststub: macOS-Version
+echo 14.5

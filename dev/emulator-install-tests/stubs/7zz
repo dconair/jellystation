@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Teststub für 7-Zip: "7zz x -y -o<ziel> <archiv>".
+# Das Test-"7z" ist ein tar-Archiv mit der Kennung "FAKE7Z" in der ersten Zeile (echtes tar kann es dadurch NICHT lesen)
+# oder ein reines tar-Archiv. Alles andere gilt als unlesbar.
+echo "7zz $*" >> "${STUB_STATE:?}/calls.log"
+[ "${1:-}" = x ] || exit 2
+out=""; arc=""
+shift
+for a in "$@"; do
+  case "$a" in -o*) out="${a#-o}" ;; -*) ;; *) arc="$a" ;; esac
+done
+mkdir -p "$out"
+if [ "$(head -c 7 "$arc" 2>/dev/null)" = "FAKE7Z" ]; then
+  tail -c +8 "$arc" | tar -xf - -C "$out" || { echo "ERROR: Cannot open file as archive" >&2; exit 2; }
+else
+  tar -xf "$arc" -C "$out" 2>/dev/null || { echo "ERROR: Cannot open file as archive" >&2; exit 2; }
+fi

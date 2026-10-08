@@ -1,4 +1,6 @@
-import { EMULATORS } from "../config/games";
+import { detectEmulators } from "../emulators/detect";
+import { emulatorForSystem, isAppBundle, supportedFolderNames } from "../emulators/catalog";
+import type { EmulatorDef } from "../emulators/catalog";
 import { testJellyfin } from "../jellyfin/testConnection";
 import { pickGameFiles, scanGamesDir } from "../library/scanGames";
 import { isTauri } from "../platform";
@@ -17,6 +19,8 @@ export interface CheckInput {
   apiKey: string;
   gamesDir: string;
   controller: string | null;
+  /** Gewählte Emulator-Pfade aus den Einstellungen (Emulator-ID → Pfad); ohne Angabe wird nur automatisch gesucht. */
+  emulatorOverrides?: Record<string, string>;
 }
 
 interface CheckDef {
@@ -29,6 +33,8 @@ interface CheckDef {
 interface Shared {
   /** Systemordner → Anzahl Spieldateien. */
   systems?: Record<string, number>;
+  /** Systemordner, in denen nur .app-Spiele liegen: Sie starten direkt und brauchen keinen Emulator. */
+  nativeOnly?: Set<string>;
 }
 
 const BROWSER_NOTE = "Nur in der Desktop-App prüfbar";
@@ -51,11 +57,14 @@ export const CHECKS: CheckDef[] = [
       try {
         const { baseDir, listing } = await scanGamesDir(gamesDir || undefined);
         const systems: Record<string, number> = {};
+        const nativeOnly = new Set<string>();
         for (const [sys, files] of Object.entries(listing)) {
-          const n = pickGameFiles(files).length;
-          if (n > 0) systems[sys] = n;
+          const games = pickGameFiles(files);
+          if (games.length > 0) systems[sys] = games.length;
+          if (games.length > 0 && games.every((f) => isAppBundle(f))) nativeOnly.add(sys);
         }
         shared.systems = systems;
+        shared.nativeOnly = nativeOnly;
         const names = Object.entries(systems).map(([s, n]) => `${s} (${n})`);
         if (names.length === 0) {
           return {
@@ -71,31 +80,41 @@ export const CHECKS: CheckDef[] = [
   },
   {
     id: "emulators",
-    label: "Emulatoren (Standardpfade)",
-    run: async (_input, shared) => {
+    label: "Emulatoren",
+    run: async ({ emulatorOverrides }, shared) => {
       if (!isTauri()) return { status: "warn", detail: BROWSER_NOTE };
-      const { exists } = await import("@tauri-apps/plugin-fs");
-      const missing: string[] = [];
-      const found: string[] = [];
-      let neededButMissing = false;
-      for (const [system, emu] of Object.entries(EMULATORS)) {
-        let present = false;
-        try {
-          present = await exists(emu.binary);
-        } catch {
-          present = false;
-        }
-        if (present) found.push(emu.name);
-        else {
-          missing.push(`${emu.name} (${emu.binary})`);
-          const used = Object.keys(shared.systems ?? {}).some((s) => s.toLowerCase() === system);
-          neededButMissing ||= used;
-        }
+      const { statuses } = await detectEmulators(emulatorOverrides, { force: true });
+      const found = statuses.filter((s) => s.valid);
+      const missing = statuses.filter((s) => !s.valid);
+
+      // Nötig sind die Emulatoren der Systemordner, in denen wirklich Spiele liegen.
+      const needed = new Map<string, { def: EmulatorDef; folders: string[] }>();
+      for (const folder of Object.keys(shared.systems ?? {})) {
+        if (shared.nativeOnly?.has(folder)) continue;
+        const def = emulatorForSystem(folder);
+        if (!def) continue;
+        const entry = needed.get(def.id) ?? { def, folders: [] };
+        entry.folders.push(folder);
+        needed.set(def.id, entry);
       }
-      if (missing.length === 0) return { status: "ok", detail: `${found.join(", ")} gefunden` };
+      const label = (def: EmulatorDef, folders: string[]) => `${def.name} (${folders.join(", ")})`;
+      const lacking = [...needed.values()].filter((n) => !found.some((s) => s.def.id === n.def.id));
+
+      if (lacking.length > 0) {
+        return {
+          status: "fail",
+          detail: `Für deine Spiele fehlt: ${lacking.map((n) => label(n.def, n.folders)).join(", ")} – unter Einstellungen → Emulatoren installieren oder auswählen`,
+        };
+      }
+      if (needed.size > 0) {
+        const rest = missing.length > 0 ? `; nicht installiert: ${missing.map((s) => s.def.name).join(", ")}` : "";
+        return { status: "ok", detail: `${[...needed.values()].map((n) => label(n.def, n.folders)).join(", ")} gefunden${rest}` };
+      }
+      // Noch keine Spiele: nur ein Hinweis, falls Emulatoren fehlen.
+      if (missing.length === 0) return { status: "ok", detail: `${found.map((s) => s.def.name).join(", ")} gefunden` };
       return {
-        status: neededButMissing ? "fail" : "warn",
-        detail: `Nicht gefunden: ${missing.join("; ")}`,
+        status: "warn",
+        detail: `${found.length} von ${statuses.length} gefunden${found.length ? ` (${found.map((s) => s.def.name).join(", ")})` : ""} – später unter Einstellungen → Emulatoren installieren`,
       };
     },
   },
@@ -104,10 +123,13 @@ export const CHECKS: CheckDef[] = [
     label: "Systeme ↔ Emulatoren",
     run: async (_input, shared) => {
       if (!shared.systems) return { status: "warn", detail: "Keine Systeme zum Abgleichen" };
-      const unmapped = Object.keys(shared.systems).filter((s) => !EMULATORS[s.toLowerCase()]);
+      const unmapped = Object.keys(shared.systems).filter((s) => !emulatorForSystem(s) && !shared.nativeOnly?.has(s));
       return unmapped.length === 0
         ? { status: "ok", detail: "Alle Systeme haben einen Emulator" }
-        : { status: "warn", detail: `Kein Emulator hinterlegt für: ${unmapped.join(", ")}` };
+        : {
+            status: "warn",
+            detail: `Kein Emulator hinterlegt für: ${unmapped.join(", ")} (unterstützt: ${supportedFolderNames().join(", ")})`,
+          };
     },
   },
   {

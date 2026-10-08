@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Teststub: Xcode Command Line Tools sind vorhanden
+case "${1:-}" in -p) echo /Library/Developer/CommandLineTools; exit 0 ;; *) exit 0 ;; esac

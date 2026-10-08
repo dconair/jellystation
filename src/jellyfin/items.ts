@@ -115,12 +115,13 @@ export function itemToRef(item: JfItem): JellyfinRef | null {
 
 /**
  * Ein Titel samt Wiedergabestand (`GET /Items/{id}?userId=…`). Server bis 10.8 kennen nur
- * `/Users/{userId}/Items/{id}` – bei 404 wird deshalb dieser Pfad versucht.
+ * `/Users/{userId}/Items/{id}` (und antworten auf GET /Items/{id} mit 405, weil es dort nur POST/DELETE gibt) –
+ * bei 404/405 wird deshalb dieser Pfad versucht.
  */
 export async function getItem(ctx: JfContext, id: string, opts: { signal?: AbortSignal } = {}): Promise<JfItem> {
   const { signal } = opts;
   let res = await jfRaw(ctx, `/Items/${encodeURIComponent(id)}`, { signal, query: { userId: ctx.userId } });
-  if (res.status === 404) {
+  if (res.status === 404 || res.status === 405) {
     const legacy = await jfRaw(ctx, `/Users/${encodeURIComponent(ctx.userId)}/Items/${encodeURIComponent(id)}`, {
       signal,
     });

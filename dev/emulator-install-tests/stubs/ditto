@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Teststub für macOS-ditto:  ditto -x -k <zip> <ziel>   → entpackt mit unzip
+#                            ditto <quelle> <ziel>       → kopiert den Ordner (ziel darf nicht existieren)
+# Schalter: STUB_DITTO_FAIL=1  legt ein Teilergebnis an und scheitert
+#           STUB_DITTO_SLEEP=N legt ein Teilergebnis an und wartet N Sekunden (für Abbruch-Tests)
+state="${STUB_STATE:?}"
+if [ "${1:-}" = "-x" ] && [ "${2:-}" = "-k" ]; then
+  echo "ditto -x -k ${3##*/}" >> "$state/calls.log"
+  mkdir -p "$4"
+  unzip -q -o "$3" -d "$4" 2>>"$state/ditto.err" && exit 0
+  echo "ditto: Archiv defekt" >&2
+  exit 1
+fi
+src="$1"; dst="$2"
+echo "ditto copy ${src##*/} -> $dst" >> "$state/calls.log"
+if [ -e "$dst" ]; then echo "ditto-Stub: Ziel existiert schon: $dst" >&2; exit 1; fi
+if [ "${STUB_DITTO_FAIL:-0}" = 1 ]; then
+  mkdir -p "$dst/Contents"; echo teil > "$dst/Contents/teil.txt"
+  echo "ditto: No space left on device" >&2
+  exit 1
+fi
+if [ -n "${STUB_DITTO_SLEEP:-}" ]; then
+  mkdir -p "$dst/Contents"; echo teil > "$dst/Contents/teil.txt"
+  echo "ditto-sleep $dst" >> "$state/calls.log"
+  sleep "$STUB_DITTO_SLEEP"
+fi
+cp -R "$src" "$dst"

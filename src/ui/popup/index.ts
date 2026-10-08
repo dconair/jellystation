@@ -18,5 +18,4 @@ export type { ConfirmDialogProps, MessageDialogProps, ProgressDialogProps } from
 export { DEFAULT_KEY_MAP, useOverlayInput } from "./useOverlayInput";
 export type { KeyMap, OverlayInputOptions } from "./useOverlayInput";
 export { DotSpinner } from "./parts";
-export { POPUP_WIDTH } from "./types";
 export type { HintAction, PopupFooter, PopupHint, PopupItem, PopupStatus, PopupTone, PopupWidth } from "./types";

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Teststub: gibt sich als macOS aus (uname -s → Darwin); alles andere wie das echte uname.
+case "${1:-}" in
+  -s) echo Darwin ;;
+  -m) echo "${STUB_UNAME_M:-arm64}" ;;
+  -r) echo 23.5.0 ;;
+  *) exec /usr/bin/uname "$@" ;;
+esac

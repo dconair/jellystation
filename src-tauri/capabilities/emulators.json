@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "emulators",
-  "description": "Erlaubt das Starten lokaler macOS-Emulatoren über ihren absoluten Pfad. Der Name unter \"name\" ist der Programmname, den das Frontend in Command.create(...) verwendet (siehe src/config/games.ts).",
+  "description": "Nur macOS: Emulatoren per Homebrew installieren (brew install --cask <Name>), z. B. Command.create(\"brew-arm\", [\"install\", \"--cask\", \"pcsx2\"]). Gestartet werden Spiele nicht über das Shell-Plugin, sondern über den Rust-Befehl game_launch (kein Scope nötig). Die festen Argumente stehen im Scope, der Cask-Name wird gegen den Validator geprüft (das Plugin setzt ^…$ drumherum).",
   "windows": ["main"],
   "platforms": ["macOS"],
   "permissions": [
@@ -9,16 +9,17 @@
       "identifier": "shell:allow-spawn",
       "allow": [
         {
-          "name": "rpcs3",
-          "cmd": "/Applications/RPCS3.app/Contents/MacOS/rpcs3",
-          "args": ["--no-gui", { "validator": "^/[^\\n]+$" }]
+          "name": "brew-arm",
+          "cmd": "/opt/homebrew/bin/brew",
+          "args": ["install", "--cask", { "validator": "[a-z0-9][a-z0-9@._+-]{0,63}" }]
         },
         {
-          "name": "open-app",
-          "cmd": "/usr/bin/open",
-          "args": [{ "validator": "^/[^\\n]+\\.app/?$" }]
+          "name": "brew-intel",
+          "cmd": "/usr/local/bin/brew",
+          "args": ["install", "--cask", { "validator": "[a-z0-9][a-z0-9@._+-]{0,63}" }]
         }
       ]
-    }
+    },
+    "shell:allow-kill"
   ]
 }

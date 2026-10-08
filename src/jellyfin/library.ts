@@ -1,5 +1,5 @@
 import type { JellyfinRef, XmbEntry } from "../data/types";
-import { fetchJfUsers, pickJfUser } from "./context";
+import { fetchSelectableUsers, pickJfUser } from "./context";
 import { getDeviceId } from "./device";
 import { isAbortError, JfError } from "./errors";
 import { artHeaders, jfJson } from "./http";
@@ -217,7 +217,7 @@ async function resolveUser(
   signal: AbortSignal,
 ): Promise<{ id: string; name: string } | undefined> {
   try {
-    const picked = pickJfUser(await fetchJfUsers(auth, signal), preferredId);
+    const picked = pickJfUser(await fetchSelectableUsers(auth, signal), preferredId);
     return picked ? { id: picked.user.id, name: picked.user.name } : undefined;
   } catch (err) {
     if (isAbortError(err)) throw err;

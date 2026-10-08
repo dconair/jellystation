@@ -51,7 +51,11 @@ const isTopLayer = (id: number) => {
 export interface OverlayInputOptions {
   /** false = keine Tastatur-/Controller-Eingabe (z. B. weil darüber ein weiteres Overlay liegt). */
   active: boolean;
-  onAction: (action: PadAction) => void;
+  /**
+   * Eine Aktion von Tastatur oder Controller. Kommt sie von der Tastatur, ist `source` das Tastaturereignis
+   * (z. B. für Umschalt+Pfeil oder `repeat`); beim Controller fehlt es.
+   */
+  onAction: (action: PadAction, source?: KeyboardEvent) => void;
   /** Zusätzliche/abweichende Tasten, wird über {@link DEFAULT_KEY_MAP} gelegt. */
   keyMap?: KeyMap;
   /**
@@ -106,7 +110,7 @@ export function useOverlayInput({ active, onAction, keyMap, onKey }: OverlayInpu
       e.preventDefault();
       e.stopPropagation();
       if (e.repeat && !REPEATABLE.has(action)) return;
-      actionRef.current(action);
+      actionRef.current(action, e);
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => {

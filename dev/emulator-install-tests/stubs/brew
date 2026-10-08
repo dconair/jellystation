@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Teststub für Homebrew (nur was das Skript braucht; läuft auch unter Bash 3.2):
+#   brew --version | brew list --cask --versions X | brew install --cask [--appdir=D] X
+#   brew upgrade --cask [--appdir=D] X | brew install sevenzip
+# Schalter: STUB_BREW_FAIL="pcsx2,sevenzip"  (kommagetrennt: diese Namen scheitern)
+state="${STUB_STATE:?}"; mkdir -p "$state/casks"
+echo "brew $*" >> "$state/calls.log"
+echo "brew-env NO_AUTO_UPDATE=${HOMEBREW_NO_AUTO_UPDATE:-} NO_ANALYTICS=${HOMEBREW_NO_ANALYTICS:-} NO_INSTALL_CLEANUP=${HOMEBREW_NO_INSTALL_CLEANUP:-} (brew $1)" >> "$state/calls.log"
+fails() { case ",${STUB_BREW_FAIL:-}," in *",$1,"*) return 0 ;; esac; return 1; }
+app_for() { case "$1" in pcsx2) echo "PCSX2.app pcsx2" ;; ppsspp-emulator) echo "PPSSPPSDL.app PPSSPPSDL" ;; dolphin) echo "Dolphin.app Dolphin" ;; *) return 1 ;; esac; }
+mkapp() { # dir app bin version
+  mkdir -p "$1/$2/Contents/MacOS"
+  printf '<?xml version="1.0"?>\n<plist version="1.0"><dict>\n<key>CFBundleShortVersionString</key>\n<string>%s</string>\n</dict></plist>\n' "$4" > "$1/$2/Contents/Info.plist"
+  printf '#!/bin/sh\necho %s\n' "$3" > "$1/$2/Contents/MacOS/$3"; chmod +x "$1/$2/Contents/MacOS/$3"
+}
+last=""; for a in "$@"; do last="$a"; done
+case "${1:-}" in
+  --version) echo "Homebrew 4.5.0" ;;
+  list)
+    if [ -f "$state/casks/$last" ]; then echo "$last $(cat "$state/casks/$last")"; else exit 1; fi
+    ;;
+  install|upgrade)
+    verb="$1"; shift
+    appdir="${JELLYSTATION_APPS_DIR:-/Applications}"; isc=0
+    for a in "$@"; do case "$a" in --cask) isc=1 ;; --appdir=*) appdir="${a#--appdir=}" ;; esac; done
+    name="$last"
+    if [ "$isc" = 0 ]; then
+      if fails "$name"; then echo "Error: brew install $name failed" >&2; exit 1; fi
+      if [ "$name" = sevenzip ]; then
+        here="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+        cp "$here/7zz" "${STUB_BIN:?}/7zz"; echo "==> Installing sevenzip"; exit 0
+      fi
+      exit 1
+    fi
+    if fails "$name"; then echo "Error: Cask '$name' definition is invalid" >&2; exit 1; fi
+    out="$(app_for "$name")" || { echo "Error: Cask '$name' is unavailable" >&2; exit 1; }
+    app="${out%% *}"; bin="${out##* }"
+    if [ "$verb" = upgrade ]; then
+      [ -f "$state/casks/$name" ] || { echo "Error: Cask '$name' is not installed." >&2; exit 1; }
+      ver="9.9.9"; echo "$ver" > "$state/casks/$name"
+    else
+      [ ! -e "$appdir/$app" ] || { echo "Error: It seems there is already an App at '$appdir/$app'." >&2; exit 1; }
+      ver="1.0.0"; echo "$ver" > "$state/casks/$name"
+    fi
+    echo "==> brew $verb --cask $name  ($appdir)"
+    rm -rf "${appdir:?}/$app"
+    mkdir -p "$appdir"
+    mkapp "$appdir" "$app" "$bin" "$ver"
+    ;;
+  *) echo "brew-Stub: unbekannt: $*" >&2; exit 1 ;;
+esac
