@@ -46,6 +46,8 @@ export function useJellyfinLibrary(
   const [settled, setSettled] = useState<Settled | null>(null);
   const [nonce, setNonce] = useState(0);
   const reload = useCallback(() => setNonce((n) => n + 1), []);
+  // Fehlgeschlagene Verbindung: automatisch erneut versuchen (15 s, 30 s, 60 s, danach jede Minute).
+  const [failures, setFailures] = useState(0);
 
   useEffect(() => {
     if (!configured) return;
@@ -53,6 +55,7 @@ export function useJellyfinLibrary(
     fetchJellyfinLibrary(url, apiKey, ctl.signal, userId || undefined).then(
       (lib) => {
         if (ctl.signal.aborted) return;
+        setFailures(0);
         setSettled({
           id,
           ok: true,
@@ -73,10 +76,18 @@ export function useJellyfinLibrary(
         };
         // Scheitert nur das Auffrischen, bleiben die zuletzt geladenen Einträge stehen.
         setSettled((prev) => (prev && prev.ok && prev.id === id ? prev : failed));
+        setFailures((n) => n + 1);
       },
     );
     return () => ctl.abort();
   }, [configured, url, apiKey, userId, id, nonce]);
+
+  useEffect(() => {
+    if (!configured || failures === 0) return;
+    const wait = Math.min(60_000, 15_000 * 2 ** (failures - 1));
+    const timer = window.setTimeout(() => setNonce((n) => n + 1), wait);
+    return () => window.clearTimeout(timer);
+  }, [configured, failures]);
 
   return useMemo<JellyfinLibraryState>(() => {
     if (!configured) return { status: "idle", movies: NONE, series: NONE, reload };

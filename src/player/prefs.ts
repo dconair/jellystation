@@ -13,6 +13,8 @@ export interface PlayerPrefs {
   subtitleLang?: string;
   /** Höchste Bitrate in Bit/s; fehlt = Original/Automatisch. */
   maxBitrate?: number;
+  /** true = der Server wandelt immer um (HLS), statt die Datei direkt abzuspielen. */
+  alwaysTranscode?: boolean;
 }
 
 export const DEFAULT_PREFS: PlayerPrefs = { volume: 1, muted: false };
@@ -30,6 +32,7 @@ export function loadPrefs(): PlayerPrefs {
       muted: j.muted === true,
       ...(typeof j.subtitleLang === "string" && j.subtitleLang ? { subtitleLang: j.subtitleLang } : {}),
       ...(typeof j.maxBitrate === "number" && j.maxBitrate > 0 ? { maxBitrate: j.maxBitrate } : {}),
+      ...(j.alwaysTranscode === true ? { alwaysTranscode: true } : {}),
     };
   } catch {
     return { ...DEFAULT_PREFS };

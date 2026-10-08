@@ -362,6 +362,7 @@ export class PlayerEngine {
         plan = await planPlayback(this.ctx, ref.id, {
           startSec: this.pendingStart,
           ...(this.s.maxBitrate ? { maxBitrate: this.s.maxBitrate } : {}),
+          ...(loadPrefs().alwaysTranscode ? { forceTranscode: true } : {}),
           signal: work.signal,
         });
       }

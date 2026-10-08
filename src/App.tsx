@@ -7,6 +7,7 @@ import type { JfUser } from "./jellyfin/context";
 import { getEpisodes, getNextUp } from "./jellyfin/items";
 import { emptyLibraryEntry } from "./jellyfin/library";
 import { Player } from "./player/Player";
+import { loadPrefs, savePrefs } from "./player/prefs";
 import { PopupList } from "./ui/popup";
 import type { PopupItem } from "./ui/popup";
 import { formatClock, formatRemaining, watchState } from "./xmb/progress";
@@ -95,6 +96,7 @@ function Main({
   const jellyfin = useJellyfinLibrary(settings?.jellyfin);
   const emulators = useEmulators(settings?.emulators);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
+  const [alwaysTranscode, setAlwaysTranscode] = useState(() => loadPrefs().alwaysTranscode === true);
   // Verhindert, dass eine spät eintreffende Antwort ein inzwischen geschlossenes Overlay wieder öffnet.
   const overlaySeq = useRef(0);
   const openOverlay = useCallback((next: Overlay | null) => {
@@ -133,6 +135,8 @@ function Main({
                   ? { ...e, subtitle: settings.gamesDir }
                   : e.action === "open-emulators"
                     ? { ...e, subtitle: emulatorSummary }
+                    : e.action === "toggle-transcode"
+                      ? { ...e, subtitle: alwaysTranscode ? "Immer vom Server umwandeln" : "Direkt, wenn möglich" }
                     : e.action === "choose-jellyfin-user"
                       ? { ...e, subtitle: userName || (jfConfig ? "Automatisch" : "Nicht verbunden") }
                       : e,
@@ -142,7 +146,7 @@ function Main({
     // Spiele-Systeme (PS1, PS2, PS3 …) landen direkt hinter den Serien.
     const at = base.findIndex((c) => c.id === "series") + 1;
     return [...base.slice(0, at), ...library.categories, ...base.slice(at)];
-  }, [library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, userName, jfConfig]);
+  }, [library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, userName, jfConfig, alwaysTranscode]);
 
   /** Titel abspielen; ab einer gespeicherten Position fragt vorher ein Dialog nach Fortsetzen/Von vorn. */
   const play = useCallback(
@@ -193,6 +197,12 @@ function Main({
       if (entry.action === "run-setup") onRunSetup();
       else if (entry.action === "open-emulators") openOverlay({ kind: "emulators" });
       else if (entry.action === "choose-jellyfin-user") void openUsers();
+      else if (entry.action === "toggle-transcode") {
+        const next = !loadPrefs().alwaysTranscode;
+        savePrefs({ alwaysTranscode: next ? true : undefined });
+        setAlwaysTranscode(next);
+        notify(next ? "Der Server wandelt jetzt immer um" : "Dateien werden direkt abgespielt, wenn möglich");
+      }
       else if (entry.id.startsWith("jf-empty/")) return; // Platzhalter einer leeren Spalte
       else if (category.id === "movies") play(entry);
       else if (category.id === "series") void openSeries(entry);

@@ -116,6 +116,10 @@ export const categories: XmbCategory[] = [
         ...entry("st2", "Jellyfin-Benutzer", "Wer schaut?", 255, "Wählt den Jellyfin-Benutzer für Wiedergabestatus und „Weiterschauen“."),
         action: "choose-jellyfin-user",
       },
+      {
+        ...entry("st-transcode", "Wiedergabe", "Direkt, wenn möglich", 175, "Wählt, ob der Player Dateien direkt abspielt oder der Jellyfin-Server alles umwandelt (HLS). „Immer umwandeln“ hilft bei Formaten, die dein Mac nicht abspielen kann."),
+        action: "toggle-transcode",
+      },
       entry("st3", "Anzeige", "Vollbild, Skalierung", 195),
       entry("st4", "Ton", "Ausgabegerät und Lautstärke", 170),
       { ...entry("st-setup", "Einrichtung erneut ausführen", "Jellyfin, Ordner, Controller", 150, "Startet den Setup-Assistenten mit deinen aktuellen Werten."), action: "run-setup" },
