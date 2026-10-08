@@ -32,6 +32,13 @@ export const ITEM_OMEGA = 25;
 export const CAT_ZETA = 0.82;
 export const ITEM_ZETA = 0.85;
 
+/**
+ * Überschwingen wächst mit der Strecke (Anteil der Strecke bleibt gleich). Wird das Ziel um mehr als so viele
+ * Einträge/Kategorien verfehlt (weite Sprünge, Anlauf nach dem Tauschen), fährt die Feder kritisch gedämpft –
+ * ohne Nachschwingen. Beim normalen Blättern (Rückstand ≈ 1–2,5) bleibt die eingestellte Dämpfung.
+ */
+export const CRITICAL_DISTANCE = 3.5;
+
 /** Feder, mit der Kategorien beim Einfügen/Entfernen auf ihren neuen Platz gleiten (kritisch gedämpft). */
 export const SLOT_OMEGA = 13;
 /** Einblenden neu hinzugekommener Kategorien (ω, kritisch gedämpft). */

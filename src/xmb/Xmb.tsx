@@ -151,7 +151,6 @@ interface ItemProps {
   count: number;
   /** Logisch fokussiert (und Spalte aktiv). Die Hervorhebung selbst folgt stetig der Position. */
   focused: boolean;
-  colActive: boolean;
   /** Cover darf geladen werden (Eintrag liegt nahe am Fokus). */
   artActive: boolean;
   pitchArt: boolean;
@@ -279,7 +278,6 @@ function Column({ motion, cat, active, focus, pitchArt, ranges, runningIds, acti
           index={ei}
           count={cat.entries.length}
           focused={active && ei === focus}
-          colActive={active}
           artActive={active && Math.abs(ei - focus) <= ART_RANGE}
           pitchArt={pitchArt}
           running={runningIds?.has(entry.id) ?? false}
@@ -428,9 +426,9 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
     (catId: string, index: number) => {
       if (!inputEnabledRef.current) return;
       const state = navRef.current;
-      if (state.categoryId !== catId) return; // Eintrag einer ausblendenden Spalte
-      const cat = categoriesRef.current.find((c) => c.id === catId);
-      if (!cat) return;
+      const cats = categoriesRef.current;
+      const cat = cats[Math.max(0, cats.findIndex((c) => c.id === state.categoryId))];
+      if (!cat || cat.id !== catId) return; // Eintrag einer ausblendenden Spalte
       const fi = clamp(state.focus[catId] ?? 0, 0, Math.max(0, cat.entries.length - 1));
       if (index === fi) dispatch("confirm");
       else {
@@ -445,7 +443,8 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
     (id: string) => {
       if (!inputEnabledRef.current) return;
       const state = navRef.current;
-      if (state.categoryId === id) return;
+      const cats = categoriesRef.current;
+      if (cats[Math.max(0, cats.findIndex((c) => c.id === state.categoryId))]?.id === id) return; // schon aktiv
       commit({ ...state, categoryId: id });
       playSfx("category");
     },

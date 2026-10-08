@@ -1,0 +1,690 @@
+/*
+ * Video-Player im PS3-Stil: Weiß auf dem Bild, sehr leichte Schrift, weicher dunkler Verlauf oben und unten,
+ * Fortschrittsleiste mit leuchtendem Knauf. Alles in rem (1rem = Fensterhöhe/54, siehe index.css).
+ * Die Dialoge (Optionen, Fehler) kommen aus ui/popup und liegen in der Ebene des Players (z-index 40 darin).
+ */
+
+.player {
+  --pl-ease: cubic-bezier(0.3, 1.08, 0.4, 1);
+  --pl-soft: cubic-bezier(0.25, 0.8, 0.3, 1);
+  --pl-glow: 170, 205, 255;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.6);
+}
+
+.player.is-idle {
+  cursor: none;
+}
+
+/* ---------- Bild ---------- */
+
+.player-video,
+.player-snap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  object-fit: contain;
+}
+
+.player-snap {
+  visibility: hidden;
+}
+.player-snap.is-on {
+  visibility: visible;
+}
+
+.player-fit--contain {
+  object-fit: contain;
+}
+.player-fit--cover {
+  object-fit: cover;
+}
+.player-fit--fill {
+  object-fit: fill;
+}
+
+/* Falls je der Browser Untertitel selbst zeichnet (Spur auf "showing"): gleicher Stil wie unsere eigene Anzeige. */
+.player-video::cue {
+  color: #fff;
+  background: rgba(8, 12, 28, 0.55);
+  font-family: var(--font-ui);
+  font-weight: 300;
+  text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.8);
+}
+
+/* ---------- Untertitel ---------- */
+
+.player-cues {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 4.2rem;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  pointer-events: none;
+  text-align: center;
+  transition: bottom 0.5s var(--pl-soft);
+}
+
+/* Bei sichtbarem Bedienfeld rutschen die Untertitel darüber. */
+.player-cues.is-raised {
+  bottom: 14.6rem;
+}
+
+.player-cue {
+  margin: 0;
+  max-width: 100%;
+  padding: 0.35rem 1.2rem 0.45rem;
+  border-radius: 0.5rem;
+  background: rgba(6, 10, 26, 0.58);
+  font-size: 2.3rem;
+  line-height: 1.28;
+  font-weight: 300;
+  color: #fff;
+  text-shadow:
+    0 0.08rem 0.35rem rgba(0, 0, 0, 0.9),
+    0 0 0.9rem rgba(0, 0, 0, 0.6);
+}
+
+.player-cue__line {
+  display: block;
+}
+
+/* ---------- Bedienfeld ---------- */
+
+.player-osd {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.player-osd::before,
+.player-osd::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s var(--pl-soft);
+}
+
+.player-osd::before {
+  top: 0;
+  height: 13rem;
+  background: linear-gradient(180deg, rgba(2, 5, 18, 0.82), rgba(2, 5, 18, 0.4) 55%, transparent);
+}
+
+.player-osd::after {
+  bottom: 0;
+  height: 20rem;
+  background: linear-gradient(0deg, rgba(2, 5, 18, 0.9), rgba(2, 5, 18, 0.55) 52%, transparent);
+}
+
+.player-osd.is-on::before,
+.player-osd.is-on::after {
+  opacity: 1;
+}
+
+.player-osd__top,
+.player-osd__bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  opacity: 0;
+  transition:
+    opacity 0.45s var(--pl-soft),
+    transform 0.55s var(--pl-soft);
+}
+
+.player-osd__top {
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4rem;
+  padding: 3.4rem 5.6rem 0 7rem;
+  transform: translateY(-1.4rem);
+}
+
+.player-osd__bottom {
+  bottom: 0;
+  padding: 0 7rem 3.4rem;
+  transform: translateY(1.6rem);
+}
+
+.player-osd.is-on .player-osd__top,
+.player-osd.is-on .player-osd__bottom {
+  opacity: 1;
+  transform: none;
+}
+
+.player-headline {
+  min-width: 0;
+}
+
+.player-headline__title {
+  margin: 0;
+  font-size: 2.9rem;
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-headline__sub {
+  margin: 0.5rem 0 0;
+  font-size: 1.7rem;
+  color: rgba(255, 255, 255, 0.68);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-clock {
+  flex: none;
+  font-size: 2.2rem;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.player-barrow {
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+}
+
+.player-playbtn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: drop-shadow(0 0 0.6rem rgba(var(--pl-glow), 0.5));
+  transition: transform 0.35s var(--pl-ease), background 0.25s ease;
+}
+.player-playbtn:hover {
+  transform: scale(1.12);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.player-glyph {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.player-time {
+  flex: none;
+  min-width: 6.4rem;
+  font-size: 1.7rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.92);
+}
+.player-time--rest {
+  min-width: 7.2rem;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* Die Klickfläche ist höher als der sichtbare Balken: leichter zu treffen. */
+.player-track-hit {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 3.2rem;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.player-track {
+  --played: 0;
+  --buffered: 0;
+  position: relative;
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: height 0.25s var(--pl-soft);
+}
+.player-track-hit:hover .player-track {
+  height: 0.7rem;
+}
+
+.player-track__buffer,
+.player-track__played {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+}
+.player-track__buffer {
+  width: calc(var(--buffered) * 100%);
+  background: rgba(255, 255, 255, 0.34);
+  transition: width 0.4s linear;
+}
+.player-track__played {
+  width: calc(var(--played) * 100%);
+  background: linear-gradient(90deg, rgba(220, 235, 255, 0.92), #fff);
+  box-shadow: 0 0 0.9rem rgba(var(--pl-glow), 0.7);
+  transition: width 0.26s linear;
+}
+
+.player-track__knob {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--played) * 100%);
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: -0.75rem 0 0 -0.75rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #fff, #dfe9ff 70%);
+  box-shadow:
+    0 0 1.2rem rgba(var(--pl-glow), 0.95),
+    0 0 0.3rem rgba(255, 255, 255, 0.9);
+  transition:
+    left 0.26s linear,
+    transform 0.3s var(--pl-ease);
+}
+.player-track-hit:hover .player-track__knob {
+  transform: scale(1.25);
+}
+
+/* Beim Spulen folgt alles sofort dem Ziel (kein Nachlaufen). */
+.player-track:has(.player-bubble) .player-track__played,
+.player-track:has(.player-bubble) .player-track__knob {
+  transition-duration: 0.12s;
+}
+
+.player-bubble {
+  position: absolute;
+  bottom: 1.9rem;
+  transform: translateX(-50%);
+  padding: 0.4rem 1.2rem 0.5rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(190, 212, 255, 0.34);
+  background: linear-gradient(180deg, rgba(52, 84, 160, 0.92), rgba(14, 30, 78, 0.96));
+  box-shadow:
+    0 0.6rem 1.6rem rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: pl-bubble 0.22s var(--pl-ease) both;
+}
+
+.player-hints {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+  margin-top: 1.2rem;
+  padding-left: 0.4rem;
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.player-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.3rem 0.4rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-shadow: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.2s ease;
+}
+.player-hint:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.player-hint--static {
+  cursor: default;
+  pointer-events: none;
+}
+.player-hint .ps-symbol {
+  flex: none;
+  filter: drop-shadow(0 0 0.4rem rgba(0, 0, 0, 0.5));
+}
+.player-dpad {
+  flex: none;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.player-method {
+  margin-left: auto;
+  font-size: 1.4rem;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Lautstärke (rechter Rand) ---------- */
+
+.player-volume {
+  position: absolute;
+  right: 4.2rem;
+  top: 50%;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.4rem 1.2rem 1.2rem;
+  border-radius: 1.6rem;
+  background: rgba(6, 12, 34, 0.55);
+  border: 1px solid rgba(190, 212, 255, 0.16);
+  opacity: 0;
+  transform: translate(1.4rem, -50%);
+  pointer-events: none;
+  transition:
+    opacity 0.35s var(--pl-soft),
+    transform 0.45s var(--pl-soft);
+}
+.player-volume.is-on {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+.player-volume__icon {
+  width: 2.6rem;
+  height: 2.6rem;
+  color: #fff;
+}
+.player-volume__track {
+  position: relative;
+  width: 0.5rem;
+  height: 13rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+.player-volume__track > i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  box-shadow: 0 0 0.8rem rgba(var(--pl-glow), 0.8);
+  transition: height 0.12s linear;
+}
+.player-volume__value {
+  min-width: 3rem;
+  text-align: center;
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ---------- Ladeanzeige, Hinweise ---------- */
+
+.player-busy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  transform: translateY(-58%);
+  pointer-events: none;
+  animation: pl-fade 0.4s ease both;
+}
+.player-busy .pop-spinner {
+  filter: drop-shadow(0 0 0.8rem rgba(var(--pl-glow), 0.6));
+}
+.player-busy__text {
+  margin: 0.4rem 0 0;
+  font-size: 2.3rem;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+}
+.player-busy__sub {
+  margin: 0;
+  max-width: 52rem;
+  text-align: center;
+  font-size: 1.5rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.player-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 9rem;
+  height: 9rem;
+  padding: 2.2rem;
+  margin: -4.5rem 0 0 -4.5rem;
+  border-radius: 50%;
+  background: rgba(8, 14, 38, 0.55);
+  border: 1px solid rgba(190, 212, 255, 0.25);
+  box-shadow: 0 0 2.4rem rgba(var(--pl-glow), 0.35);
+  pointer-events: none;
+  animation: pl-flash 0.75s var(--pl-soft) both;
+}
+
+.player-sound,
+.player-toast {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 0.7rem 2rem 0.8rem;
+  border-radius: 2rem;
+  background: rgba(8, 14, 38, 0.78);
+  border: 1px solid rgba(190, 212, 255, 0.25);
+  font-size: 1.6rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.player-sound {
+  top: 3.4rem;
+  animation: pl-fade 0.4s ease both;
+}
+.player-toast {
+  bottom: 4rem;
+  animation: pl-toast 4.5s ease both;
+  transition: bottom 0.5s var(--pl-soft);
+}
+.player-toast.is-raised {
+  bottom: 15rem;
+}
+
+.player-closing {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: #000;
+}
+
+/* ---------- Nächste Folge ---------- */
+
+.player-next {
+  position: absolute;
+  right: 5rem;
+  bottom: 5rem;
+  z-index: 6;
+  width: 40rem;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.7rem;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(46, 76, 152, 0.94) 0%, rgba(16, 34, 86, 0.98) 40%, rgba(6, 14, 44, 0.99) 100%);
+  border: 1px solid rgba(190, 212, 255, 0.24);
+  box-shadow:
+    0 2rem 4.5rem rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  animation: pl-rise 0.55s var(--pl-ease) both;
+}
+
+.player-next__cover {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #0a1030;
+}
+.player-next__cover .art-image {
+  position: absolute;
+  inset: 0;
+}
+.player-next__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(4, 8, 28, 0.75));
+}
+.player-next__count {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 0.35rem;
+  background: #fff;
+  box-shadow: 0 0 0.8rem rgba(var(--pl-glow), 0.9);
+  transition: width 1s linear;
+}
+
+.player-next__body {
+  padding: 1.5rem 2rem 1.7rem;
+}
+.player-next__eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+.player-next__eyebrow b {
+  font-weight: 400;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.player-next__title {
+  margin: 0;
+  font-size: 2.3rem;
+  font-weight: 300;
+  line-height: 1.2;
+}
+.player-next__code {
+  margin: 0.3rem 0 0;
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+.player-next__hints {
+  display: flex;
+  gap: 2.4rem;
+  margin-top: 1.4rem;
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ---------- Animationen ---------- */
+
+@keyframes pl-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pl-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 0.9;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.22);
+  }
+}
+
+@keyframes pl-bubble {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.5rem) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes pl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(2rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pl-toast {
+  0% {
+    opacity: 0;
+  }
+  6%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player *,
+  .player *::before,
+  .player *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .player-flash {
+    animation: none;
+    opacity: 0.9;
+  }
+}

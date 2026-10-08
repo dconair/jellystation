@@ -27,6 +27,7 @@ import {
   COLUMN_GATE_FROM,
   COLUMN_GATE_TO,
   COLUMN_RISE_REM,
+  CRITICAL_DISTANCE,
   DETAIL_CALM_MS,
   DETAIL_IN_OMEGA,
   DETAIL_OUT_OMEGA,
@@ -181,8 +182,8 @@ interface ColState {
   dir: number;
   /** Deckkraft-Feder des Spaltenausschnitts (weiter Sprung: aus → Tausch → ein). */
   fade: Spring;
-  /** Anlauf nach einem weiten Sprung: kritisch gedämpft. */
-  entering: boolean;
+  /** Weite Strecke (Sprung, Anlauf): kritisch gedämpft, ohne Nachschwingen, bis die Spalte zur Ruhe kommt. */
+  critical: boolean;
   el: HTMLElement | null;
   items: Map<number, ItemNode>;
   kx: number;
@@ -224,6 +225,8 @@ export class MotionEngine {
   private readonly cols = new Map<string, ColState>();
   private readonly catPos: Spring = makeSpring(0);
   private catTarget = 0;
+  /** Weite Strecke auf der Kategorie-Achse: kritisch gedämpft bis zur Ruhe. */
+  private catCritical = false;
   private activeId: string | null = null;
   private synced = false;
 
@@ -405,6 +408,7 @@ export class MotionEngine {
   retargetCategory(id: string, index: number) {
     this.activeId = id;
     this.catTarget = index;
+    if (Math.abs(index - this.catPos.x) > CRITICAL_DISTANCE) this.catCritical = true;
     if (this.reduced) this.snapAll();
     this.wake();
   }
@@ -437,6 +441,7 @@ export class MotionEngine {
       }
     } else {
       col.target = t;
+      if (Math.abs(t - col.pos.x) > CRITICAL_DISTANCE) col.critical = true;
     }
     this.wake();
   }
@@ -514,6 +519,7 @@ export class MotionEngine {
   private snapAll() {
     this.catPos.x = this.catTarget;
     this.catPos.v = 0;
+    this.catCritical = false;
     this.snapSlots();
     for (const col of this.cols.values()) {
       if (col.mode === MODE_OUT) {
@@ -543,7 +549,7 @@ export class MotionEngine {
     col.pos.v = 0;
     col.fade.x = 1;
     col.fade.v = 0;
-    col.entering = false;
+    col.critical = false;
   }
 
   private renderLater() {
@@ -594,7 +600,7 @@ export class MotionEngine {
         pending: 0,
         dir: 1,
         fade: makeSpring(1),
-        entering: false,
+        critical: false,
         el: null,
         items: new Map(),
         kx: NaNv,
@@ -714,10 +720,11 @@ export class MotionEngine {
     // Kategorie-Achse
     const cp = this.catPos;
     if (cp.x !== this.catTarget || cp.v !== 0) {
-      stepSpring(cp, this.catTarget, CAT_OMEGA, CAT_ZETA, dt);
+      stepSpring(cp, this.catTarget, CAT_OMEGA, this.catCritical ? 1 : CAT_ZETA, dt);
       if (Math.abs(cp.x - this.catTarget) < REST_POS && Math.abs(cp.v) < REST_VEL) {
         cp.x = this.catTarget;
         cp.v = 0;
+        this.catCritical = false;
       } else moving = true;
     }
 
@@ -753,7 +760,7 @@ export class MotionEngine {
           col.pos.x = col.pending - col.dir * JUMP_ENTER_ITEMS;
           col.pos.v = 0;
           col.target = col.pending;
-          col.entering = true;
+          col.critical = true;
           col.fade.v = 0;
           this.host?.requestRender(); // der alte Ausschnitt kann aus dem DOM
         }
@@ -767,11 +774,11 @@ export class MotionEngine {
       }
       const p = col.pos;
       if (p.x !== col.target || p.v !== 0) {
-        stepSpring(p, col.target, ITEM_OMEGA, col.entering ? 1 : ITEM_ZETA, dt);
+        stepSpring(p, col.target, ITEM_OMEGA, col.critical ? 1 : ITEM_ZETA, dt);
         if (col.mode === MODE_NORMAL && Math.abs(p.x - col.target) < REST_POS && Math.abs(p.v) < REST_VEL) {
           p.x = col.target;
           p.v = 0;
-          col.entering = false;
+          col.critical = false;
         } else moving = true;
       }
     }
@@ -823,9 +830,19 @@ export class MotionEngine {
     const g = focusCurve(d);
     const reduced = this.reduced;
 
-    if (differs(x, c.kx, 0.002)) {
+    // Streckung und Neigung in Fahrtrichtung (waagerechte Geschwindigkeit in rem/s): nur Verschiebung/Drehung/Streckung
+    // der Knopf-Ebene – das läuft ohne Neuzeichnen des Icons (SVG mit Filter), sonst wäre jedes Bild teuer
+    const vx = -CATEGORY_PITCH * this.catPos.v;
+    const st = reduced ? 0 : Math.min(CAT_STRETCH_MAX, Math.abs(vx) * CAT_STRETCH_PER_REM_S);
+    const lean = reduced ? 0 : clamp(vx * CAT_LEAN_DEG_PER_REM_S, -CAT_LEAN_MAX_DEG, CAT_LEAN_MAX_DEG);
+    if (differs(x, c.kx, 0.002) || differs(st, c.kst, 0.0006) || differs(lean, c.klean, 0.02)) {
       c.kx = x;
-      n.button.style.transform = `translate3d(${r3(x)}rem,${ROW_Y}rem,0)`;
+      c.kst = st;
+      c.klean = lean;
+      n.button.style.transform =
+        st > 0.0006 || Math.abs(lean) > 0.02
+          ? `translate3d(${r3(x)}rem,${ROW_Y}rem,0) rotate(${r3(lean)}deg) scale(${r4(1 + st)},${r4(1 - st * SQUASH_RATIO)})`
+          : `translate3d(${r3(x)}rem,${ROW_Y}rem,0)`;
     }
     if (differs(op, c.ko, 0.003)) {
       c.ko = op;
@@ -839,18 +856,11 @@ export class MotionEngine {
       n.bob.style.transform = `translate3d(0,${r3(bob)}rem,0)`;
     }
 
-    // Größe, Streckung und Neigung: waagerechte Geschwindigkeit in rem/s
-    const vx = -CATEGORY_PITCH * this.catPos.v;
-    const st = reduced ? 0 : Math.min(CAT_STRETCH_MAX, Math.abs(vx) * CAT_STRETCH_PER_REM_S);
-    const lean = reduced ? 0 : clamp(vx * CAT_LEAN_DEG_PER_REM_S, -CAT_LEAN_MAX_DEG, CAT_LEAN_MAX_DEG);
+    // Größe des Icons (nur beim Fokuswechsel in Bewegung)
     const sc = 1 + (CATEGORY_FOCUS_SCALE - 1) * g;
-    if (differs(sc, c.ksc, 0.0008) || differs(st, c.kst, 0.0006) || differs(lean, c.klean, 0.02)) {
+    if (differs(sc, c.ksc, 0.0008)) {
       c.ksc = sc;
-      c.kst = st;
-      c.klean = lean;
-      const sx = sc * (1 + st);
-      const sy = sc * (1 - st * SQUASH_RATIO);
-      n.scale.style.transform = `rotate(${r3(lean)}deg) scale(${r4(sx)},${r4(sy)})`;
+      n.scale.style.transform = `scale(${r4(sc)})`;
     }
 
     if (n.glow && differs(g, c.kglow, 0.004)) {
@@ -954,28 +964,30 @@ export class MotionEngine {
       n.outer.style.pointerEvents = faint ? "none" : "";
     }
 
-    // Streckung (senkrecht, nur als Bewegungsgefühl) aus der Geschwindigkeit der Kachel in rem/s
+    // Größe der Kachel und des Textes (nur beim Fokuswechsel in Bewegung)
+    const sc = 1 + (n.focusScale - 1) * g;
+    if (force || differs(sc, n.ksc, 0.0008)) {
+      n.ksc = sc;
+      n.scale.style.transform = `scale(${r4(sc)})`;
+      n.text.style.transform = `scale(${r4(sc)})`;
+    }
+
+    // Schwebe-Ebene: Schweben und senkrechte Streckung (nur als Bewegungsgefühl) aus der Geschwindigkeit der Kachel in
+    // rem/s. Beides sind Ebenen-Transformationen und laufen ohne Neuzeichnen des Covers.
     let st = 0;
     if (!reduced && col.pos.v !== 0) {
       const h = 0.02;
       const slope = (evalCurve(col.curve, d + h) - evalCurve(col.curve, d - h)) / (2 * h);
       st = Math.min(ITEM_STRETCH_MAX, Math.abs(slope * col.pos.v) * ITEM_STRETCH_PER_REM_S);
     }
-    const sc = 1 + (n.focusScale - 1) * g;
-    if (force || differs(sc, n.ksc, 0.0008) || differs(st, n.kst, 0.0006)) {
-      const textChanged = force || differs(sc, n.ksc, 0.0008);
-      n.ksc = sc;
-      n.kst = st;
-      if (textChanged) n.text.style.transform = `scale(${r4(sc)})`;
-      n.scale.style.transform =
-        st > 0.0006 ? `scale(${r4(sc * (1 - st * SQUASH_RATIO))},${r4(sc * (1 + st))})` : `scale(${r4(sc)})`;
-    }
-
-    // Schweben (eigene Ebene)
     const bob = reduced ? 0 : -BOB_REM * g * share * (1 - Math.cos((now / ITEM_BOB_MS) * TWO_PI)) * 0.5;
-    if (force || differs(bob, n.kbob, 0.0015)) {
+    if (force || differs(bob, n.kbob, 0.0015) || differs(st, n.kst, 0.0006)) {
       n.kbob = bob;
-      n.float.style.transform = `translate3d(0,${r3(bob)}rem,0)`;
+      n.kst = st;
+      n.float.style.transform =
+        st > 0.0006
+          ? `translate3d(0,${r3(bob)}rem,0) scale(${r4(1 - st * SQUASH_RATIO)},${r4(1 + st)})`
+          : `translate3d(0,${r3(bob)}rem,0)`;
     }
 
     if (n.shade && (force || differs(1 - g, n.kshade, 0.004))) {
