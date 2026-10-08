@@ -122,7 +122,7 @@ Die Einstellungen liegen dort im Klartext – **auch der API-Key**.
 
 - **Filme und Serien:** Sind Jellyfin-Adresse und API-Key gesetzt, lädt die App deine Titel samt Plakaten (bis zu 300 pro Art; mehr
   wird in der Kopfzeile gemeldet). Ohne Verbindung (oder bei Fehlern, mit Hinweis in der Kopfzeile) siehst du Demo-Titel.
-  Das Abspielen kommt in einer späteren Version.
+  Abspielen: siehe Abschnitt 5a.
 - **Spiele:** Lege ein Bild **neben das Spiel** – gleicher Dateiname, Endung `png`, `jpg`, `jpeg` oder `webp`
   (z. B. `Gran Turismo 5.iso` + `Gran Turismo 5.jpg`) – oder in einen Unterordner `covers/`, `media/covers/` oder `images/` des Systems.
   Ohne Bild erzeugt die App ein passendes Platzhalter-Cover im PS3-Hüllen-Stil.
@@ -130,17 +130,47 @@ Die Einstellungen liegen dort im Klartext – **auch der API-Key**.
 
 ---
 
-## 5. Spiele starten (RPCS3)
+## 5. Spiele starten (Emulatoren)
 
-1. macOS-Version von <https://rpcs3.net> laden, in **Programme** ziehen, einmal starten und die PS3-Firmware einrichten.
-   Prüfen: `ls /Applications/RPCS3.app/Contents/MacOS/` muss die Datei `rpcs3` zeigen. Liegt sie woanders, Pfad anpassen in
-   `src/config/games.ts` (`binary`) **und** `src-tauri/capabilities/emulators.json` (`cmd`).
-2. Ordnerstruktur: `Spiele/PS3/Gran Turismo 5.iso`, `Spiele/PS2/…`, …
-3. Im Menü auf das Spiel gehen und ✕ / `Enter` drücken. RPCS3 öffnet sich, das Menü bleibt im Hintergrund und zeigt „Läuft“.
+**Die Emulatoren richtet das Skript selbst ein.** Bei der Einrichtung (und jederzeit mit `jellystation --emulators`) prüft
+`scripts/install-emulators.sh`, welche Emulatoren schon da sind, und installiert die fehlenden – ohne `sudo`:
 
-`.iso` startet RPCS3 direkt. `.pkg` ist bei RPCS3 ein Installationspaket: Es wird gelistet, muss aber zuerst in RPCS3 über
-*File → Install .pkg* installiert werden. Für PS1/PS2 ist noch kein Emulator hinterlegt (Eintrag in `src/config/games.ts` ergänzen).
-Verwende nur Spiele, die du legal besitzt.
+| System (Ordnername) | Emulator | Installation |
+| --- | --- | --- |
+| PS1 | DuckStation | Download von GitHub |
+| PS2 | PCSX2 | Homebrew (`pcsx2`) |
+| PS3 | RPCS3 | Download von GitHub |
+| PSP | PPSSPP | Homebrew (`ppsspp-emulator`) |
+| GameCube / Wii | Dolphin | Homebrew (`dolphin`) |
+
+Außerdem legt es die Ordner `~/JellyStation/Games/<System>` und `~/JellyStation/BIOS` an. **Du musst nur noch Spiele hineinlegen**
+(Ordnername = System, z. B. `PS3/Gran Turismo 5.iso`). Spiele, BIOS-Dateien und PS3-Firmware werden nie mitgeliefert oder
+heruntergeladen – das bringst du selbst mit (nur legal besessene Spiele). PS1/PS2 brauchen ein BIOS, RPCS3 die PS3-Firmware
+(einmal in RPCS3 einspielen).
+
+Im Menü: *Einstellungen → Emulatoren* zeigt je Emulator „Bereit“ oder „Fehlt“. Dort kannst du Fehlendes per Homebrew
+installieren lassen, die Download-Seite öffnen, einen Pfad von Hand wählen oder das Startprotokoll ansehen.
+Spiel anwählen und ✕ / `Enter`: Ein Start-Bildschirm erscheint, der Emulator öffnet sich, das Menü bleibt im Hintergrund und
+zeigt „Läuft“. Fehlt der Emulator oder bricht der Start sofort ab, erscheint stattdessen ein Dialog mit der Ursache.
+`.pkg` ist bei RPCS3 ein Installationspaket: erst in RPCS3 über *File → Install .pkg* installieren.
+Ohne Spiele-Ordner zeigt die App Demo-Spiele; ein Start läuft dann nur zur Probe durch (ohne Prozess).
+
+## 5a. Filme und Serien abspielen (Jellyfin)
+
+Der Jellyfin-Server liefert, die App spielt ab – im PS3-Stil mit Bedienfeld unten, Spulleiste und Zeitanzeige.
+
+- **Film:** anwählen, ✕. Gibt es einen gespeicherten Stand, fragt ein Dialog: *Fortsetzen bei …* oder *Von vorn beginnen*.
+- **Serie:** ✕ öffnet die Folgenliste (nach Staffeln, mit Fortschrittsbalken und „Gesehen“-Haken); der Fokus liegt auf der
+  Folge, mit der es weitergeht. Am Ende einer Folge bietet der Player „Nächste Folge“ mit Countdown an.
+- **Wiedergabe:** Der Player fragt den Server, was dein Mac abspielen kann. Passt das Format, wird direkt abgespielt, sonst
+  wandelt der **Server** per HLS um – die App muss nur dekodieren. Unter *Einstellungen → Wiedergabe* kannst du „Immer vom
+  Server umwandeln“ einschalten. Tonspur, Untertitel, Qualität und Bildformat: △ (Optionen) im Player.
+- **Fortschritt:** Position und „Gesehen“ werden zum Server zurückgemeldet (Benutzer wählbar unter *Einstellungen → Jellyfin-Benutzer*).
+- Ist der Server nicht erreichbar, versucht die App es automatisch erneut (nach 15 s, 30 s, 60 s …); der Hinweis oben zeigt den Grund.
+- Ohne eingerichteten Server spielt der Player ein kurzes Demo-Video.
+
+Player-Tasten: ✕ Pause · ○ Beenden · △ Optionen · □ Anzeige · ←/→ Spulen (gedrückt halten = schneller) · ↑/↓ Lautstärke ·
+L1/R1 ±30 s · L2/R2 vorherige/nächste Folge. Tastatur: Leertaste/Enter, Esc, `O`, `J`/`L`, `PageUp`/`PageDown`.
 
 ---
 
@@ -166,7 +196,7 @@ Verwende nur Spiele, die du legal besitzt.
 | Erster Start dauert ewig | Normal (5–15 Min., Rust wird kompiliert), nur beim ersten Mal |
 | Port 1420 belegt | Eine andere `jellystation`-Instanz beenden (`Strg + C`) |
 | Spiele-Ordner „nicht erlaubt“ im Check | Ordner im Schritt 2 **über den Dialog** wählen (nicht tippen) |
-| Start-Fehler „not allowed“ / „scope“ | Emulator-Pfad passt nicht zu `src-tauri/capabilities/emulators.json` |
+| Spiel startet nicht | *Einstellungen → Emulatoren* öffnen: Dort steht, was fehlt (Installieren / Pfad wählen). Das Startprotokoll liegt im App-Log-Ordner (`launch.log`) |
 | Controller nicht erkannt | Erst eine Taste drücken; das App-Fenster muss im Vordergrund sein |
 | „Vorschau-Modus · Demo-Spiele“ | Spiele-Ordner nicht gefunden → *Einstellungen → Einrichtung erneut ausführen* |
 | Kein Ton | Mit `M` prüfen, ob „Ton aus“ in der Kopfzeile steht; ein erster Tastendruck oder Klick aktiviert die Audioausgabe |

@@ -54,7 +54,15 @@ dieselben Fokus-Animationen und Soundeffekte aus. Der Gamepad-Hook liegt in `src
 
 ## Emulatoren (macOS)
 
-- Zuordnung System → Emulator: `EMULATORS` in `src/config/games.ts` (aktuell `PS3` → RPCS3).
-- Absolute Pfade der Programme stehen im Shell-Scope `src-tauri/capabilities/emulators.json`
-  (`/Applications/RPCS3.app/Contents/MacOS/rpcs3`). Weitere Emulatoren dort und in `EMULATORS` ergänzen.
-- Gestartet wird per `spawn`; die XMB bleibt offen und zeigt „Läuft“ am Eintrag.
+- Katalog: `src/emulators/catalog.ts` (+ `emulators.json` für das Installationsskript). PS1 → DuckStation, PS2 → PCSX2, PS3 → RPCS3,
+  PSP → PPSSPP, GameCube/Wii → Dolphin.
+- `scripts/install-emulators.sh` (auch Teil von `setup-mac.sh`; `jellystation --emulators`) erkennt und installiert sie
+  (Homebrew bzw. GitHub, SHA-256, ohne sudo) und legt `~/JellyStation/Games/<System>` und `~/JellyStation/BIOS` an.
+- Gestartet wird über den Rust-Befehl `game_launch` (kein fester Shell-Scope); die XMB bleibt offen und zeigt „Läuft“.
+  *Einstellungen → Emulatoren* zeigt Status, Installationshilfe und das Startprotokoll.
+
+## Player (Jellyfin)
+
+`src/player/`: Vollbild-Player im PS3-Stil (Direct Play, sonst HLS-Umwandlung durch den Server, Untertitel, Tonspuren,
+Fortsetzen, Folgenliste, „Nächste Folge“). Die Verbindung läuft in der Desktop-App über einen lokalen Medien-Proxy
+(`src-tauri/src/media_proxy.rs`). Details: `docs/ARCHITEKTUR.md`.
