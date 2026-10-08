@@ -1,26 +1,23 @@
 import { isTauri } from "../platform";
+import { pickJfUser, fetchJfUsers } from "./context";
+import { getDeviceId } from "./device";
+import { isValidServerUrl, normalizeServerUrl } from "./url";
+
+// Die Adress-Helfer liegen in url.ts (damit context.ts sie ohne Kreis-Import nutzen kann); die alten Importe bleiben gültig.
+export { isValidServerUrl, normalizeServerUrl };
 
 export interface ConnectionResult {
   status: "ok" | "warn" | "fail";
   message: string;
   serverName?: string;
   version?: string;
-}
-
-/** "192.168.1.20:8096/" → "http://192.168.1.20:8096" */
-export function normalizeServerUrl(input: string): string {
-  const trimmed = input.trim().replace(/\/+$/, "");
-  if (!trimmed) return "";
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
-}
-
-export function isValidServerUrl(input: string): boolean {
-  try {
-    const u = new URL(normalizeServerUrl(input));
-    return (u.protocol === "http:" || u.protocol === "https:") && u.hostname.length > 0;
-  } catch {
-    return false;
-  }
+  /**
+   * Nur bei status "ok": Benutzer, dessen Wiedergabestände die App verwenden würde (gespeicherter oder zuletzt aktiver).
+   * Fehlt, wenn die Benutzerliste nicht lesbar ist – dann gibt es kein Weiterschauen.
+   */
+  userName?: string;
+  /** Anzahl der Benutzer auf dem Server (nur bei lesbarer Benutzerliste). */
+  userCount?: number;
 }
 
 /** In Tauri über das HTTP-Plugin (Rust, kein CORS/ATS), im Browser über window.fetch. */
@@ -37,7 +34,7 @@ async function request(url: string, headers: Record<string, string>, ms = 6000) 
  * 1. GET /System/Info/Public (ohne Anmeldung) → ist der Server erreichbar?
  * 2. GET /System/Info mit API-Key → ist der Schlüssel gültig?
  */
-export async function testJellyfin(urlInput: string, apiKey: string): Promise<ConnectionResult> {
+export async function testJellyfin(urlInput: string, apiKey: string, userId?: string): Promise<ConnectionResult> {
   const base = normalizeServerUrl(urlInput);
   if (!isValidServerUrl(base)) return { status: "fail", message: "Ungültige Server-Adresse" };
 
@@ -69,8 +66,26 @@ export async function testJellyfin(urlInput: string, apiKey: string): Promise<Co
       return { status: "fail", message: `${label} gefunden – API-Key ungültig`, ...found };
     }
     if (!res.ok) return { status: "fail", message: `Anmeldung fehlgeschlagen (${res.status})`, ...found };
-    return { status: "ok", message: `Verbunden mit ${label}`, ...found };
+    return { status: "ok", message: `Verbunden mit ${label}`, ...found, ...(await probeUser(base, key, userId)) };
   } catch {
     return { status: "fail", message: "Anmeldung nicht möglich – Verbindung unterbrochen", ...found };
+  }
+}
+
+/**
+ * Zusatzinfo für die Prüfung: welcher Benutzer würde verwendet? Bewusst kurz befristet und folgenlos – eine
+ * nicht lesbare Benutzerliste (Schlüssel ohne Administrator-Rechte, alter Server) ändert das Ergebnis nicht.
+ */
+async function probeUser(
+  base: string,
+  apiKey: string,
+  userId: string | undefined,
+): Promise<{ userName?: string; userCount?: number }> {
+  try {
+    const users = await fetchJfUsers({ base, apiKey, deviceId: getDeviceId() }, AbortSignal.timeout(3000));
+    const picked = pickJfUser(users, userId);
+    return picked ? { userName: picked.user.name, userCount: users.length } : { userCount: 0 };
+  } catch {
+    return {};
   }
 }

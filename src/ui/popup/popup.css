@@ -1,0 +1,1069 @@
+/*
+ * Gemeinsame PS3-Bausteine für Listen und Dialoge (OverlayFrame, PopupList, Dialoge).
+ *
+ * Optik wie die Systemdialoge der PS3 (Farben, Rand und Glanz sind von setup.css abgeguckt): dunkelblau-
+ * transluzentes Panel, feiner heller Rand oben, leichte Schrift. Bewusst OHNE backdrop-filter – ohne GPU
+ * ruckelt der Weichzeichner; stattdessen eine dunkle Fläche mit sanftem Verlauf und ein dichteres Panel.
+ * Der Fokus ist ein einziger Leuchtbalken, der per transform zur Zeile gleitet (--pop-ease schwingt leicht über).
+ * Alles in rem – das Layout skaliert mit dem Fenster (siehe html in index.css).
+ */
+
+.pop-overlay,
+.pop-panel {
+  --pop-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* gleiches Überschwingen wie --xmb-ease */
+  --pop-soft: cubic-bezier(0.25, 0.8, 0.3, 1);
+  --pop-glow: 150, 190, 255;
+  --pop-ok: #9af2c0;
+  --pop-warn: #ffd98a;
+  --pop-error: #ff9d9d;
+  --pop-info: #a9c8ff;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- Overlay ---------- */
+
+.pop-overlay {
+  --pop-dim: 0.7;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  background: radial-gradient(
+    ellipse 85% 75% at 50% 46%,
+    rgba(5, 10, 32, calc(var(--pop-dim) * 0.82)) 0%,
+    rgba(2, 4, 14, calc(var(--pop-dim) * 1.25)) 100%
+  );
+  animation: pop-fade-in 0.28s ease both;
+}
+
+.pop-overlay.is-leaving {
+  pointer-events: none;
+  animation: pop-fade-out 0.2s ease both;
+}
+
+/* Das Panel steht in der Bühne; nur das Panel nimmt Mausklicks an, der Rest davon zählt als „neben das Panel“. */
+.pop-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  pointer-events: none;
+}
+
+.pop-stage > * {
+  pointer-events: auto;
+}
+
+.pop-overlay--left .pop-stage {
+  justify-content: flex-start;
+  padding-left: 4rem;
+}
+.pop-overlay--right .pop-stage {
+  justify-content: flex-end;
+  padding-right: 4rem;
+}
+.pop-overlay--bottom .pop-stage {
+  align-items: flex-end;
+  padding-bottom: 3.6rem;
+}
+
+/* ---------- Panel ---------- */
+
+.pop-panel {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: min(38rem, 94%);
+  max-height: min(46rem, 94%);
+  border-radius: 0.6rem;
+  background: linear-gradient(
+    180deg,
+    rgba(46, 76, 152, 0.88) 0%,
+    rgba(16, 34, 86, 0.94) 38%,
+    rgba(6, 14, 44, 0.97) 100%
+  );
+  border: 1px solid rgba(190, 212, 255, 0.22);
+  box-shadow:
+    0 2.4rem 5.5rem rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 0, 12, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 3.2rem rgba(90, 130, 230, 0.1);
+  animation: pop-rise 0.55s var(--pop-ease) both;
+}
+
+.pop-panel--narrow {
+  width: min(26rem, 94%);
+}
+.pop-panel--wide {
+  width: min(52rem, 94%);
+}
+
+.pop-overlay--right .pop-panel {
+  animation-name: pop-rise-right;
+}
+.pop-overlay--left .pop-panel {
+  animation-name: pop-rise-left;
+}
+.pop-overlay.is-leaving .pop-panel {
+  animation: pop-sink 0.2s ease both;
+}
+
+/* Glanzlicht am oberen Rand */
+.pop-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.03) 18%, transparent 38%);
+}
+
+/* Liegt ein anderes Overlay darüber: dunkler und ohne Leuchten */
+.pop-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  border-radius: inherit;
+  pointer-events: none;
+  background: rgba(3, 6, 20, 0.62);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.pop-panel.is-inactive::after {
+  opacity: 1;
+}
+.pop-panel.is-inactive .pop-bar__halo,
+.pop-panel.is-inactive .pop-choice-bar .pop-bar__halo {
+  animation: none;
+}
+
+/* ---------- Kopf ---------- */
+
+.pop-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1.3rem;
+  padding: 1.7rem 2.4rem 1.3rem;
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3) 10%, rgba(255, 255, 255, 0.3) 90%, transparent) 1;
+}
+
+.pop-head__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.pop-title {
+  margin: -0.15rem 0; /* das Polster hält Unterlängen im sichtbaren Bereich, ohne den Kopf höher zu machen */
+  padding: 0.15rem 0;
+  overflow: hidden;
+  font-size: 2.1rem;
+  font-weight: 300;
+  line-height: 1.28;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pop-subtitle {
+  margin: 0.05rem 0 -0.1rem;
+  padding: 0.15rem 0 0.1rem;
+  overflow: hidden;
+  font-size: 1.15rem;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.62;
+}
+
+.pop-head__spinner {
+  opacity: 0.9;
+}
+
+/* ---------- Liste ---------- */
+
+.pop-body {
+  position: relative;
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Die Höhe setzt PopupList inline auf die Gesamthöhe der Zeilen; passt sie nicht ins Panel, schrumpft der Bereich. */
+.pop-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  contain: layout paint;
+}
+
+/* Lange Listen laufen oben und unten weich aus (die Polster der Liste halten Zeilen im Ruhezustand daraus heraus). */
+.pop-viewport.is-scrollable {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1rem, #000 calc(100% - 1rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 1rem, #000 calc(100% - 1rem), transparent 100%);
+}
+
+.pop-track {
+  position: relative;
+  z-index: 1;
+  will-change: transform;
+}
+
+.pop-panel.is-ready .pop-track {
+  transition: transform 0.5s var(--pop-ease);
+}
+
+/* Weiter Sprung (Pos1/Ende in langer Liste): kein Vorbeirauschen, der Inhalt blendet ein */
+.pop-panel.is-ready .pop-track.is-snap {
+  transition: none;
+  animation: pop-fade-in 0.3s ease both;
+}
+
+/* ---------- Wandernder Fokusbalken ---------- */
+
+.pop-bar,
+.pop-choice-bar {
+  position: absolute;
+  left: 1.1rem;
+  right: 1.1rem;
+  top: 0;
+  z-index: 0;
+  border-radius: 0.5rem;
+  /* Lichtbalken: links hell, nach rechts auslaufend; oben und links eine feine Lichtkante */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(90deg, rgba(176, 206, 255, 0.46) 0%, rgba(132, 170, 255, 0.26) 52%, rgba(110, 150, 255, 0.1) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12);
+  will-change: transform;
+  animation: pop-fade-in 0.35s ease both;
+}
+
+.pop-panel.is-ready .pop-bar {
+  transition:
+    transform 0.5s var(--pop-ease),
+    height 0.5s var(--pop-ease);
+}
+
+/* Der Schein pulsiert nur in der Deckkraft – das kostet auf der GPU nichts */
+.pop-bar__halo {
+  position: absolute;
+  inset: -0.15rem;
+  border-radius: 0.65rem;
+  pointer-events: none;
+  box-shadow: 0 0 1rem rgba(var(--pop-glow), 0.65);
+  animation: pop-pulse 2.6s ease-in-out infinite;
+}
+
+/* ---------- Zeilen ---------- */
+
+.pop-row,
+.pop-section {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.pop-row {
+  display: block;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.35s ease;
+}
+
+.pop-row.is-focused {
+  opacity: 1;
+}
+
+.pop-row.is-disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.pop-row__inner {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  height: 100%;
+  padding: 0 2.9rem 0 2.3rem;
+  transform-origin: 2.3rem 50%;
+  transition: transform 0.5s var(--pop-ease);
+}
+
+.pop-row.is-focused .pop-row__inner {
+  transform: scale(1.025);
+}
+
+.pop-row__lead {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-left: -0.1rem;
+}
+
+.pop-dot {
+  display: block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0.7rem currentColor;
+}
+.pop-dot.is-ok {
+  color: var(--pop-ok);
+}
+.pop-dot.is-warn {
+  color: var(--pop-warn);
+}
+.pop-dot.is-error {
+  color: var(--pop-error);
+}
+
+.pop-check {
+  display: block;
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  color: #d6e6ff;
+  filter: drop-shadow(0 0 0.35rem rgba(180, 210, 255, 0.7));
+}
+
+.pop-row__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pop-row__label,
+.pop-row__detail {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pop-row__label {
+  padding: 0.05rem 0;
+  font-size: 1.4rem;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+}
+
+.pop-row__detail {
+  margin-top: 0.1rem;
+  font-size: 1.1rem;
+  line-height: 1.35;
+  letter-spacing: 0.035em;
+  opacity: 0.62;
+}
+
+.pop-row__trailing {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.72;
+}
+
+.pop-check--end {
+  margin-left: 0.2rem;
+}
+
+/* Kachel (16:9) vor dem Text */
+.pop-row__art {
+  position: relative;
+  flex: none;
+  width: 7.82rem;
+  height: 4.4rem;
+  overflow: hidden;
+  border-radius: 0.45rem;
+  background: rgba(10, 16, 40, 0.5);
+  box-shadow: 0 0.3rem 0.9rem rgba(0, 0, 0, 0.42);
+}
+
+/* Glanz wie bei den Kacheln der XMB */
+.pop-row__art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.07) 34%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Fortschritt (Weiterschauen) */
+.pop-progress {
+  position: relative;
+  display: block;
+  flex: none;
+  height: 0.26rem;
+  margin-top: 0.5rem;
+  overflow: hidden;
+  border-radius: 0.2rem;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.pop-progress > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8fb8ff, #fff);
+  box-shadow: 0 0 0.5rem rgba(var(--pop-glow), 0.85);
+}
+
+.pop-progress--art {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0.32rem;
+  margin: 0;
+  border-radius: 0;
+  background: rgba(0, 4, 20, 0.62);
+}
+
+/* Abschnittsüberschrift */
+.pop-section {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  padding: 0 2.4rem 0.6rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.55;
+}
+
+.pop-section > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pop-section::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  margin-bottom: 0.3rem;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.34), transparent);
+}
+
+.pop-empty {
+  margin: 0;
+  padding: 3.4rem 2.4rem;
+  font-size: 1.3rem;
+  text-align: center;
+  opacity: 0.6;
+}
+
+/* ---------- Statuszeile ---------- */
+
+.pop-footer {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin: 0.4rem 1.6rem 0.8rem;
+  padding: 0.75rem 1.1rem;
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  font-size: 1.1rem;
+  line-height: 1.45;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+
+.pop-footer::before {
+  content: "";
+  flex: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-top: 0.4rem;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0.6rem currentColor;
+}
+
+.pop-footer > span {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.pop-footer.is-info {
+  color: var(--pop-info);
+}
+.pop-footer.is-ok {
+  color: var(--pop-ok);
+}
+.pop-footer.is-warn {
+  color: var(--pop-warn);
+}
+.pop-footer.is-error {
+  color: var(--pop-error);
+  background: rgba(255, 90, 90, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(255, 157, 157, 0.35);
+}
+.pop-footer > span {
+  color: #fff;
+}
+
+/* ---------- Tastenhinweise ---------- */
+
+.pop-hints {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap; /* lange Beschriftungen oder ein schmales Panel: lieber zwei Zeilen als abgeschnitten */
+  align-items: center;
+  gap: 0 0.2rem;
+  padding: 0.7rem 1.4rem 0.9rem;
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24) 10%, rgba(255, 255, 255, 0.24) 90%, transparent) 1;
+}
+
+.pop-hints-spacer {
+  flex: none;
+  height: 1.2rem;
+}
+
+/* Kein Button-Kasten: nur Symbol + Text, beim Überfahren ein zarter Hintergrund */
+.pop-hint {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 0.55rem;
+  height: 2.9rem;
+  padding: 0 0.8rem 0 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.pop-hint:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.pop-hint > span {
+  padding-top: 0.14em; /* die Schrift sitzt sonst etwas zu hoch neben dem Symbol */
+  opacity: 0.92;
+}
+
+.pop-hint .ps-symbol {
+  display: block;
+  flex: none;
+  filter: drop-shadow(0 0 0.35rem var(--sym, transparent));
+}
+
+.pop-hint[data-symbol="cross"] {
+  --sym: var(--ps-cross);
+}
+.pop-hint[data-symbol="circle"] {
+  --sym: var(--ps-circle);
+}
+.pop-hint[data-symbol="triangle"] {
+  --sym: var(--ps-triangle);
+}
+.pop-hint[data-symbol="square"] {
+  --sym: var(--ps-square);
+}
+
+.pop-hints__end {
+  margin-left: auto;
+  padding: 0.14em 0.9rem 0 1rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.55;
+}
+
+/* ---------- Dialoge ---------- */
+
+.pop-dialog {
+  width: min(40rem, 94%);
+}
+
+.pop-dialog--confirm {
+  width: min(36rem, 94%);
+}
+
+.pop-dialog--progress {
+  width: min(44rem, 94%);
+}
+
+.pop-dialog .pop-head {
+  padding-top: 1.8rem;
+}
+
+.pop-dialog__body {
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1.7rem 2.4rem 0.4rem;
+}
+
+.pop-message {
+  font-size: 1.35rem;
+  line-height: 1.55;
+  letter-spacing: 0.03em;
+}
+
+.pop-dialog--confirm > .pop-message {
+  padding: 1.8rem 2.4rem 0.2rem;
+}
+
+.pop-message p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.pop-message p + p {
+  margin-top: 0.45rem;
+}
+
+.pop-message .pop-gap {
+  height: 0.7rem;
+  margin-top: 0;
+}
+
+/* Art-Symbol vor dem Titel */
+.pop-kind {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 3.3rem;
+  height: 3.3rem;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pop-kind svg {
+  display: block;
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.pop-kind.is-info {
+  color: var(--pop-info);
+  box-shadow:
+    0 0 1rem rgba(169, 200, 255, 0.35),
+    inset 0 0 0.8rem rgba(169, 200, 255, 0.18);
+}
+.pop-kind.is-error {
+  color: var(--pop-error);
+  box-shadow:
+    0 0 1rem rgba(255, 157, 157, 0.4),
+    inset 0 0 0.8rem rgba(255, 157, 157, 0.2);
+}
+.pop-kind.is-success {
+  color: var(--pop-ok);
+  box-shadow:
+    0 0 1rem rgba(154, 242, 192, 0.35),
+    inset 0 0 0.8rem rgba(154, 242, 192, 0.18);
+}
+
+/* Protokoll-/Detailblock */
+.pop-detail {
+  flex: 0 1 auto;
+  min-height: 4rem;
+  max-height: 15rem;
+  margin: 1.2rem 0 0;
+  padding: 0.8rem 1.1rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 4, 24, 0.42);
+  font:
+    1rem/1.55 ui-monospace,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
+  letter-spacing: 0;
+  text-shadow: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  opacity: 0.9;
+  user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.pop-detail::-webkit-scrollbar {
+  width: 0.5rem;
+}
+.pop-detail::-webkit-scrollbar-thumb {
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Optionen eines Dialogs: ein Balken gleitet zwischen den Feldern */
+.pop-choices {
+  --choice-w: 14rem;
+  --choice-gap: 1.2rem;
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding: 1.6rem 2rem 1.7rem;
+}
+
+.pop-choices__row {
+  position: relative;
+  display: flex;
+  gap: var(--choice-gap);
+}
+
+.pop-choice-bar {
+  left: 0;
+  right: auto;
+  width: var(--choice-w);
+  height: 100%;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(90deg, rgba(132, 170, 255, 0.2) 0%, rgba(176, 206, 255, 0.4) 50%, rgba(132, 170, 255, 0.2) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.pop-choices.is-ready .pop-choice-bar {
+  transition: transform 0.5s var(--pop-ease);
+}
+
+.pop-choice-bar.is-danger {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(90deg, rgba(255, 110, 110, 0.2) 0%, rgba(255, 170, 170, 0.4) 50%, rgba(255, 110, 110, 0.2) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 190, 190, 0.45),
+    inset 0 1px 0 rgba(255, 230, 230, 0.6);
+}
+.pop-choice-bar.is-danger .pop-bar__halo {
+  box-shadow: 0 0 1rem rgba(255, 130, 130, 0.65);
+}
+
+.pop-choice {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--choice-w);
+  height: 3.7rem;
+  padding: 0.14em 1rem 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: 1.4rem;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: inherit;
+  white-space: nowrap;
+  opacity: 0.6;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  transition: opacity 0.35s ease;
+}
+
+.pop-choice > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pop-choice.is-focused {
+  opacity: 1;
+}
+
+.pop-choice.is-danger {
+  color: #ffd0d0;
+}
+
+/* Fortschritt */
+.pop-prog {
+  display: flex;
+  align-items: center;
+  gap: 1.8rem;
+}
+
+.pop-prog__spinner {
+  flex: none;
+}
+
+.pop-prog__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.pop-status {
+  margin: 0;
+  overflow: hidden;
+  font-size: 1.4rem;
+  line-height: 1.4;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pop-meter {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.9rem;
+}
+
+.pop-meter__track {
+  position: relative;
+  flex: 1;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0.05rem 0.2rem rgba(0, 0, 20, 0.5);
+}
+
+.pop-meter__track > i {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(140, 185, 255, 0.95), #fff);
+  box-shadow: 0 0 0.8rem rgba(var(--pop-glow), 0.8);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  transition: transform 0.4s var(--pop-soft);
+}
+
+.pop-meter__track.is-indeterminate > i {
+  right: auto;
+  width: 38%;
+  transform: none;
+  animation: pop-run 1.5s ease-in-out infinite;
+}
+
+.pop-meter__value {
+  flex: none;
+  min-width: 3.6rem;
+  font-size: 1.1rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.pop-log {
+  height: 14rem;
+  margin-top: 1.6rem;
+  padding: 0.6rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 4, 24, 0.42);
+  font:
+    1rem/1.6rem ui-monospace,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
+  letter-spacing: 0;
+  text-shadow: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 3rem);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 3rem);
+}
+
+.pop-log ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pop-log li {
+  height: 1.6rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+.pop-log li:last-child {
+  opacity: 1;
+}
+
+/* ---------- Ladeanzeige aus Punkten ---------- */
+
+.pop-spinner {
+  display: block;
+  flex: none;
+  overflow: visible;
+  color: #fff;
+}
+
+.pop-spinner circle {
+  fill: currentColor;
+  opacity: 0.12;
+  animation: pop-dot 1.15s linear infinite;
+  animation-delay: calc((var(--i) - 1) * 1.15s);
+}
+
+/* ---------- Animationen ---------- */
+
+@keyframes pop-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pop-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.6rem, 0) scale(0.97);
+  }
+}
+
+@keyframes pop-rise-right {
+  from {
+    opacity: 0;
+    transform: translate3d(2.4rem, 0, 0) scale(0.98);
+  }
+}
+
+@keyframes pop-rise-left {
+  from {
+    opacity: 0;
+    transform: translate3d(-2.4rem, 0, 0) scale(0.98);
+  }
+}
+
+@keyframes pop-sink {
+  to {
+    opacity: 0;
+    transform: translate3d(0, 0.8rem, 0) scale(0.985);
+  }
+}
+
+@keyframes pop-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes pop-dot {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.12;
+  }
+}
+
+@keyframes pop-run {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(263%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop-overlay,
+  .pop-overlay *,
+  .pop-overlay *::before,
+  .pop-overlay *::after,
+  .pop-panel,
+  .pop-panel *,
+  .pop-panel *::before,
+  .pop-panel *::after {
+    animation: none !important;
+    transition-duration: 0.01s !important;
+  }
+
+  /* Ohne Umlauf bleibt ein Standbild: der Schweif der Punkte ist festgehalten */
+  .pop-spinner circle {
+    opacity: calc(1 - var(--i) * 0.85);
+  }
+
+  .pop-bar__halo {
+    opacity: 0.85;
+  }
+
+  .pop-meter__track.is-indeterminate > i {
+    width: 100%;
+    opacity: 0.45;
+  }
+}

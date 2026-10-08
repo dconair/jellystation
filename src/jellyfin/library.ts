@@ -1,6 +1,10 @@
-import type { XmbEntry } from "../data/types";
-import { isTauri } from "../platform";
-import { isValidServerUrl, normalizeServerUrl } from "./testConnection";
+import type { JellyfinRef, XmbEntry } from "../data/types";
+import { fetchJfUsers, pickJfUser } from "./context";
+import { getDeviceId } from "./device";
+import { isAbortError, JfError } from "./errors";
+import { artHeaders, jfJson } from "./http";
+import type { JfAuth } from "./http";
+import { isValidServerUrl, normalizeServerUrl } from "./url";
 
 /** So viele Titel pro Typ werden höchstens geladen (der Rest wird gemeldet, nicht still abgeschnitten). */
 export const JELLYFIN_ITEM_LIMIT = 300;
@@ -17,15 +21,17 @@ export interface JellyfinLibrary {
    * z. B. "nur 300 von 412 Filmen geladen".
    */
   truncated?: string;
+  /** Benutzer, dessen Wiedergabestände (Weiterschauen, Gesehen) in den Einträgen stecken; fehlt, wenn keiner ermittelt werden konnte. */
+  userId?: string;
+  userName?: string;
 }
 
-/** Fehler mit einer Meldung, die direkt angezeigt werden darf. */
-export class JellyfinError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "JellyfinError";
-  }
-}
+/**
+ * Fehler mit einer Meldung, die direkt angezeigt werden darf. Gleiche Klasse wie {@link JfError} (die ganze
+ * Jellyfin-Schicht wirft sie); der alte Name bleibt für bestehenden Code.
+ */
+export const JellyfinError = JfError;
+export type JellyfinError = JfError;
 
 interface JellyfinItem {
   Id?: unknown;
@@ -34,7 +40,9 @@ interface JellyfinItem {
   Genres?: unknown;
   ProductionYear?: unknown;
   ChildCount?: unknown;
+  RunTimeTicks?: unknown;
   ImageTags?: { Primary?: unknown } | null;
+  UserData?: { PlaybackPositionTicks?: unknown; Played?: unknown } | null;
 }
 
 interface ItemsResponse {
@@ -86,6 +94,8 @@ export function shortenOverview(raw: string, max = OVERVIEW_MAX): string {
 }
 
 const clean = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+const positive = (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
 
 function subtitleOf(item: JellyfinItem, kind: ItemKind): string | undefined {
   const parts: string[] = [];
@@ -102,6 +112,23 @@ function subtitleOf(item: JellyfinItem, kind: ItemKind): string | undefined {
   return parts.length ? parts.join(" · ") : undefined;
 }
 
+/**
+ * Verweis auf das Jellyfin-Objekt samt Wiedergabestand. `resumeTicks` fehlt bei nicht begonnenen Titeln,
+ * `played` fehlt, wenn der Server keine Benutzerdaten geliefert hat (dann ist "nicht gesehen" nur geraten).
+ */
+function refOf(id: string, kind: ItemKind, item: JellyfinItem): JellyfinRef {
+  const ref: JellyfinRef = { id, type: kind };
+  const run = positive(item.RunTimeTicks);
+  if (run !== undefined) ref.runTimeTicks = run;
+  const data = item.UserData;
+  if (data && typeof data === "object") {
+    const pos = positive(data.PlaybackPositionTicks);
+    if (pos !== undefined) ref.resumeTicks = pos;
+    if (typeof data.Played === "boolean") ref.played = data.Played;
+  }
+  return ref;
+}
+
 function toEntry(item: JellyfinItem, kind: ItemKind, base: string, apiKey: string): XmbEntry | null {
   const id = clean(item.Id);
   if (!id) return null;
@@ -114,11 +141,12 @@ function toEntry(item: JellyfinItem, kind: ItemKind, base: string, apiKey: strin
     subtitle: subtitleOf(item, kind),
     description: overview ? shortenOverview(overview) : undefined,
     hue: hueFromTitle(title),
+    jellyfin: refOf(id, kind, item),
     art: hasImage
       ? {
           kind: "http",
           url: `${base}/Items/${encodeURIComponent(id)}/Images/Primary?fillHeight=600&quality=90`,
-          headers: { "X-Emby-Token": apiKey },
+          headers: artHeaders(apiKey),
         }
       : { kind: "generated" },
     artShape: "poster",
@@ -136,76 +164,38 @@ export function emptyLibraryEntry(kind: ItemKind): XmbEntry {
   };
 }
 
-/** In Tauri über das HTTP-Plugin (Rust, kein CORS/ATS), im Browser über window.fetch. */
-async function send(url: string, headers: Record<string, string>, signal: AbortSignal) {
-  if (isTauri()) {
-    const { fetch } = await import("@tauri-apps/plugin-http");
-    return fetch(url, { headers, signal });
-  }
-  return window.fetch(url, { headers, signal });
-}
-
-/** Eine Anfrage mit eigenem Zeitlimit; `outer` bricht sie vorzeitig ab (Fehler dann: AbortError). */
-async function getJson(url: string, apiKey: string, outer: AbortSignal): Promise<unknown> {
-  const timeout = AbortSignal.timeout(TIMEOUT_MS);
-  const ctl = new AbortController();
-  const abort = () => ctl.abort();
-  timeout.addEventListener("abort", abort);
-  outer.addEventListener("abort", abort);
-  if (outer.aborted) ctl.abort();
-
-  try {
-    let res: Response;
-    let text: string;
-    try {
-      res = await send(url, { Authorization: `MediaBrowser Token="${apiKey}"`, "X-Emby-Token": apiKey }, ctl.signal);
-      if (res.status === 401 || res.status === 403) throw new JellyfinError("API-Key ungültig");
-      if (!res.ok) throw new JellyfinError(`Server antwortet mit Status ${res.status}`);
-      text = await res.text();
-    } catch (err) {
-      if (err instanceof JellyfinError) throw err;
-      if (outer.aborted) throw new DOMException("Abgebrochen", "AbortError");
-      throw new JellyfinError(
-        timeout.aborted ? "Zeitüberschreitung – Server nicht erreichbar" : "Server nicht erreichbar",
-      );
-    }
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new JellyfinError("Antwort des Servers ist kein gültiges JSON");
-    }
-  } finally {
-    timeout.removeEventListener("abort", abort);
-    outer.removeEventListener("abort", abort);
-  }
-}
-
 async function fetchKind(
-  base: string,
-  apiKey: string,
+  auth: JfAuth,
   kind: ItemKind,
   signal: AbortSignal,
+  userId: string | undefined,
 ): Promise<{ entries: XmbEntry[]; loaded: number; total: number }> {
-  const query = new URLSearchParams({
-    IncludeItemTypes: kind,
-    Recursive: "true",
-    SortBy: "SortName",
-    SortOrder: "Ascending",
-    Fields: "Overview,Genres,ProductionYear,ChildCount",
-    ImageTypeLimit: "1",
-    EnableImageTypes: "Primary",
-    Limit: String(JELLYFIN_ITEM_LIMIT),
+  const json = await jfJson<ItemsResponse | null>(auth, "/Items", {
+    signal,
+    timeoutMs: TIMEOUT_MS,
+    query: {
+      // Ohne Benutzer gibt es keine Wiedergabestände – der Server lässt die UserData dann weg.
+      userId,
+      enableUserData: userId ? true : undefined,
+      IncludeItemTypes: kind,
+      Recursive: true,
+      SortBy: "SortName",
+      SortOrder: "Ascending",
+      Fields: "Overview,Genres,ProductionYear,ChildCount",
+      ImageTypeLimit: 1,
+      EnableImageTypes: "Primary",
+      Limit: JELLYFIN_ITEM_LIMIT,
+    },
   });
-  const json = (await getJson(`${base}/Items?${query}`, apiKey, signal)) as ItemsResponse | null;
   if (!json || typeof json !== "object" || !Array.isArray(json.Items)) {
-    throw new JellyfinError("Unerwartete Antwort des Servers");
+    throw new JfError("Unerwartete Antwort des Servers", "protocol");
   }
   const items = json.Items as JellyfinItem[];
   // Doppelte Ids würden in der XMB denselben React-Schlüssel teilen – jede Id nur einmal.
   const seen = new Set<string>();
   const entries: XmbEntry[] = [];
   for (const item of items) {
-    const entry = toEntry(item ?? {}, kind, base, apiKey);
+    const entry = toEntry(item ?? {}, kind, auth.base, auth.apiKey);
     if (entry && !seen.has(entry.id)) {
       seen.add(entry.id);
       entries.push(entry);
@@ -217,28 +207,52 @@ async function fetchKind(
 }
 
 /**
+ * Ermittelt den Benutzer für die Wiedergabestände. Ist die Benutzerliste nicht lesbar (Schlüssel ohne
+ * Administrator-Rechte, sehr alter Server), lädt die Bibliothek trotzdem – nur eben ohne Weiterschauen.
+ * Ein ungültiger Schlüssel (401), ein nicht erreichbarer Server und ein Abbruch zählen dagegen als Fehler.
+ */
+async function resolveUser(
+  auth: JfAuth,
+  preferredId: string | undefined,
+  signal: AbortSignal,
+): Promise<{ id: string; name: string } | undefined> {
+  try {
+    const picked = pickJfUser(await fetchJfUsers(auth, signal), preferredId);
+    return picked ? { id: picked.user.id, name: picked.user.name } : undefined;
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    if (err instanceof JfError && (err.status === 401 || err.kind === "network" || err.kind === "timeout")) throw err;
+    return undefined;
+  }
+}
+
+/**
  * Lädt Filme und Serien vom Jellyfin-Server und bildet sie auf XMB-Einträge ab.
+ * `userId` ist der gewählte Benutzer (Einstellungen); fehlt er oder ist er ungültig, wird der zuletzt aktive gewählt.
  * Wirft bei jedem Problem einen {@link JellyfinError} mit deutscher Meldung; bei `signal`-Abbruch einen AbortError.
  */
 export async function fetchJellyfinLibrary(
   url: string,
   apiKey: string,
   signal?: AbortSignal,
+  userId?: string,
 ): Promise<JellyfinLibrary> {
   const base = normalizeServerUrl(url);
   const key = apiKey.trim();
-  if (!isValidServerUrl(base)) throw new JellyfinError("Ungültige Server-Adresse");
-  if (!key) throw new JellyfinError("API-Key fehlt");
+  if (!isValidServerUrl(base)) throw new JfError("Ungültige Server-Adresse", "config");
+  if (!key) throw new JfError("API-Key fehlt", "config");
+  const auth: JfAuth = { base, apiKey: key, deviceId: getDeviceId() };
 
-  // Scheitert eine der beiden Anfragen, wird die andere gleich mit abgebrochen.
+  // Scheitert eine der Anfragen, werden die anderen gleich mit abgebrochen.
   const ctl = new AbortController();
   const abort = () => ctl.abort();
   signal?.addEventListener("abort", abort);
   if (signal?.aborted) ctl.abort();
   try {
+    const user = await resolveUser(auth, userId, ctl.signal);
     const [movies, series] = await Promise.all([
-      fetchKind(base, key, "Movie", ctl.signal),
-      fetchKind(base, key, "Series", ctl.signal),
+      fetchKind(auth, "Movie", ctl.signal, user?.id),
+      fetchKind(auth, "Series", ctl.signal, user?.id),
     ]);
     const cut: string[] = [];
     if (movies.total > movies.loaded) cut.push(`${movies.loaded} von ${movies.total} Filmen`);
@@ -247,6 +261,7 @@ export async function fetchJellyfinLibrary(
       movies: movies.entries,
       series: series.entries,
       truncated: cut.length ? `nur ${cut.join(" und ")} geladen` : undefined,
+      ...(user ? { userId: user.id, userName: user.name } : {}),
     };
   } catch (err) {
     // Promise.all meldet den ersten echten Fehler; die Schwester-Anfrage wird hier beendet.
