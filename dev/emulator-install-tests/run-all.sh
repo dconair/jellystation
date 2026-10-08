@@ -9,8 +9,10 @@
 #   EMU_TEST_DIR=/pfad/zum/arbeitsordner                    Arbeitsordner (Standard: $TMPDIR/jellystation-emu-tests)
 #   ONLY="t_basic t_github"                                 nur diese Testdateien
 #
-# Voraussetzungen: bash, node, git, curl, zip/unzip, tar; optional: python3 (Pseudo-Terminal-Tests), shellcheck,
-# unshare/mount (Tests mit schreibgeschützten Ordnern, als root).
+# Voraussetzungen (gedacht für Linux mit GNU-Werkzeugen, nicht für den Mac): bash, node, git, curl, zip/unzip, tar;
+# optional: python3 (Pseudo-Terminal-Tests), shellcheck, unshare/mount als root (Tests mit schreibgeschützten Ordnern).
+# legacy/*.alt sind die Fassungen von jellystation.sh und setup-mac.sh vor der Emulator-Einrichtung (Commit 6dac11f):
+# Gegenprobe für den Schutz der Spiele-Ordner und für den Hinweis im Bootstrap-Skript bei einem alten Projektordner.
 # Am Ende: Exit-Code 0 nur, wenn alle Tests bestanden haben.
 set -u
 HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
