@@ -21,6 +21,7 @@ import {
   itemY,
 } from "./layout";
 import { isMuted, playSfx, setMuted } from "./sound";
+import { watchState } from "./progress";
 import { useClock } from "./useClock";
 import "./xmb.css";
 
@@ -75,6 +76,33 @@ const dateFormat = new Intl.DateTimeFormat("de-DE", {
   month: "numeric",
 });
 const timeFormat = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" });
+
+/** Fortschrittsbalken ("Weiterschauen") und Haken ("Gesehen") auf einer Cover-Kachel. */
+function WatchMarks({ entry }: { entry: XmbEntry }) {
+  const w = watchState(entry);
+  if (!w) return null;
+  if (w.ratio > 0) {
+    return (
+      <span
+        className="xmb-progress"
+        role="progressbar"
+        aria-label="Gesehen"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(w.ratio * 100)}
+      >
+        <span className="xmb-progress__fill" style={{ transform: `scaleX(${w.ratio})` }} />
+      </span>
+    );
+  }
+  return w.played ? (
+    <span className="xmb-played" title="Gesehen" aria-label="Gesehen">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m6.5 12.5 3.6 3.6 7.4-8.2" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  ) : null;
+}
 
 export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled = true, onSecondary }: XmbProps) {
   const [nav, setNav] = useState<NavState>(() => ({
@@ -393,6 +421,7 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
                             {near(ART_RANGE + 1) && (
                               <ArtImage entry={entry} active={colActive && near(ART_RANGE)} className="xmb-art" />
                             )}
+                            <WatchMarks entry={entry} />
                           </span>
                         ) : (
                           <span className="xmb-item__tile">

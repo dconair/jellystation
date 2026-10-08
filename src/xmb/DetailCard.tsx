@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { ArtImage } from "../art/ArtImage";
 import type { CategoryIconName, XmbEntry } from "../data/types";
 import { CategoryIcon } from "./CategoryIcon";
+import { formatClock, formatRemaining, watchState } from "./progress";
 
 export interface DetailData {
   entry: XmbEntry;
@@ -57,12 +58,18 @@ export function useDetailLayers(current: DetailData | null): DetailLayer[] {
 /** Rechte Detailkarte: großes Cover (oder Icon-Kachel) mit Titel, Untertitel und Beschreibung. */
 export function DetailCard({ entry, icon, leaving }: DetailData & { leaving: boolean }) {
   const hasArt = Boolean(entry.art);
+  const watch = watchState(entry);
   const poster = hasArt && entry.artShape === "poster";
   const cls =
     "xmb-detail" + (poster ? " is-poster" : hasArt ? " is-landscape" : " is-icon") + (leaving ? " is-leaving" : "");
   return (
     <aside className={cls} style={{ "--hue": entry.hue } as CSSProperties} aria-hidden={leaving || undefined}>
       <div className="xmb-detail__art">
+        {watch && watch.ratio > 0 && (
+          <span className="xmb-progress xmb-progress--detail" aria-hidden="true">
+            <span className="xmb-progress__fill" style={{ transform: `scaleX(${watch.ratio})` }} />
+          </span>
+        )}
         {hasArt ? (
           // priority: Das große Cover des fokussierten Eintrags kommt in der Ladewarteschlange vor die Listen-Kacheln.
           <ArtImage entry={entry} active priority className="xmb-art" />
@@ -74,6 +81,13 @@ export function DetailCard({ entry, icon, leaving }: DetailData & { leaving: boo
       </div>
       <h2 className="xmb-detail__title">{entry.title}</h2>
       {entry.subtitle && <p className="xmb-detail__meta">{entry.subtitle}</p>}
+      {watch && watch.resumeSec > 0 && (
+        <p className="xmb-detail__resume">
+          Weiterschauen ab {formatClock(watch.resumeSec)}
+          {watch.remainingSec ? ` · noch ${formatRemaining(watch.remainingSec)}` : ""}
+        </p>
+      )}
+      {watch && watch.played && <p className="xmb-detail__resume">Gesehen</p>}
       {entry.description && <p className="xmb-detail__text">{entry.description}</p>}
     </aside>
   );
