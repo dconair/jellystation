@@ -7,7 +7,15 @@ export interface Settings {
     /** z. B. "http://192.168.1.20:8096" (ohne abschließenden Slash) */
     url: string;
     apiKey: string;
+    /** Benutzer, für den Wiedergabestatus gilt; fehlt er, nimmt die App den zuletzt aktiven Benutzer. */
+    userId?: string;
+    userName?: string;
   };
+  /**
+   * Vom Nutzer gewählte Emulator-Programme: Emulator-ID (siehe src/emulators/catalog.ts) → Pfad
+   * einer .app oder eines Programms. Fehlt ein Eintrag, wird der Emulator automatisch gesucht.
+   */
+  emulators?: Record<string, string>;
   /** Absoluter Pfad des Spiele-Basisordners; leer = Standardordner/Demo-Modus. */
   gamesDir: string;
   /** Zeitpunkt des Setup-Abschlusses (ISO). */
@@ -68,8 +76,20 @@ function validate(raw: unknown): Settings | null {
     jellyfin: {
       url: typeof r.jellyfin?.url === "string" ? r.jellyfin.url : "",
       apiKey: typeof r.jellyfin?.apiKey === "string" ? r.jellyfin.apiKey : "",
+      ...(typeof r.jellyfin?.userId === "string" && r.jellyfin.userId ? { userId: r.jellyfin.userId } : {}),
+      ...(typeof r.jellyfin?.userName === "string" && r.jellyfin.userName ? { userName: r.jellyfin.userName } : {}),
     },
+    ...(isStringRecord(r.emulators) ? { emulators: r.emulators } : {}),
     gamesDir: typeof r.gamesDir === "string" ? r.gamesDir : "",
     completedAt: r.completedAt,
   };
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.values(value).every((v) => typeof v === "string")
+  );
 }

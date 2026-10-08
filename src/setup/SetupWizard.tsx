@@ -147,9 +147,19 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
   const finish = async () => {
     setSaving(true);
     setSaveError(null);
+    const url = normalizeServerUrl(draft.url);
+    // Beim erneuten Ausführen bleiben gewählte Emulatoren erhalten; der Jellyfin-Benutzer nur,
+    // solange es derselbe Server ist.
+    const sameServer = !!initial && url !== "" && url === initial.jellyfin.url;
     const settings: Settings = {
       version: 1,
-      jellyfin: { url: normalizeServerUrl(draft.url), apiKey: draft.apiKey.trim() },
+      jellyfin: {
+        url,
+        apiKey: draft.apiKey.trim(),
+        ...(sameServer && initial?.jellyfin.userId ? { userId: initial.jellyfin.userId } : {}),
+        ...(sameServer && initial?.jellyfin.userName ? { userName: initial.jellyfin.userName } : {}),
+      },
+      ...(initial?.emulators ? { emulators: initial.emulators } : {}),
       gamesDir: draft.gamesDir.trim(),
       completedAt: new Date().toISOString(),
     };

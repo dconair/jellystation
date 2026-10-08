@@ -16,7 +16,11 @@
 export const GAMES_BASE_DIR = "~/JellyStation/Games";
 
 /** Dateiendungen (klein geschrieben, ohne Punkt), die als Spiel erkannt werden. */
-export const GAME_EXTENSIONS = ["iso", "app", "pkg", "cue", "chd", "bin", "elf"] as const;
+export const GAME_EXTENSIONS = [
+  "iso", "app", "pkg", "cue", "chd", "bin", "elf",
+  // weitere Abbild-Formate der unterstützten Emulatoren (siehe src/emulators/catalog.ts)
+  "cso", "pbp", "m3u", "rvz", "wbfs", "gcm", "ciso", "dol",
+] as const;
 
 export interface EmulatorConfig {
   /** Anzeigename in Meldungen. */

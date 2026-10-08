@@ -108,7 +108,14 @@ export const categories: XmbCategory[] = [
     entries: [
       entry("st1", "Server", "Verbindung verwalten", 225),
       entry("st-games", "Spiele-Ordner", "Nicht gewählt", 90),
-      entry("st2", "Benutzer", "Profil wechseln", 255),
+      {
+        ...entry("st-emu", "Emulatoren", "Installieren, finden, Pfad wählen", 20, "Zeigt, welche Emulatoren gefunden wurden, und hilft beim Installieren."),
+        action: "open-emulators",
+      },
+      {
+        ...entry("st2", "Jellyfin-Benutzer", "Wer schaut?", 255, "Wählt den Jellyfin-Benutzer für Wiedergabestatus und „Weiterschauen“."),
+        action: "choose-jellyfin-user",
+      },
       entry("st3", "Anzeige", "Vollbild, Skalierung", 195),
       entry("st4", "Ton", "Ausgabegerät und Lautstärke", 170),
       { ...entry("st-setup", "Einrichtung erneut ausführen", "Jellyfin, Ordner, Controller", 150, "Startet den Setup-Assistenten mit deinen aktuellen Werten."), action: "run-setup" },

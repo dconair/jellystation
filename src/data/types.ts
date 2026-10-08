@@ -7,12 +7,35 @@ export interface XmbEntry {
   hue: number;
   /** Gesetzt bei Spielen: wird beim Bestätigen im Emulator gestartet. */
   game?: GameRef;
-  /** Interne Aktion statt Inhalt, z. B. "run-setup". */
-  action?: "run-setup";
+  /** Interne Aktion statt Inhalt (Einstellungen-Spalte). */
+  action?: EntryAction;
+  /** Gesetzt bei Jellyfin-Filmen, -Serien und -Folgen: Grundlage für Wiedergabe und Fortsetzen. */
+  jellyfin?: JellyfinRef;
   /** Cover/Game-Art. Fehlt sie, zeigt die XMB ein einfaches Icon-Kachel (z. B. bei Einstellungen). */
   art?: ArtSource;
   /** Seitenverhältnis des Originalbilds: "landscape" ≈ 16:9 (Game-Art), "poster" ≈ 2:3 (Film-Cover). */
   artShape?: "landscape" | "poster";
+}
+
+/** Interne Aktionen, die ein Eintrag statt eines Inhalts auslöst. */
+export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user";
+
+/** Verweis auf ein Jellyfin-Objekt (Film, Serie oder Folge). */
+export interface JellyfinRef {
+  /** Jellyfin-ID (ohne "jf/"-Präfix). */
+  id: string;
+  type: "Movie" | "Series" | "Episode";
+  /** Gesamtlaufzeit in Jellyfin-Ticks (1 Tick = 100 ns; 10 000 000 = 1 s). */
+  runTimeTicks?: number;
+  /** Gespeicherte Wiedergabeposition (UserData.PlaybackPositionTicks); fehlt/0 = nicht begonnen. */
+  resumeTicks?: number;
+  /** Schon gesehen. */
+  played?: boolean;
+  /** Nur bei Folgen: zugehörige Serie, Staffel- und Folgennummer. */
+  seriesId?: string;
+  seriesName?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
 }
 
 /** Woher das Cover eines Eintrags kommt. */

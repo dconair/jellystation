@@ -32,6 +32,13 @@ interface XmbProps {
   runningIds?: ReadonlySet<string>;
   /** Kleiner Hinweis in der Kopfzeile, z. B. "Vorschau-Modus". */
   notice?: string;
+  /**
+   * false, solange ein Overlay (Player, Dialog) offen ist: Tastatur, Mausrad, Klicks und
+   * Controller werden dann ignoriert, das Menü bleibt aber im Hintergrund erhalten.
+   */
+  inputEnabled?: boolean;
+  /** △ bzw. Taste "O" (Optionen) auf dem fokussierten Eintrag, z. B. für ein Kontextmenü. */
+  onSecondary?: (entry: XmbEntry, category: XmbCategory, notify: (text: string) => void) => void;
 }
 
 interface NavState {
@@ -69,7 +76,7 @@ const dateFormat = new Intl.DateTimeFormat("de-DE", {
 });
 const timeFormat = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" });
 
-export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
+export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled = true, onSecondary }: XmbProps) {
   const [nav, setNav] = useState<NavState>(() => ({
     categoryId: categories[Math.min(1, categories.length - 1)].id,
     focus: {},
@@ -116,9 +123,17 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
 
   const notify = useCallback((text: string) => setToast({ id: Date.now(), text }), []);
 
+  // Eingabe-Sperre per Ref: Die Listener bleiben registriert (kein erneutes "Controller verbunden",
+  // kein Doppelauslösen), reagieren aber nicht, solange ein Overlay offen ist.
+  const inputEnabledRef = useRef(inputEnabled);
+  inputEnabledRef.current = inputEnabled;
+  const onSecondaryRef = useRef(onSecondary);
+  onSecondaryRef.current = onSecondary;
+
   /** Zentrale Eingabe: Tastatur, Controller und Mausrad laufen alle hier durch. */
   const dispatch = useCallback(
     (action: PadAction) => {
+      if (!inputEnabledRef.current) return;
       const cats = categoriesRef.current;
       const state = navRef.current;
       const ci = Math.max(0, cats.findIndex((c) => c.id === state.categoryId));
@@ -158,8 +173,13 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
           onActivateRef.current?.(entry, cat, notify);
           return;
         }
+        case "triangle": {
+          const entry = cat.entries[fi];
+          if (entry) onSecondaryRef.current?.(entry, cat, notify);
+          return;
+        }
         default:
-          // △ / □ haben im Hauptmenü (noch) keine Funktion.
+          // □, Schultertasten usw. haben im Hauptmenü keine Funktion.
           return;
       }
     },
@@ -174,6 +194,8 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
   // Tastatur
   useEffect(() => {
     const keyMap: Record<string, PadAction> = {
+      o: "triangle",
+      O: "triangle",
       ArrowLeft: "left",
       ArrowRight: "right",
       ArrowUp: "up",
@@ -183,6 +205,7 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
       Backspace: "back",
     };
     const onKey = (e: KeyboardEvent) => {
+      if (!inputEnabledRef.current) return;
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key === "F11") {
         e.preventDefault();
@@ -211,6 +234,7 @@ export function Xmb({ categories, onActivate, runningIds, notice }: XmbProps) {
   const lastWheel = useRef(0);
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
+      if (!inputEnabledRef.current) return;
       const t = performance.now();
       if (t - lastWheel.current < 140) return;
       const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey;

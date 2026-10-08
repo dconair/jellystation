@@ -1,7 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 
-/** ✕ = confirm, ○ = back, △ = triangle, □ = square (PlayStation-Layout). */
-export type PadAction = "up" | "down" | "left" | "right" | "confirm" | "back" | "triangle" | "square";
+/**
+ * ✕ = confirm, ○ = back, △ = triangle, □ = square (PlayStation-Layout);
+ * l1/r1/l2/r2 = Schultertasten, options/share = die kleinen Tasten neben dem Touchpad.
+ */
+export type PadAction =
+  | "up"
+  | "down"
+  | "left"
+  | "right"
+  | "confirm"
+  | "back"
+  | "triangle"
+  | "square"
+  | "l1"
+  | "r1"
+  | "l2"
+  | "r2"
+  | "options"
+  | "share";
 
 interface Options {
   onAction: (action: PadAction) => void;
@@ -9,8 +26,24 @@ interface Options {
 }
 
 // "Standard"-Mapping der Gamepad-API (DualShock 4: ✕ = 0, ○ = 1, □ = 2, △ = 3).
-const BUTTON = { confirm: 0, back: 1, square: 2, triangle: 3, up: 12, down: 13, left: 14, right: 15 } as const;
-const FACE_BUTTONS = ["confirm", "back", "triangle", "square"] as const;
+const BUTTON = {
+  confirm: 0,
+  back: 1,
+  square: 2,
+  triangle: 3,
+  l1: 4,
+  r1: 5,
+  l2: 6,
+  r2: 7,
+  share: 8,
+  options: 9,
+  up: 12,
+  down: 13,
+  left: 14,
+  right: 15,
+} as const;
+/** Tasten, die nur beim Drücken (nicht beim Halten) einmal auslösen. */
+const FACE_BUTTONS = ["confirm", "back", "triangle", "square", "l1", "r1", "l2", "r2", "share", "options"] as const;
 type FaceButton = (typeof FACE_BUTTONS)[number];
 const DIRECTIONS = ["up", "down", "left", "right"] as const;
 type Direction = (typeof DIRECTIONS)[number];
@@ -47,7 +80,7 @@ export function useGamepad({ onAction, enabled = true }: Options) {
     let current: string | null = null;
     const held = new Map<Direction, number>(); // Richtung → Zeitpunkt der nächsten Auslösung
     const stickDir = { x: 0, y: 0 };
-    const prevButton: Record<FaceButton, boolean> = { confirm: false, back: false, triangle: false, square: false };
+    const prevButton = Object.fromEntries(FACE_BUTTONS.map((b) => [b, false])) as Record<FaceButton, boolean>;
 
     const releaseAll = () => {
       held.clear();
@@ -80,7 +113,7 @@ export function useGamepad({ onAction, enabled = true }: Options) {
       }
 
       const down: Record<Direction, boolean> = { up: false, down: false, left: false, right: false };
-      const pressed: Record<FaceButton, boolean> = { confirm: false, back: false, triangle: false, square: false };
+      const pressed = Object.fromEntries(FACE_BUTTONS.map((b) => [b, false])) as Record<FaceButton, boolean>;
       for (const pad of pads) {
         for (const d of DIRECTIONS) if (pad.buttons[BUTTON[d]]?.pressed) down[d] = true;
         for (const b of FACE_BUTTONS) pressed[b] ||= !!pad.buttons[BUTTON[b]]?.pressed;
