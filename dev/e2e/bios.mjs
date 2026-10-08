@@ -26,8 +26,8 @@ const bodyText = (wd) => wd.exec("return document.body.innerText.replace(/\\s+/g
     const t = await bodyText(wd);
     console.log(t.slice(0, 700));
     check("Schritt „Emulatoren, BIOS & Firmware“", /Emulatoren, BIOS/.test(t));
-    check("PS2-BIOS im BIOS-Ordner erkannt", /PS2-BIOS[^.]*Im BIOS-Ordner gefunden/.test(t));
-    check("PS1-BIOS fehlt", /PS1-BIOS – Fehlt/.test(t));
+    check("PS2-BIOS im BIOS-Ordner erkannt", /PS2-BIOS Im BIOS-Ordner gefunden/.test(t));
+    check("PS1-BIOS fehlt", /PS1-BIOS Fehlt/.test(t));
     check("Link-Buttons vorhanden", /Download-Seite öffnen/.test(t) && /PCSX2: BIOS sichern/.test(t));
     check("Zusammenfassung „Noch offen“", /Noch offen:/.test(t));
     await wd.screenshot(path.join(out, "b1-wizard.png"));
