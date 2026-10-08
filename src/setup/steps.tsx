@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { GAMES_BASE_DIR } from "../config/games";
 import { EMULATORS, supportedFolderNames } from "../emulators/catalog";
+import { discoverServers } from "../jellyfin/discover";
+import type { FoundServer } from "../jellyfin/discover";
 import { normalizeServerUrl } from "../jellyfin/testConnection";
 import type { ConnectionResult } from "../jellyfin/testConnection";
 import { pickGameFiles, scanGamesDir } from "../library/scanGames";
@@ -27,6 +29,32 @@ interface JellyfinStepProps {
 
 export function JellyfinStep({ draft, onChange, test }: JellyfinStepProps) {
   const [showKey, setShowKey] = useState(false);
+  const [search, setSearch] = useState<{ busy: boolean; found: FoundServer[]; done: boolean; error?: string }>({
+    busy: false,
+    found: [],
+    done: false,
+  });
+  const searched = useRef(false);
+  const draftUrl = useRef(draft.url);
+  draftUrl.current = draft.url;
+  const runSearch = async () => {
+    setSearch({ busy: true, found: [], done: false });
+    try {
+      const found = await discoverServers();
+      setSearch({ busy: false, found, done: true });
+      // Genau ein Server und noch keine Adresse eingetragen: gleich übernehmen.
+      if (found.length === 1 && !draftUrl.current.trim()) onChange({ url: found[0].address });
+    } catch (err) {
+      setSearch({ busy: false, found: [], done: true, error: err instanceof Error ? err.message : String(err) });
+    }
+  };
+  // Einmal beim Öffnen suchen (nur in der Desktop-App).
+  useEffect(() => {
+    if (searched.current || !isTauri()) return;
+    searched.current = true;
+    void runSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Ergebnis, Hinweis oder Laufanzeige – immer genau eine Zeile, damit nichts springt.
   const state = test.busy ? "busy" : (test.result?.status ?? "idle");
   const text = test.busy ? "Teste …" : (test.result?.message ?? "Noch nicht getestet");
@@ -71,6 +99,38 @@ export function JellyfinStep({ draft, onChange, test }: JellyfinStepProps) {
             </button>
           </div>
         </label>
+
+        {isTauri() && (
+          <div className="setup-field">
+            <span>Im Netzwerk</span>
+            <div className="setup-input-row">
+              <div className={`setup-result is-${search.busy ? "busy" : search.error ? "error" : "idle"}`} role="status">
+                {search.busy
+                  ? "Suche Jellyfin-Server …"
+                  : search.error
+                    ? search.error
+                    : !search.done
+                      ? "Noch nicht gesucht"
+                      : search.found.length
+                        ? `${search.found.length} Server gefunden`
+                        : "Kein Server gefunden – Adresse von Hand eintragen"}
+              </div>
+              <button type="button" className="ps-btn" disabled={search.busy} onClick={() => void runSearch()}>
+                Server suchen
+              </button>
+            </div>
+            {search.found.map((s) => (
+              <button
+                key={s.address}
+                type="button"
+                className="ps-btn"
+                onClick={() => onChange({ url: s.address })}
+              >
+                {s.name} · {s.address}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="setup-field setup-field--status">
           <span>Verbindung</span>

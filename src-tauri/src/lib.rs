@@ -1,3 +1,4 @@
+pub mod discovery;
 pub mod emulators;
 pub mod media_proxy;
 
@@ -32,6 +33,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            discovery::jellyfin_discover,
             media_proxy::media_proxy_start,
             media_proxy::media_proxy_stop,
             emulators::emulator_find,

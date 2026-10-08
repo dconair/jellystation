@@ -45,6 +45,10 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
   absolute URLs des Servers und root-relative Pfade (`/videos/…`) zeigen danach auf den Proxy. Nur GET/HEAD/OPTIONS.
 - `media_proxy_stop()` – beendet den Server.
 
+### Server-Suche (`discovery.rs`)
+- `jellyfin_discover({ waitMs? }) -> [{ address, id, name }]` – UDP-Broadcast „who is JellyfinServer?“ an Port 7359; jeder Server einmal.
+  Der Setup-Assistent sucht beim Öffnen automatisch (nur Desktop-App) und übernimmt einen einzelnen Fund.
+
 ### Emulatoren (`emulators.rs`)
 - `emulator_find({ specs: [{ id, appPattern, bundleIds }] }) -> [{ id, matches: [{ path, source }] }]` – sucht
   `.app`-Bundles (Name passt auf den regulären Ausdruck `appPattern`, ohne Groß-/Kleinschreibung) in `/Applications`,
