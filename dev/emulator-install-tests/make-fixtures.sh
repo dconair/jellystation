@@ -47,6 +47,14 @@ build duckstation-mac-release.zip a6 DuckStation.app duckstation 0.1-100 duck-di
 build duckstation-gh.zip a7 DuckStation.app duckstation 0.1-200 duck-github org.duckstation.duckstation
 build duckstation-x64.zip a8 DuckStation.app duckstation 0.1-300 duck-x64 org.duckstation.duckstation
 
+# ZIP mit mehreren Apps: Updater und Deinstallierer dürfen nicht statt des Emulators installiert werden
+rm -rf "$tmp/a10"; mkdir -p "$tmp/a10"
+mkapp "$tmp/a10" "RPCS3-Updater.app" updater 1.0 updater net.rpcs3.updater
+mkapp "$tmp/a10" "Uninstall RPCS3.app" uninst 1.0 uninst com.example.uninst
+mkapp "$tmp/a10" "RPCS3.app" rpcs3 0.0.34 main net.rpcs3.rpcs3
+mkapp "$tmp/a10" "RPCS3 Helper Long Name.app" helper 1.0 helper net.rpcs3.helper
+zipit rpcs3-two-apps.zip "$tmp/a10"
+
 # ZIP ohne App
 mkdir -p "$tmp/noapp"; echo "nur Text" > "$tmp/noapp/LIESMICH.txt"; zipit rpcs3-noapp.zip "$tmp/noapp"
 

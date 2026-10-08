@@ -53,6 +53,8 @@ interface Ui {
   setRunning: Dispatch<SetStateAction<ReadonlySet<string>>>;
   setLaunching: Dispatch<SetStateAction<LaunchView | null>>;
   setDialogs: Dispatch<SetStateAction<DialogSpec[]>>;
+  /** Anzahl Dialoge, die gleich erscheinen (hält `overlay` nicht-null, damit das Hauptmenü gesperrt bleibt). */
+  setPending: Dispatch<SetStateAction<number>>;
 }
 
 /** Ein gestartetes Spiel, solange sein Prozess läuft (oder startet). */
@@ -157,7 +159,11 @@ class LaunchController {
     if (spec.tone === "error") playSfx("error");
     // Kurz warten: Wird gleichzeitig das Start-Overlay entfernt, soll der Dialog nicht schon „über einem Overlay“
     // erscheinen – OverlayFrame dunkelt dann nur halb ab, und der Hintergrund wirkte heller als bei anderen Dialogen.
-    void this.wait(DIALOG_DELAY_MS).then(() => this.ui.setDialogs((ds) => [...ds, { ...spec, key: ++this.seq }]));
+    this.ui.setPending((n) => n + 1);
+    void this.wait(DIALOG_DELAY_MS).then(() => {
+      this.ui.setPending((n) => n - 1);
+      this.ui.setDialogs((ds) => [...ds, { ...spec, key: ++this.seq }]);
+    });
   }
 
   /** Blendet das Overlay aus (oder entfernt es sofort); ein anderes Overlay bleibt unberührt. */
@@ -212,13 +218,13 @@ class LaunchController {
     });
   }
 
-  private unknownSystem(entry: XmbEntry, system: string) {
+  private unknownSystem(system: string) {
     this.showDialog({
       tone: "info",
       title: `Kein Emulator für „${system}“`,
       lines: [
         `Für „${system}“ ist noch kein Emulator hinterlegt (unterstützt: ${supportedFolderNames().join(", ")}).`,
-        `Der Name des Ordners im Spiele-Ordner bestimmt den Emulator – benenne den Ordner von „${entry.title}“ z. B. in „PS3“ um.`,
+        "Der Ordnername im Spiele-Ordner bestimmt den Emulator (z. B. „PS3“ für RPCS3). Gehört das Spiel zu einem unterstützten System, benenne den Ordner entsprechend um.",
       ],
     });
   }
@@ -240,7 +246,7 @@ class LaunchController {
     const native = !game.mock && isAppBundle(game.path);
     const def = native ? null : (emulatorForSystem(game.system) ?? null);
     if (!native && !def) {
-      this.unknownSystem(entry, game.system);
+      this.unknownSystem(game.system);
       return;
     }
 
@@ -467,15 +473,16 @@ export function useGameLauncher(options: GameLauncherOptions = {}): GameLauncher
   const [running, setRunning] = useState<ReadonlySet<string>>(() => new Set());
   const [launching, setLaunching] = useState<LaunchView | null>(null);
   const [dialogs, setDialogs] = useState<DialogSpec[]>([]);
+  const [pending, setPending] = useState(0);
 
   const [latest] = useState(() => ({ options }));
   latest.options = options;
-  const [controller] = useState(() => new LaunchController({ setRunning, setLaunching, setDialogs }, () => latest.options));
+  const [controller] = useState(() => new LaunchController({ setRunning, setLaunching, setDialogs, setPending }, () => latest.options));
   useEffect(() => controller.attach(), [controller]);
 
   const dialog = dialogs[0] ?? null;
   const overlay: ReactNode =
-    launching || dialog
+    launching || dialog || pending > 0
       ? createElement(LauncherLayer, {
           launching,
           dialog,

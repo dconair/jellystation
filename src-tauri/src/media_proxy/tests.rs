@@ -1890,7 +1890,16 @@ async fn rss_stays_small_while_streaming_50_mb() {
             }
         })
     };
-    let mut response = f.http.get(f.url("/big")).send().await.unwrap();
+    // eine Range-Anfrage ab 1 MiB bis zum Ende der 50-MiB-Datei
+    let offset = 1024 * 1024u64;
+    let mut response = f
+        .http
+        .get(f.url("/big"))
+        .header("Range", format!("bytes={offset}-"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 206);
     let mut total = 0u64;
     while let Some(chunk) = response.chunk().await.unwrap() {
         total += chunk.len() as u64;
@@ -1901,7 +1910,7 @@ async fn rss_stays_small_while_streaming_50_mb() {
     }
     running.store(false, SeqCst);
     sampler.join().unwrap();
-    assert_eq!(total, BIG_SIZE);
+    assert_eq!(total, BIG_SIZE - offset);
     let growth_mib = (peak.load(SeqCst).saturating_sub(before)) as f64 / 1024.0;
     eprintln!("RSS vorher {:.1} MiB, Spitze {:.1} MiB, Zuwachs {growth_mib:.1} MiB bei {} MiB Übertragung", before as f64 / 1024.0, peak.load(SeqCst) as f64 / 1024.0, BIG_SIZE / 1024 / 1024);
     assert!(

@@ -27,6 +27,7 @@ SERVER_PID=""
 PORT=""
 
 mkdir -p "$SCRATCH"
+trap 'stop_server' EXIT   # der Mock-Server wird auch bei Abbruch (z. B. "| head") nicht liegen gelassen
 [ -f "$FIX/rpcs3-arm64.zip" ] || bash "$T_ROOT/make-fixtures.sh" "$FIX" >/dev/null
 
 # ------------------------------------------------------------------ Prüfungen ----

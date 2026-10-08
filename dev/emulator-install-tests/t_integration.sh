@@ -146,16 +146,14 @@ runj; rc_is 0
 exists "$PROJ/Games/PS2/spiel.iso" "Spiel über den Link erreichbar"; file_has "$PROJ/.git/info/exclude" "/Games" "exclude: /Games"
 echo "-- Gegenprobe: die alte Fassung hätte die Spiele weggesichert --"
 int_world j13; T_ENV+=("JELLYSTATION_DRY_RUN=1")
-git -C "$REPO_DIR" show HEAD:scripts/jellystation.sh > "$PROJ/scripts/jellystation.sh" 2>/dev/null || cp "$REPO_DIR/scripts/jellystation.sh" "$PROJ/scripts/jellystation.sh"
+# legacy/jellystation.sh.alt ist die Fassung vor der Emulator-Einrichtung (aus dem Commit 6dac11f)
+grep -q protect_user_dirs "$T_ROOT/legacy/jellystation.sh.alt" && no_ "legacy/jellystation.sh.alt ist keine alte Fassung" || ok_ "legacy/jellystation.sh.alt ist die alte Fassung"
+cp "$T_ROOT/legacy/jellystation.sh.alt" "$PROJ/scripts/jellystation.sh"
 git -C "$PROJ" -c user.name=t -c user.email=t@t commit -q -am "alte Fassung" && git -C "$PROJ" push -q origin "$BR" 2>/dev/null
 mkdir -p "$PROJ/Games/PS2"; echo "iso" > "$PROJ/Games/PS2/spiel.iso"
 origin_commit docs/neu.txt "neu"
-if ! grep -q protect_user_dirs "$PROJ/scripts/jellystation.sh"; then
-  runj --no-update >/dev/null; runj
-  [ ! -e "$PROJ/Games/PS2/spiel.iso" ] && ok_ "alte Fassung: Spiel wurde in den Stash verschoben (das Problem war real)" || no_ "alte Fassung hat das Spiel nicht angefasst"
-else
-  ok_ "(HEAD enthält den Schutz schon – Gegenprobe entfällt)"
-fi
+runj
+[ ! -e "$PROJ/Games/PS2/spiel.iso" ] && ok_ "alte Fassung: Spiel wurde in den Stash verschoben (das Problem war real)" || no_ "alte Fassung hat das Spiel nicht angefasst"
 
 echo "== setup-mac.sh =="
 int_world s1; link_stubs
@@ -244,7 +242,7 @@ has "Spiele kommen in $HOME_W/JellyStation/Games/<System>/"; has "BIOS und Firmw
 exists "$W/apps/RPCS3.app" "Emulator durch bootstrap installiert"; exists "$HOME_W/JellyStation/Games/PS3"
 echo "-- Zielordner mit altem setup-mac.sh (ohne Emulator-Schritt): Hinweis, aber kein Abbruch --"
 int_world b2; rm -rf "$PROJ"
-git -C "$REPO_DIR" show HEAD:scripts/setup-mac.sh > "$SEED/scripts/setup-mac.sh"   # Fassung ohne Emulator-Schritt
+cp "$T_ROOT/legacy/setup-mac.sh.alt" "$SEED/scripts/setup-mac.sh"   # Fassung ohne Emulator-Schritt (aus dem Commit 6dac11f)
 ( cd "$SEED" && gi add -A && gi commit -q -m "alte setup-mac.sh" && git push -q origin "$BR" 2>/dev/null )
 T_ENV+=("JELLYSTATION_DIR=$W/home/Ziel2" "SHELL=/bin/zsh")
 SUT="$SEED/scripts/bootstrap.sh"; run; SUT=""

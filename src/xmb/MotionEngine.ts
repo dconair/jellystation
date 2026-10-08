@@ -344,24 +344,37 @@ export class MotionEngine {
     if (!first && sig === this.syncSig) return;
     this.syncSig = sig;
     this.synced = true;
+
+    const active = list[activeIndex];
+    // Einfügen/Entfernen VOR der aktiven Kategorie verschiebt ihren Platz: Das Koordinatensystem der Leiste wird mit
+    // verschoben (alle Plätze und die Leistenposition), damit nichts springt. Die Kategorien davor gleiten dann auf
+    // ihren neuen Platz, die ab der Einfügestelle bleiben, wo sie sind.
+    if (!first && active && this.activeId === active.id && this.catTarget !== activeIndex) {
+      const delta = activeIndex - this.catTarget;
+      this.catPos.x += delta;
+      for (const c of this.cats.values()) c.slot.x += delta;
+      this.catTarget = activeIndex;
+    }
+
     const ids = new Set<string>();
     list.forEach((m, i) => {
       ids.add(m.id);
       const c = this.cats.get(m.id) ?? this.cat(m.id, i, first);
       c.index = i;
       const col = this.col(m.id);
+      const countChanged = col.count !== m.count;
       col.count = m.count;
       if (col.pitch !== m.pitch) {
         col.pitch = m.pitch;
         col.curve = itemYCurve(m.pitch);
       }
       const target = clamp(m.focus, 0, Math.max(0, m.count - 1));
+      // Eingaben stellen das Ziel schon vorher (retargetColumn) und sind maßgeblich; hier zählt nur, was sich durch
+      // eine geänderte Listenlänge ergibt (Fokus wird begrenzt bzw. kehrt zurück): dann ohne Animation übernehmen.
       if (first) this.snapColumn(col, target);
-      else if (col.mode === MODE_OUT) {
-        col.pending = target;
-      } else if (col.target !== target) {
-        // Abweichung durch eine Listenänderung (Eingaben stellen das Ziel schon vorher): ohne Animation übernehmen
-        this.snapColumn(col, target);
+      else if (countChanged) {
+        if (col.mode === MODE_OUT) col.pending = target;
+        else this.snapColumn(col, target);
       }
     });
     for (const id of [...this.cats.keys()]) {
@@ -371,19 +384,12 @@ export class MotionEngine {
       }
     }
 
-    const active = list[activeIndex];
     if (active) {
       if (first || this.activeId === null) {
         this.catPos.x = activeIndex;
         this.catPos.v = 0;
         this.catTarget = activeIndex;
-      } else if (this.activeId === active.id) {
-        if (this.catTarget !== activeIndex) {
-          // Listenänderung vor der aktiven Kategorie: Leiste mitschieben statt springen
-          this.catPos.x += activeIndex - this.catTarget;
-          this.catTarget = activeIndex;
-        }
-      } else {
+      } else if (this.activeId !== active.id) {
         // Die aktive Kategorie ist verschwunden: zur neuen gleiten
         this.catTarget = activeIndex;
       }
@@ -418,13 +424,17 @@ export class MotionEngine {
       this.wake();
       return;
     }
-    if (Math.abs(t - col.pos.x) > JUMP_FAR_ITEMS && this.columnLive(col)) {
-      // Weiter Sprung: Liste ausblenden, Ausschnitt tauschen, vom Ziel her einblenden
-      col.mode = MODE_OUT;
-      col.pending = t;
-      col.dir = Math.sign(t - col.pos.x) || 1;
-      col.target = col.pos.x + col.dir * JUMP_DRIFT_ITEMS;
-      this.host?.requestRender(); // das Fenster um das neue Ziel muss schon im DOM stehen
+    if (Math.abs(t - col.pos.x) > JUMP_FAR_ITEMS) {
+      if (this.columnLive(col)) {
+        // Weiter Sprung: Liste ausblenden, Ausschnitt tauschen, vom Ziel her einblenden
+        col.mode = MODE_OUT;
+        col.pending = t;
+        col.dir = Math.sign(t - col.pos.x) || 1;
+        col.target = col.pos.x + col.dir * JUMP_DRIFT_ITEMS;
+        this.host?.requestRender(); // das Fenster um das neue Ziel muss schon im DOM stehen
+      } else {
+        this.snapColumn(col, t); // unsichtbare Liste: nichts zu animieren
+      }
     } else {
       col.target = t;
     }

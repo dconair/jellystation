@@ -29,6 +29,9 @@ fresh a5; start_server; arch_run rpcs3-versioned-name.zip
 rc_is 0; exists "$W/apps/RPCS3.app" "als RPCS3.app installiert"; absent "$W/apps/RPCS3-v0.0.34.app"; has "App-Name im Archiv: RPCS3-v0.0.34.app → installiert als RPCS3.app"
 fresh a5b; start_server; arch_run rpcs3-bundleid.zip
 rc_is 0; exists "$W/apps/RPCS3.app" "unbekannter Dateiname, aber richtige Bundle-ID → als RPCS3.app installiert"; absent "$W/apps/Seltsamer-Name.app"
+fresh a5c; start_server; arch_run rpcs3-two-apps.zip
+rc_is 0; eq "$(tag_of "$W/apps/RPCS3.app")" "main" "der Emulator, nicht Updater/Deinstallierer/Helfer"
+eq "$(apps_list)" "Dolphin.app PCSX2.app PPSSPP.app RPCS3.app " "nur eine App installiert"
 fresh a6; start_server; arch_run rpcs3-macosx.zip
 rc_is 0; eq "$(tag_of "$W/apps/RPCS3.app")" "rpcs3-macosx" "echtes Paket statt __MACOSX-Eintrag, auch aus einem Unterordner"
 
@@ -98,6 +101,10 @@ upd_world u2; T_ENV+=("STUB_MV_FAIL_NEW=1")
 run --update --only rpcs3
 rc_is 0; has "Die neue App ließ sich nicht an ihren Platz bringen"
 eq "$(tag_of "$W/apps/RPCS3.app")" "rpcs3-arm64" "alte Version zurückbenannt"; eq "$(leftovers)" "" "keine Reste (weder .new noch .old)"
+upd_world u2b; T_ENV+=("STUB_MV_FAIL_OLD=1")
+run --update --only rpcs3
+rc_is 0; has "Die vorhandene App ließ sich nicht ersetzen"; has "App-Verwaltung"
+eq "$(tag_of "$W/apps/RPCS3.app")" "rpcs3-arm64" "alte Version unverändert"; eq "$(leftovers)" "" "keine Reste (Zwischenordner entfernt)"
 upd_world u3
 run --update --only rpcs3
 rc_is 0; has "RPCS3 aktualisiert"; eq "$(tag_of "$W/apps/RPCS3.app")" "rpcs3-new" "neue Version"; eq "$(leftovers)" "" "keine Reste"

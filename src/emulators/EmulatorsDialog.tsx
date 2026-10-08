@@ -322,6 +322,18 @@ export function EmulatorsDialog(props: EmulatorsDialogProps) {
     }
   };
 
+  const showTerminalHelp = () => {
+    showMessage({
+      tone: "info",
+      title: "Im Terminal installieren",
+      lines: [
+        "Öffne das Programm „Terminal“ und gib den Befehl unten ein.",
+        "Er sucht alle Emulatoren und installiert die fehlenden – auch RPCS3 und DuckStation, für die es kein Homebrew-Paket gibt. Danach hier „Erneut suchen“ wählen.",
+      ],
+      detail: ["jellystation --emulators"],
+    });
+  };
+
   const forgetChoice = (st: EmulatorStatus) => {
     live.current.onSetOverride(st.def.id, null);
     toMain();
@@ -378,6 +390,10 @@ export function EmulatorsDialog(props: EmulatorsDialogProps) {
       detail: cask ? host : `${host} – für ${st.def.name} gibt es kein Homebrew-Paket`,
     });
     items.push({ id: "pick", label: "App auswählen …", detail: "Eine schon vorhandene App von Hand angeben", disabled: !tauri });
+    if (!st.valid) {
+      // Der Terminal-Befehl der Starthilfe (scripts/jellystation.sh) installiert auch RPCS3 und DuckStation, für die es kein Homebrew-Paket gibt.
+      items.push({ id: "terminal", label: "Im Terminal installieren", detail: "jellystation --emulators" });
+    }
     if (st.source === "custom") {
       items.push({ id: "auto", label: "Automatisch erkennen", detail: "Gewählten Pfad vergessen und wieder selbst suchen" });
     }
@@ -406,6 +422,7 @@ export function EmulatorsDialog(props: EmulatorsDialogProps) {
     if (id === "install") void installWithBrew(st);
     else if (id === "download") void openDownloadPage(st);
     else if (id === "pick") void chooseApp(st);
+    else if (id === "terminal") showTerminalHelp();
     else if (id === "auto") forgetChoice(st);
     else if (id === "open") void openEmulator(st);
   };

@@ -982,17 +982,27 @@ app_matches() {
   return 1
 }
 
-# .app im Ordner suchen (bis Tiefe 4): zuerst passender Name, dann passende Bundle-ID, sonst die erste → APP_SRC
+# .app im Ordner suchen (bis Tiefe 4): zuerst passender Name (der genaue "<Name>.app" vor dem kürzesten), dann passende
+# Bundle-ID, sonst die erste → APP_SRC
 find_app_in() {
-  local re p first="" by_name="" by_id=""
+  local re canon p base first="" by_name="" by_name_len=0 by_id=""
   getf "$1" appPattern; re="$REPLY"
+  getf "$1" name; canon="$(lower "$REPLY.app")"
   APP_SRC=""
   while IFS= read -r p; do
     [ -n "$p" ] || continue
     case "$p" in */__MACOSX/*) continue ;; esac
+    base="${p##*/}"
     [ -n "$first" ] || first="$p"
-    if [ -z "$by_name" ] && re_match_ci "${p##*/}" "$re"; then by_name="$p"; fi
-    if [ -z "$by_id" ] && [ -z "$by_name" ] && app_matches "$1" "$p"; then by_id="$p"; fi
+    if re_match_ci "$base" "$re"; then
+      if [ "$(lower "$base")" = "$canon" ]; then
+        by_name="$p"; by_name_len=0   # genau der erwartete Name: besser geht es nicht
+      elif [ -z "$by_name" ] || { [ "$by_name_len" -gt 0 ] && [ "${#base}" -lt "$by_name_len" ]; }; then
+        by_name="$p"; by_name_len="${#base}"
+      fi
+    elif [ -z "$by_id" ] && app_matches "$1" "$p"; then
+      by_id="$p"
+    fi
   done <<< "$(find "$2" -maxdepth 4 -type d -name '*.app' -prune -print 2>/dev/null || true)"
   APP_SRC="${by_name:-${by_id:-$first}}"
   [ -n "$APP_SRC" ]
@@ -1040,7 +1050,7 @@ install_bundle() {
     BACKUP_PATH="$backup" BACKUP_FINAL="$final"
     if ! mv "$final" "$backup" 2>/dev/null; then
       BACKUP_PATH="" BACKUP_FINAL=""
-      RES_WHY="Die vorhandene App ließ sich nicht ersetzen (läuft sie gerade? Rechte?)"
+      RES_WHY="Die vorhandene App ließ sich nicht ersetzen (läuft sie gerade? Oder fehlt dem Terminal die Berechtigung \"App-Verwaltung\" unter Systemeinstellungen → Datenschutz & Sicherheit?)"
       safe_rm "$stage" || true; STAGE_PATH=""
       return 1
     fi
@@ -1104,7 +1114,7 @@ state_put() {   # id tag datei sha größe
 
 override_url() {   # $1 = ID → REPLY (leer, wenn nicht gesetzt)
   local up n
-  up="$(printf '%s' "$1" | tr '[:lower:]-' '[:upper:]_')"
+  up="$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
   n="JELLYSTATION_URL_$up"
   REPLY="${!n:-}"
 }

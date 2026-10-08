@@ -196,6 +196,9 @@
   pointer-events: none;
   visibility: hidden;
   opacity: 0;
+}
+
+.xmb-column[data-live="1"] {
   will-change: transform, opacity;
 }
 
@@ -266,10 +269,6 @@
 .xmb-item__scale {
   position: relative;
   display: block;
-}
-
-.xmb-item__text {
-  transform-origin: calc(var(--tile-w) / -2 - var(--tile-gap)) 50%;
 }
 
 /* Leuchten des fokussierten Eintrags: statischer Schatten hinter der Kachel, Deckkraft = Fokus. */
@@ -361,7 +360,7 @@
   filter: drop-shadow(0 0 0.4rem rgba(255, 255, 255, 0.55));
 }
 
-/* Cover-Kachel (Querformat): kleine Ecken, dezenter Rahmen, Schatten; fokussiert heller mit Leuchten */
+/* Cover-Kachel (Querformat): kleine Ecken, dezenter Rahmen, Schatten; Abdunklung und Leuchten sind eigene Ebenen */
 .xmb-item__cover {
   position: relative;
   display: block;
@@ -380,6 +379,8 @@
   min-width: 0;
   max-width: 26rem;
   text-shadow: var(--xmb-text-shadow);
+  /* Skalierung (Fokus) um die Mitte der Kachel, die links neben dem Text liegt */
+  transform-origin: calc(var(--tile-w) / -2 - var(--tile-gap)) 50%;
 }
 
 /* Das Polster hält den Textschatten sichtbar, obwohl die Zeile abgeschnitten wird. */

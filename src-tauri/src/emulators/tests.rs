@@ -159,14 +159,48 @@ fn exit_of(receiver: &mpsc::Receiver<GameExit>) -> GameExit {
         .expect("game-exit wurde nicht gemeldet")
 }
 
+/// Zustandsbuchstabe eines Prozesses (`None` = es gibt ihn nicht mehr). Linux liest /proc, macOS fragt `ps`.
+fn process_state(pid: u32) -> Option<char> {
+    #[cfg(target_os = "linux")]
+    {
+        let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        stat.rsplit_once(')')?.1.trim_start().chars().next()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let output = run_with_timeout(
+            "/bin/ps",
+            &["-o", "stat=", "-p", &pid.to_string()],
+            Duration::from_secs(5),
+        )?;
+        output.trim().chars().next()
+    }
+}
+
+/// Zombies (beendet, aber noch nicht eingesammelt) zählen als tot.
 fn process_alive(pid: u32) -> bool {
-    // Zombies (beendet, aber noch nicht eingesammelt) zählen als tot.
-    match fs::read_to_string(format!("/proc/{pid}/stat")) {
-        Ok(stat) => stat
-            .rsplit_once(')')
-            .and_then(|(_, rest)| rest.trim_start().chars().next())
-            .is_some_and(|state| state != 'Z'),
-        Err(_) => false,
+    process_state(pid).is_some_and(|state| state != 'Z')
+}
+
+fn process_group_of(pid: u32) -> Option<u32> {
+    #[cfg(target_os = "linux")]
+    {
+        let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        stat.rsplit_once(')')?
+            .1
+            .split_whitespace()
+            .nth(2)?
+            .parse()
+            .ok()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let output = run_with_timeout(
+            "/bin/ps",
+            &["-o", "pgid=", "-p", &pid.to_string()],
+            Duration::from_secs(5),
+        )?;
+        output.trim().parse().ok()
     }
 }
 
@@ -768,16 +802,7 @@ fn kill_reaches_helper_processes_in_the_group() {
     assert!(process_alive(child));
 
     // Eigene Prozessgruppe: Gruppen-ID = Prozess-ID des Spiels, nicht die des Testprozesses
-    let group = fs::read_to_string(format!("/proc/{}/stat", info.pid)).unwrap();
-    let group_id: u32 = group
-        .rsplit_once(')')
-        .unwrap()
-        .1
-        .split_whitespace()
-        .nth(2)
-        .unwrap()
-        .parse()
-        .unwrap();
+    let group_id = process_group_of(info.pid).expect("Prozessgruppe lesbar");
     assert_eq!(group_id, info.pid);
     assert_ne!(group_id, std::process::id());
 
