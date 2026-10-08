@@ -18,7 +18,7 @@ export interface XmbEntry {
 }
 
 /** Interne Aktionen, die ein Eintrag statt eines Inhalts auslöst. */
-export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user" | "toggle-transcode";
+export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user" | "toggle-transcode" | "open-requirements";
 
 /** Verweis auf ein Jellyfin-Objekt (Film, Serie oder Folge). */
 export interface JellyfinRef {

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
+import { biosDirOf } from "../emulators/requirements";
+import { useEmulators } from "../emulators/useEmulators";
+import { useRequirements } from "../emulators/useRequirements";
 import { useControllerProbe } from "../input/useControllerProbe";
 import { useGamepad } from "../input/useGamepad";
 import type { PadAction } from "../input/useGamepad";
@@ -13,7 +16,7 @@ import { Background } from "../xmb/Background";
 import { playSfx } from "../xmb/sound";
 import { runChecks } from "./checks";
 import type { CheckResult } from "./checks";
-import { CheckStep, ControllerStep, GamesStep, JellyfinStep } from "./steps";
+import { CheckStep, ControllerStep, FilesStep, GamesStep, JellyfinStep } from "./steps";
 import type { Draft } from "./steps";
 import "./setup.css";
 
@@ -28,10 +31,13 @@ interface SetupWizardProps {
 const STEPS: { symbol: PsSymbolName; title: string }[] = [
   { symbol: "triangle", title: "Jellyfin" },
   { symbol: "circle", title: "Spiele" },
-  { symbol: "cross", title: "Controller" },
-  { symbol: "square", title: "Prüfung" },
+  { symbol: "cross", title: "Dateien" },
+  { symbol: "square", title: "Controller" },
+  { symbol: "triangle", title: "Prüfung" },
 ];
-const STEP_CONTROLLER = 2;
+const STEP_FILES = 2;
+const STEP_CONTROLLER = 3;
+const STEP_CHECK = 4;
 
 /** Alles, was sich per Steuerkreuz anwählen lässt (Reihenfolge = DOM-Reihenfolge). */
 const FOCUSABLE = "input:not([disabled]), button:not([disabled])";
@@ -65,7 +71,10 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
     url: initial?.jellyfin.url ?? "",
     apiKey: initial?.jellyfin.apiKey ?? "",
     gamesDir: initial?.gamesDir ?? "",
+    biosDir: initial?.biosDir ?? "",
   });
+  const emulators = useEmulators(initial?.emulators);
+  const requirements = useRequirements(biosDirOf(draft.biosDir));
   const [test, setTest] = useState<{ busy: boolean; result: ConnectionResult | null }>({
     busy: false,
     result: null,
@@ -115,7 +124,7 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
 
   // Schritt 4: Prüfungen starten, sobald der Schritt erreicht ist (und bei "Erneut prüfen").
   useEffect(() => {
-    if (step !== 3) return;
+    if (step !== STEP_CHECK) return;
     let cancelled = false;
     setResults([]);
     setChecking(true);
@@ -124,7 +133,9 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
         jellyfinUrl: draft.url,
         apiKey: draft.apiKey,
         gamesDir: draft.gamesDir,
+        biosDir: draft.biosDir,
         controller: probeName.current,
+        emulatorOverrides: initial?.emulators,
       },
       (r) => setResults((prev) => [...prev.filter((p) => p.id !== r.id), r]),
       () => cancelled,
@@ -160,6 +171,7 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
         ...(sameServer && initial?.jellyfin.userName ? { userName: initial.jellyfin.userName } : {}),
       },
       ...(initial?.emulators ? { emulators: initial.emulators } : {}),
+      ...(draft.biosDir.trim() ? { biosDir: draft.biosDir.trim() } : {}),
       gamesDir: draft.gamesDir.trim(),
       completedAt: new Date().toISOString(),
     };
@@ -176,10 +188,10 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
   const canNext = useMemo(() => {
     if (step === 0) return isValidServerUrl(draft.url);
     if (step === 1) return draft.gamesDir.trim().length > 0;
-    if (step === 3) return !checking && !saving;
+    if (step === STEP_CHECK) return !checking && !saving;
     return true;
   }, [step, draft, checking, saving]);
-  const canSkip = step < 3;
+  const canSkip = step < STEP_CHECK;
   const canTest = step === 0 && urlOk && !test.busy;
   const canRecheck = last && !checking && !saving;
 
@@ -206,6 +218,7 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
     playSfx("move");
     if (step === 0) patch({ url: "", apiKey: "" });
     if (step === 1) patch({ gamesDir: "" });
+    if (step === STEP_FILES) patch({ biosDir: "" });
     setStep((s) => s + 1);
   };
   const retest = () => {
@@ -277,6 +290,7 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
       case "triangle":
         return skip();
       case "square":
+        if (step === STEP_FILES) return void requirements.refresh();
         return step === 0 ? retest() : recheck();
     }
   };
@@ -345,8 +359,9 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
         <div className="setup-body" key={step} ref={bodyRef}>
           {step === 0 && <JellyfinStep draft={draft} onChange={patch} test={test} onTest={runTest} />}
           {step === 1 && <GamesStep draft={draft} onChange={patch} />}
-          {step === 2 && <ControllerStep name={probe.name} pressed={probe.pressed} />}
-          {step === 3 && <CheckStep results={results} />}
+          {step === STEP_FILES && <FilesStep draft={draft} onChange={patch} emulators={emulators} requirements={requirements} />}
+          {step === STEP_CONTROLLER && <ControllerStep name={probe.name} pressed={probe.pressed} />}
+          {step === STEP_CHECK && <CheckStep results={results} />}
           {saveError && (
             <p ref={errorRef} className="setup-result is-fail setup-save-error" role="alert">
               {saveError}
@@ -369,6 +384,7 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
           </span>
           {canSkip && <Hint symbol="triangle" label="Überspringen" onClick={skip} />}
           {step === 0 && <Hint symbol="square" label="Verbindung testen" onClick={retest} disabled={!canTest} />}
+          {step === STEP_FILES && <Hint symbol="square" label="Neu prüfen" onClick={() => void requirements.refresh()} />}
           {last && <Hint symbol="square" label="Erneut prüfen" onClick={recheck} disabled={!canRecheck} />}
           <Hint
             symbol="cross"

@@ -1,6 +1,7 @@
 pub mod discovery;
 pub mod emulators;
 pub mod media_proxy;
+pub mod requirements;
 
 #[cfg(test)]
 mod config_tests;
@@ -42,6 +43,8 @@ pub fn run() {
             emulators::game_kill,
             emulators::game_running,
             emulators::launch_log_tail,
+            requirements::requirements_scan,
+            requirements::bios_copy,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten der Tauri-Anwendung");

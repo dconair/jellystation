@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { categories as baseCategories } from "./data/library";
 import type { XmbCategory, XmbEntry } from "./data/types";
 import { EmulatorsDialog, summarizeEmulators, useEmulators } from "./emulators";
+import { RequirementsDialog } from "./emulators/RequirementsDialog";
+import { biosDirOf, blockingMissing, checkRequirements, missingLabels, requirementsFor } from "./emulators/requirements";
+import { useRequirements } from "./emulators/useRequirements";
 import { getJfContext, listJfUsers } from "./jellyfin/context";
 import type { JfUser } from "./jellyfin/context";
 import { getEpisodes, getNextUp } from "./jellyfin/items";
@@ -73,6 +76,7 @@ export default function App() {
 
 type Overlay =
   | { kind: "emulators"; focusId?: string; message?: string }
+  | { kind: "files"; focusEmulatorId?: string; message?: string }
   | { kind: "users"; users: JfUser[] | null; error?: string }
   | { kind: "resume"; entry: XmbEntry; playlist?: XmbEntry[] }
   | { kind: "episodes"; series: XmbEntry; episodes: XmbEntry[] | null; focusId?: string; error?: string }
@@ -95,6 +99,8 @@ function Main({
   const library = useGameLibrary(settings?.gamesDir);
   const jellyfin = useJellyfinLibrary(settings?.jellyfin);
   const emulators = useEmulators(settings?.emulators);
+  const biosDir = settings?.biosDir ?? "";
+  const requirements = useRequirements(biosDirOf(biosDir));
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [alwaysTranscode, setAlwaysTranscode] = useState(() => loadPrefs().alwaysTranscode === true);
   // Verhindert, dass eine spät eintreffende Antwort ein inzwischen geschlossenes Overlay wieder öffnet.
@@ -107,6 +113,14 @@ function Main({
   const { running, launch, overlay: launcherOverlay } = useGameLauncher({
     emulators,
     onNeedEmulator: (focusId, message) => openOverlay({ kind: "emulators", focusId, message }),
+    // Vor dem Start frisch prüfen, ob BIOS/Firmware da ist – eine Meldung statt eines Absturzes im Emulator.
+    preflight: async (def) => {
+      const fresh = await checkRequirements(biosDirOf(biosDir), requirementsFor(def.id));
+      const lacking = blockingMissing(fresh);
+      if (lacking.length === 0) return null;
+      return `${def.name} braucht noch: ${lacking.map((s) => s.req.label).join(", ")}.`;
+    },
+    onNeedFiles: (emulatorId, message) => openOverlay({ kind: "files", focusEmulatorId: emulatorId, message }),
   });
 
   const jfConfig = jfConfigOf(settings);
@@ -115,6 +129,10 @@ function Main({
   const hasJellyfinItems = jellyfin.status === "ok" && jellyfin.movies.length + jellyfin.series.length > 0;
 
   const emulatorSummary = useMemo(() => summarizeEmulators(emulators.statuses), [emulators.statuses]);
+  const filesSummary = useMemo(() => {
+    const m = missingLabels(requirements.statuses);
+    return requirements.loading ? "Wird geprüft …" : m.length ? `Fehlt: ${m.join(", ")}` : "Alles vorhanden";
+  }, [requirements.statuses, requirements.loading]);
   const userName = settings?.jellyfin.userName || jellyfin.userName;
 
   const categories = useMemo<XmbCategory[]>(() => {
@@ -135,6 +153,8 @@ function Main({
                   ? { ...e, subtitle: settings.gamesDir }
                   : e.action === "open-emulators"
                     ? { ...e, subtitle: emulatorSummary }
+                    : e.action === "open-requirements"
+                      ? { ...e, subtitle: filesSummary }
                     : e.action === "toggle-transcode"
                       ? { ...e, subtitle: alwaysTranscode ? "Immer vom Server umwandeln" : "Direkt, wenn möglich" }
                     : e.action === "choose-jellyfin-user"
@@ -146,7 +166,7 @@ function Main({
     // Spiele-Systeme (PS1, PS2, PS3 …) landen direkt hinter den Serien.
     const at = base.findIndex((c) => c.id === "series") + 1;
     return [...base.slice(0, at), ...library.categories, ...base.slice(at)];
-  }, [library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, userName, jfConfig, alwaysTranscode]);
+  }, [library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, filesSummary, userName, jfConfig, alwaysTranscode]);
 
   /** Titel abspielen; ab einer gespeicherten Position fragt vorher ein Dialog nach Fortsetzen/Von vorn. */
   const play = useCallback(
@@ -196,6 +216,7 @@ function Main({
     (entry: XmbEntry, category: XmbCategory, notify: (text: string) => void) => {
       if (entry.action === "run-setup") onRunSetup();
       else if (entry.action === "open-emulators") openOverlay({ kind: "emulators" });
+      else if (entry.action === "open-requirements") openOverlay({ kind: "files" });
       else if (entry.action === "choose-jellyfin-user") void openUsers();
       else if (entry.action === "toggle-transcode") {
         const next = !loadPrefs().alwaysTranscode;
@@ -270,6 +291,19 @@ function Main({
           close();
         }}
         onBack={close}
+      />
+    );
+  } else if (overlay?.kind === "files") {
+    layer = (
+      <RequirementsDialog
+        statuses={requirements.statuses}
+        loading={requirements.loading}
+        biosDir={biosDir}
+        focusEmulatorId={overlay.focusEmulatorId}
+        message={overlay.message}
+        onSetBiosDir={(dir) => settings && onChangeSettings({ ...settings, biosDir: dir.trim() || undefined })}
+        onRefresh={requirements.refresh}
+        onClose={close}
       />
     );
   } else if (overlay?.kind === "emulators") {

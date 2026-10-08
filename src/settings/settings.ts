@@ -16,6 +16,8 @@ export interface Settings {
    * einer .app oder eines Programms. Fehlt ein Eintrag, wird der Emulator automatisch gesucht.
    */
   emulators?: Record<string, string>;
+  /** Ordner mit BIOS- und Firmware-Dateien (vom Nutzer bereitgestellt); fehlt er, gilt ~/JellyStation/BIOS. */
+  biosDir?: string;
   /** Absoluter Pfad des Spiele-Basisordners; leer = Standardordner/Demo-Modus. */
   gamesDir: string;
   /** Zeitpunkt des Setup-Abschlusses (ISO). */
@@ -80,6 +82,7 @@ function validate(raw: unknown): Settings | null {
       ...(typeof r.jellyfin?.userName === "string" && r.jellyfin.userName ? { userName: r.jellyfin.userName } : {}),
     },
     ...(isStringRecord(r.emulators) ? { emulators: r.emulators } : {}),
+    ...(typeof r.biosDir === "string" && r.biosDir.trim() ? { biosDir: r.biosDir } : {}),
     gamesDir: typeof r.gamesDir === "string" ? r.gamesDir : "",
     completedAt: r.completedAt,
   };

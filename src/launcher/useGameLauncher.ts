@@ -32,6 +32,14 @@ export interface GameLauncherOptions {
    * einen eigenen Hinweisdialog.
    */
   onNeedEmulator?: (emulatorId: string, message: string) => void;
+  /**
+   * Vorabprüfung vor dem Start (z. B. fehlendes BIOS): liefert einen Hinweistext, wenn etwas fehlt, sonst null.
+   * Pro Emulator wird nur beim ersten Mal gewarnt; ein erneuter Start versucht es trotzdem (die Prüfung kann irren,
+   * etwa wenn das BIOS im Emulator an anderer Stelle eingestellt ist).
+   */
+  preflight?: (def: EmulatorDef) => Promise<string | null>;
+  /** Wird bei einem Hinweis der Vorabprüfung aufgerufen (öffnet z. B. den Dialog „BIOS & Firmware“). */
+  onNeedFiles?: (emulatorId: string, message: string) => void;
 }
 
 export interface GameLauncher {
@@ -92,6 +100,7 @@ class LaunchController {
   private timers = new Set<number>();
   private seq = 0;
   private alive = true;
+  private warnedFiles = new Set<string>();
 
   constructor(
     private ui: Ui,
@@ -264,6 +273,21 @@ class LaunchController {
         if (!st.valid || !st.path) {
           this.needEmulator(entry, def, st);
           return;
+        }
+        if (this.options().preflight && !this.warnedFiles.has(def.id)) {
+          let problem: string | null = null;
+          try {
+            problem = (await this.options().preflight?.(def)) ?? null;
+          } catch {
+            problem = null; // eine kaputte Prüfung darf den Start nie verhindern
+          }
+          if (problem) {
+            this.warnedFiles.add(def.id);
+            const open = this.options().onNeedFiles;
+            if (open) open(def.id, `${problem} Wähle das Spiel danach erneut, um es trotzdem zu versuchen.`);
+            else this.showDialog({ tone: "info", title: "Datei fehlt", lines: [problem, "Wähle das Spiel erneut, um es trotzdem zu versuchen."] });
+            return;
+          }
         }
         const built = def.buildArgs(game.path);
         program = st.path;

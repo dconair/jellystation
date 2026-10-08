@@ -18,3 +18,7 @@ export { describeStatus, summarizeEmulators } from "./status";
 export type { EmulatorSource, EmulatorStatus } from "./status";
 export { useEmulators } from "./useEmulators";
 export type { EmulatorsState } from "./useEmulators";
+export { DEFAULT_BIOS_DIR, REQUIREMENTS, biosDirOf, checkRequirements, describeRequirement, installRequirement, missingLabels, requirementsFor } from "./requirements";
+export type { Requirement, RequirementState, RequirementStatus } from "./requirements";
+export { useRequirements } from "./useRequirements";
+export type { RequirementsState } from "./useRequirements";

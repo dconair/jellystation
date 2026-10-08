@@ -164,3 +164,31 @@ export function onGameExit(handler: (exit: GameExit) => void): () => void {
     unlisten = null;
   };
 }
+
+/* ------------------------------------------------------------------ BIOS / Firmware */
+
+export interface RequirementScanSpec {
+  id: string;
+  locations: { kind: "emulator" | "folder"; dir: string }[];
+  nameRegex?: string;
+  minSize: number;
+  maxSize: number;
+  markers: string[];
+}
+
+export interface RequirementFound {
+  kind: "emulator" | "folder";
+  dir: string;
+  path: string;
+  size: number;
+}
+
+/** Sucht BIOS-/Firmware-Dateien (Rust: requirements_scan). */
+export async function requirementsScan(specs: RequirementScanSpec[]): Promise<{ id: string; found: RequirementFound[] }[]> {
+  return invoke("requirements_scan", { specs });
+}
+
+/** Kopiert eine Datei in den Datenordner eines Emulators (Rust: bios_copy); liefert den Pfad der Kopie. */
+export async function biosCopy(from: string, toDir: string): Promise<string> {
+  return invoke("bios_copy", { from, toDir });
+}

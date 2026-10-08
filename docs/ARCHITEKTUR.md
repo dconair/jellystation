@@ -49,6 +49,13 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
 - `jellyfin_discover({ waitMs? }) -> [{ address, id, name }]` – UDP-Broadcast „who is JellyfinServer?“ an Port 7359; jeder Server einmal.
   Der Setup-Assistent sucht beim Öffnen automatisch (nur Desktop-App) und übernimmt einen einzelnen Fund.
 
+### BIOS/Firmware (`requirements.rs`)
+- `requirements_scan({ specs: [{ id, locations: [{ kind: "emulator"|"folder", dir }], nameRegex?, minSize, maxSize, markers[] }] }) -> [{ id, found: [{ kind, dir, path, size }] }]` –
+  sucht Dateien nach Namensmuster/Größe (im BIOS-Ordner auch eine Ebene tiefer) und Markerdateien (z. B. `sys/external/liblv2.sprx` der
+  eingespielten PS3-Firmware). `~` wird aufgelöst. Katalog und Auswertung: `src/emulators/requirements.ts`.
+- `bios_copy({ from, toDir }) -> string` – kopiert eine Datei des Nutzers in einen Emulator-Datenordner; Ziel nur im Benutzerordner, nie überschreiben.
+- Frontend: Setup-Schritt „Dateien“ (`FilesStep`), Dialog `RequirementsDialog`, Vorabprüfung `preflight` in `useGameLauncher`.
+
 ### Emulatoren (`emulators.rs`)
 - `emulator_find({ specs: [{ id, appPattern, bundleIds }] }) -> [{ id, matches: [{ path, source }] }]` – sucht
   `.app`-Bundles (Name passt auf den regulären Ausdruck `appPattern`, ohne Groß-/Kleinschreibung) in `/Applications`,

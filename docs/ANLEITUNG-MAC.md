@@ -148,6 +148,29 @@ Außerdem legt es die Ordner `~/JellyStation/Games/<System>` und `~/JellyStation
 heruntergeladen – das bringst du selbst mit (nur legal besessene Spiele). PS1/PS2 brauchen ein BIOS, RPCS3 die PS3-Firmware
 (einmal in RPCS3 einspielen).
 
+### BIOS und Firmware: prüfen statt Fehlermeldung
+
+Manche Emulatoren starten ohne zusätzliche Dateien nicht. Die App prüft das **vorher** und sagt dir, was fehlt:
+
+| System | Was gebraucht wird | Woher |
+| --- | --- | --- |
+| PS1 (DuckStation) | PS1-BIOS (z. B. `scph1001.bin`, 512 KB) | von der eigenen Konsole sichern |
+| PS2 (PCSX2) | PS2-BIOS (`scph*.bin`/`.rom0`, ca. 4 MB) | von der eigenen Konsole sichern (Anleitung bei PCSX2) |
+| PS3 (RPCS3) | PS3-Firmware `PS3UPDAT.PUP` (ca. 200 MB) | offiziell kostenlos bei Sony (Link in der App) |
+| PSP, GameCube/Wii | nichts | – |
+
+BIOS-Dateien werden **nicht** mitgeliefert und **nicht** heruntergeladen (urheberrechtlich geschützt) – dafür gibt es nur
+Anleitungen und, bei der PS3-Firmware, den offiziellen Sony-Link.
+
+- **Setup-Assistent, Schritt „Dateien“:** zeigt je Emulator, ob er installiert ist (mit Download-Seite), und je BIOS/Firmware, ob sie
+  gefunden wurde. Dort wählst du den **BIOS-Ordner** (Standard `~/JellyStation/BIOS`; Unterordner wie `PS2/` werden mitgelesen).
+  Ganz unten steht, was noch offen ist. Auch der Abschlusscheck („Prüfung“) meldet fehlende Dateien für Systeme, von denen Spiele da sind.
+- **Einstellungen → BIOS & Firmware:** dasselbe jederzeit. Liegt die Datei im BIOS-Ordner, übernimmt **„In den Emulator übernehmen“**
+  sie in den Datenordner von DuckStation bzw. PCSX2. Die PS3-Firmware spielst du in RPCS3 ein (*Datei → Firmware installieren*).
+- **Beim Spielstart:** Fehlt das BIOS, erscheint statt einer Emulator-Fehlermeldung dieser Dialog. Er warnt nur einmal je Emulator –
+  ein zweiter Start versucht es trotzdem (falls du das BIOS im Emulator an anderer Stelle eingestellt hast).
+- Bei RPCS3 ist der Ablageort der Firmware auf dem Mac nicht sicher bekannt; „nicht gefunden“ ist dort nur ein Hinweis.
+
 Im Menü: *Einstellungen → Emulatoren* zeigt je Emulator „Bereit“ oder „Fehlt“. Dort kannst du Fehlendes per Homebrew
 installieren lassen, die Download-Seite öffnen, einen Pfad von Hand wählen oder das Startprotokoll ansehen.
 Spiel anwählen und ✕ / `Enter`: Ein Start-Bildschirm erscheint, der Emulator öffnet sich, das Menü bleibt im Hintergrund und

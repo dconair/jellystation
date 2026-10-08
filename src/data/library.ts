@@ -113,6 +113,10 @@ export const categories: XmbCategory[] = [
         action: "open-emulators",
       },
       {
+        ...entry("st-bios", "BIOS & Firmware", "Prüfen, Ordner wählen, Anleitungen", 40, "Zeigt, welche BIOS- und Firmware-Dateien die Emulatoren noch brauchen, und hilft, sie einzurichten. Die Dateien selbst bringst du mit."),
+        action: "open-requirements",
+      },
+      {
         ...entry("st2", "Jellyfin-Benutzer", "Wer schaut?", 255, "Wählt den Jellyfin-Benutzer für Wiedergabestatus und „Weiterschauen“."),
         action: "choose-jellyfin-user",
       },

@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { GAMES_BASE_DIR } from "../config/games";
+import { openExternal } from "../emulators/actions";
 import { EMULATORS, supportedFolderNames } from "../emulators/catalog";
+import { DEFAULT_BIOS_DIR, describeRequirement, installRequirement, missingLabels, requirementsFor } from "../emulators/requirements";
+import type { RequirementStatus } from "../emulators/requirements";
+import type { EmulatorsState } from "../emulators/useEmulators";
+import type { RequirementsState } from "../emulators/useRequirements";
 import { discoverServers } from "../jellyfin/discover";
 import type { FoundServer } from "../jellyfin/discover";
 import { normalizeServerUrl } from "../jellyfin/testConnection";
@@ -15,6 +20,8 @@ export interface Draft {
   url: string;
   apiKey: string;
   gamesDir: string;
+  /** BIOS-/Firmware-Ordner; leer = Standard (~/JellyStation/BIOS). */
+  biosDir: string;
 }
 
 /* ---------- Schritt 1: Jellyfin ---------- */
@@ -248,7 +255,156 @@ export function GamesStep({ draft, onChange }: GamesStepProps) {
   );
 }
 
-/* ---------- Schritt 3: Controller ---------- */
+
+/* ---------- Schritt 3: Emulatoren, BIOS & Firmware ---------- */
+
+interface FilesStepProps {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+  emulators: EmulatorsState;
+  requirements: RequirementsState;
+  /** Systemordner mit Spielen (aus dem Spiele-Schritt), um „nötig“ hervorzuheben; leer = unbekannt. */
+  systems?: string[];
+}
+
+const toneClass = (tone: "ok" | "warn" | "error" | undefined) => (tone === "ok" ? "is-ok" : tone === "warn" ? "is-warn" : tone === "error" ? "is-fail" : "is-pending");
+
+export function FilesStep({ draft, onChange, emulators, requirements }: FilesStepProps) {
+  const tauri = isTauri();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<string>("");
+  const chooseRef = useRef<HTMLButtonElement>(null);
+
+  const chooseDir = async () => {
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const picked = await open({ directory: true, multiple: false, title: "Ordner mit BIOS- und Firmware-Dateien wählen", defaultPath: undefined });
+      if (typeof picked === "string") {
+        onChange({ biosDir: picked });
+        chooseRef.current?.blur();
+      }
+    } catch (err) {
+      setNote(`Dialog konnte nicht geöffnet werden: ${err instanceof Error ? err.message : err}`);
+    }
+  };
+
+  const copy = async (status: RequirementStatus) => {
+    setBusy(status.req.id);
+    setNote("");
+    try {
+      await installRequirement(status);
+      setNote(`${status.req.label} wurde in den Emulator übernommen.`);
+    } catch (err) {
+      setNote(`${status.req.label}: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(null);
+      void requirements.refresh();
+    }
+  };
+
+  const missing = missingLabels(requirements.statuses);
+  const emulatorMissing = emulators.statuses.filter((s) => s.checkable !== false && !s.valid).map((s) => s.def.name);
+
+  return (
+    <>
+      <h2>Emulatoren, BIOS &amp; Firmware</h2>
+      <p className="setup-lead">
+        Damit später kein Spiel mit einer Fehlermeldung startet, siehst du hier, was noch fehlt. BIOS- und Firmware-Dateien
+        werden weder mitgeliefert noch heruntergeladen – lege sie in einen Ordner und gib ihn hier an.
+      </p>
+
+      <div className="setup-form">
+        <div className="setup-field">
+          <span>Ordner mit BIOS- und Firmware-Dateien</span>
+          <div className="setup-input-row">
+            <input
+              type="text"
+              spellCheck={false}
+              readOnly={tauri}
+              placeholder={DEFAULT_BIOS_DIR}
+              value={draft.biosDir}
+              onChange={(e) => onChange({ biosDir: e.target.value })}
+            />
+            <button type="button" className="ps-btn" ref={chooseRef} disabled={!tauri} onClick={chooseDir}>
+              Ordner wählen …
+            </button>
+            <button type="button" className="ps-btn" disabled={!tauri || requirements.loading} onClick={() => void requirements.refresh()}>
+              Neu prüfen
+            </button>
+          </div>
+          <small>Leer lassen = {DEFAULT_BIOS_DIR}. Unterordner (z. B. PS2/) werden mitgelesen.</small>
+        </div>
+      </div>
+
+      <ul className="setup-checks setup-files">
+        {EMULATORS.map((def) => {
+          const st = emulators.statuses.find((s) => s.def.id === def.id);
+          const found = !!st?.valid;
+          const unknown = !st || st.checkable === false || emulators.loading;
+          const reqs = requirementsFor(def.id).map((r) => requirements.statuses.find((x) => x.req.id === r.id)).filter((x): x is RequirementStatus => !!x);
+          return (
+            <li key={def.id} className={unknown ? "is-pending" : found ? "is-ok" : "is-warn"}>
+              <span className="check-icon" aria-hidden="true">
+                <i className={unknown ? "spinner" : undefined} />
+              </span>
+              <span className="check-text">
+                <strong>
+                  {def.name} <small>· {def.consoles}</small>
+                </strong>
+                <small>{unknown ? (tauri ? "Wird gesucht …" : "Nur in der Desktop-App prüfbar") : found ? "Gefunden" : "Nicht installiert – das Einrichtungsskript installiert ihn, sonst von Hand laden"}</small>
+                {!unknown && !found && (
+                  <span className="setup-files__links">
+                    <button type="button" className="ps-btn" onClick={() => void openExternal(def.downloadUrl)}>
+                      Download-Seite öffnen
+                    </button>
+                  </span>
+                )}
+                {reqs.map((rs) => {
+                  const d = describeRequirement(rs);
+                  return (
+                    <span key={rs.req.id} className={`setup-files__req ${toneClass(d.tone)}`}>
+                      <strong>{rs.req.label}</strong>
+                      <span>{d.text}</span>
+                      {rs.state !== "ready" && rs.state !== "unknown" && <em>{rs.req.description}</em>}
+                      {rs.state === "in-folder" && (
+                        <em>{rs.req.installHint}</em>
+                      )}
+                      {rs.state !== "ready" && rs.state !== "unknown" && (
+                        <span className="setup-files__links">
+                          {rs.state === "in-folder" && rs.req.copyTo && (
+                            <button type="button" className="ps-btn" disabled={busy === rs.req.id} onClick={() => void copy(rs)}>
+                              {busy === rs.req.id ? "Kopiere …" : "In den Emulator übernehmen"}
+                            </button>
+                          )}
+                          {rs.req.links.map((l) => (
+                            <button key={l.url} type="button" className="ps-btn" onClick={() => void openExternal(l.url)}>
+                              {l.label}
+                            </button>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      {note && <p className="setup-preview">{note}</p>}
+      {tauri && !requirements.loading && (
+        <p className={`setup-result ${missing.length || emulatorMissing.length ? "is-warn" : "is-ok"}`} role="status">
+          {missing.length || emulatorMissing.length
+            ? `Noch offen: ${[...emulatorMissing.map((n) => `${n} (Emulator)`), ...missing].join(", ")}. Du kannst trotzdem fortfahren und es später unter Einstellungen → Emulatoren / BIOS & Firmware nachholen.`
+            : "Alles vorhanden – es fehlt nichts."}
+        </p>
+      )}
+    </>
+  );
+}
+
+/* ---------- Schritt 4: Controller ---------- */
 
 /**
  * Schlichte DualShock-Silhouette. Die ViewBox ist auf die gemessene Mitte der Form (32 | 20,26) gelegt, sodass das Bild
@@ -308,7 +464,7 @@ export function ControllerStep({ name, pressed }: { name: string | null; pressed
   );
 }
 
-/* ---------- Schritt 4: Abhängigkeiten ---------- */
+/* ---------- Schritt 5: Abhängigkeiten ---------- */
 
 /** Statusmarken als SVG im 24er-Raster – Unicode-Zeichen (✓ ! ✕) säßen je nach Schrift schief im Kreis. */
 function StatusIcon({ status }: { status: CheckResult["status"] }) {

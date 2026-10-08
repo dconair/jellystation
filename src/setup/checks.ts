@@ -1,3 +1,4 @@
+import { biosDirOf, blockingMissing, checkRequirements, missingLabels } from "../emulators/requirements";
 import { detectEmulators } from "../emulators/detect";
 import { emulatorForSystem, isAppBundle, supportedFolderNames } from "../emulators/catalog";
 import type { EmulatorDef } from "../emulators/catalog";
@@ -18,6 +19,8 @@ export interface CheckInput {
   jellyfinUrl: string;
   apiKey: string;
   gamesDir: string;
+  /** BIOS-/Firmware-Ordner; leer = Standard. */
+  biosDir?: string;
   controller: string | null;
   /** Gewählte Emulator-Pfade aus den Einstellungen (Emulator-ID → Pfad); ohne Angabe wird nur automatisch gesucht. */
   emulatorOverrides?: Record<string, string>;
@@ -116,6 +119,30 @@ export const CHECKS: CheckDef[] = [
         status: "warn",
         detail: `${found.length} von ${statuses.length} gefunden${found.length ? ` (${found.map((s) => s.def.name).join(", ")})` : ""} – später unter Einstellungen → Emulatoren installieren`,
       };
+    },
+  },
+  {
+    id: "bios",
+    label: "BIOS & Firmware",
+    run: async ({ biosDir }, shared) => {
+      if (!isTauri()) return { status: "warn", detail: BROWSER_NOTE };
+      const statuses = await checkRequirements(biosDirOf(biosDir));
+      // Nötig sind die Dateien der Emulatoren der Systeme, in denen Spiele liegen; ohne Spiele gilt alles als Hinweis.
+      const needed = new Set<string>();
+      for (const folder of Object.keys(shared.systems ?? {})) {
+        if (shared.nativeOnly?.has(folder)) continue;
+        const def = emulatorForSystem(folder);
+        if (def) needed.add(def.id);
+      }
+      const lackingNeeded = blockingMissing(statuses, needed).map((s) => s.req.label);
+      if (lackingNeeded.length > 0) {
+        return { status: "fail", detail: `Für deine Spiele fehlt: ${lackingNeeded.join(", ")} – unter Einstellungen → BIOS & Firmware nachholen` };
+      }
+      const lackingAny = missingLabels(statuses);
+      if (lackingAny.length > 0) {
+        return { status: "warn", detail: `Noch nicht vorhanden: ${lackingAny.join(", ")} (nur nötig, wenn du dieses System spielst)` };
+      }
+      return { status: "ok", detail: "BIOS- und Firmware-Dateien sind vorhanden" };
     },
   },
   {
