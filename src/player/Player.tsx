@@ -52,7 +52,7 @@ const noopSubscribe = () => () => undefined;
 const EMPTY: EngineState = {
   phase: "idle", entry: null, plan: null, busy: { text: "Lade …" }, buffering: false, seeking: false, paused: true, ended: false,
   time: 0, duration: 0, buffered: 0, rate: 1, volume: 1, muted: false, soundBlocked: false, subtitleIndex: null, cues: [],
-  frozen: false, fault: null, problem: null, notice: null, maxBitrate: undefined,
+  frozen: false, fault: null, problem: null, notice: null, maxBitrate: undefined, previews: null, chapters: [],
 };
 const getEmpty = () => EMPTY;
 
@@ -459,6 +459,8 @@ export function Player({ entry, jellyfin = null, startSec = 0, playlist, onClose
         duration={st.duration}
         buffered={st.buffered}
         scrub={scrub}
+        previews={st.previews}
+        chapters={st.chapters}
         methodLabel={method ? `${method}${st.plan && st.plan.source.bitrate ? ` · ${formatBitrate(st.plan.source.bitrate)}` : ""}` : undefined}
         onToggle={togglePause}
         onHint={(key) => handle(key)}

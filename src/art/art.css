@@ -40,6 +40,18 @@
   transition: none;
 }
 
+/* Spiele-Cover im Hochformat: ganz zeigen, ein leichter Schatten hebt die Packung vom unscharfen Rand ab */
+.art-image__img.is-contain {
+  object-fit: contain;
+  filter: drop-shadow(0 0.12rem 0.35rem rgba(0, 0, 0, 0.55));
+}
+
+/* Unscharfe Kopie hinter dem ganzen Cover: füllt die Kachel mit den Farben des Covers */
+.art-image__img--backdrop {
+  filter: blur(0.8rem) saturate(1.3) brightness(0.62);
+  transform: scale(1.3);
+}
+
 /* Liegt das Bild darüber, muss der Platzhalter nicht mehr gezeichnet werden. */
 .art-image.is-covered .art-ph {
   visibility: hidden;

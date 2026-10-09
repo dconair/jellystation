@@ -1,0 +1,1215 @@
+/*
+ * Serien-Screen: Übersicht (Serieninfo, Hauptknopf, Staffel-Auswahl, Folgenliste) und Folgen-Details.
+ *
+ * Alles in rem – das Layout skaliert mit dem Fenster (siehe html in index.css) und ist auf eine Fläche von
+ * 96 × 54 rem entworfen; höhere Fenster (4:3 usw.) geben der Liste und der Beschreibung mehr Platz.
+ * Farben, Leuchtbalken und Bewegung sind von den Listen der App (popup.css) abgeguckt. Die Übersicht kennt zwei
+ * Lagen: Mit dem Fokus auf dem Hauptknopf ist die Serieninfo groß zu sehen („expanded“), sonst schiebt sich die Info
+ * nach oben weg und die Folgenliste bekommt den Platz (`is-collapsed`).
+ */
+
+@property --fade-top {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0rem;
+}
+@property --fade-bottom {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0rem;
+}
+
+.pop-overlay.series-frame > .pop-stage {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.series-screen {
+  --s-pad: 6rem;
+  --s-ease: cubic-bezier(0.25, 0.8, 0.3, 1);
+  --s-spring: cubic-bezier(0.3, 1.08, 0.4, 1);
+  --s-top-expanded: 31.5rem;
+  --s-top-collapsed: 5.6rem;
+  --s-hints: 4.8rem;
+  --s-bg: 3, 7, 24;
+  --s-focus-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(90deg, rgba(176, 206, 255, 0.5) 0%, rgba(132, 170, 255, 0.3) 52%, rgba(110, 150, 255, 0.14) 100%);
+  --s-focus-edge:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 1px 0 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(255, 255, 255, 0.12);
+  --s-glow: 0 0 1.2rem rgba(150, 190, 255, 0.65);
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: rgba(var(--s-bg), 0.88);
+  animation: series-in 0.55s var(--s-ease) both;
+}
+
+/* ---------- Hintergrund ---------- */
+
+.series-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 64%;
+  opacity: 0.6;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 46%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 46%);
+}
+
+.series-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(var(--s-bg), 0.9) 0%, rgba(var(--s-bg), 0.6) 42%, rgba(var(--s-bg), 0.08) 78%),
+    linear-gradient(0deg, rgba(var(--s-bg), 0.96) 0%, rgba(var(--s-bg), 0) 32%),
+    radial-gradient(ellipse 60% 50% at 18% 0%, rgba(50, 84, 170, 0.32), transparent 70%);
+}
+
+/* Mit der Liste im Vordergrund liegt der Hintergrund dunkler hinter den Zeilen */
+.series-shade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(var(--s-bg), 0.6);
+  opacity: 0;
+  transition: opacity 0.6s var(--s-ease);
+}
+.series-screen.is-collapsed .series-shade::after {
+  opacity: 1;
+}
+
+/* ---------- Kopf: kleine Zeile (Liste im Vordergrund) und große Serieninfo ---------- */
+
+.series-mini {
+  position: absolute;
+  z-index: 2;
+  top: 1.8rem;
+  left: var(--s-pad);
+  right: var(--s-pad);
+  margin: 0;
+  overflow: hidden;
+  font-size: 1.9rem;
+  font-weight: 300;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translate3d(0, 1.2rem, 0);
+  transition:
+    opacity 0.45s ease,
+    transform 0.6s var(--s-ease);
+  pointer-events: none;
+}
+.series-screen.is-collapsed .series-mini {
+  opacity: 0.88;
+  transform: none;
+}
+.series-mini__sep::before {
+  content: "·";
+  margin: 0 0.9rem;
+  opacity: 0.55;
+}
+
+.series-intro {
+  position: absolute;
+  z-index: 2;
+  top: 2.6rem;
+  left: var(--s-pad);
+  width: min(58rem, 60%);
+  height: 27rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition:
+    transform 0.6s var(--s-ease),
+    opacity 0.4s ease;
+}
+.series-screen.is-collapsed .series-intro {
+  opacity: 0;
+  transform: translate3d(0, -7rem, 0);
+  pointer-events: none;
+}
+
+.series-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  margin: 0 0 0.7rem;
+  padding: 0.1rem 0;
+  overflow: hidden;
+  font-size: 4.4rem;
+  font-weight: 300;
+  line-height: 1.14;
+  letter-spacing: 0.015em;
+  overflow-wrap: anywhere;
+}
+
+.series-meta {
+  margin: 0 0 1.1rem;
+  font-size: 1.55rem;
+  letter-spacing: 0.07em;
+  opacity: 0.78;
+}
+
+.series-synopsis {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  margin: 0 0 2rem;
+  max-width: 54rem;
+  overflow: hidden;
+  font-size: 1.5rem;
+  line-height: 1.55;
+  letter-spacing: 0.025em;
+  opacity: 0.88;
+}
+
+.series-status {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  min-height: 6.4rem;
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+.series-status.is-error {
+  color: var(--pop-error, #ff9d9d);
+  opacity: 1;
+}
+
+/* ---------- Hauptknopf ---------- */
+
+.series-play {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.6rem;
+  max-width: 100%;
+  min-width: 30rem;
+  height: 6.4rem;
+  padding: 0 3.2rem 0 1.4rem;
+  border: 1px solid rgba(190, 212, 255, 0.3);
+  border-radius: 0.7rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+  color: #fff;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-shadow: inherit;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transform-origin: 0 50%;
+  transition:
+    background 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.5s var(--s-spring);
+}
+
+.series-play.is-focused {
+  border-color: rgba(220, 235, 255, 0.5);
+  background: var(--s-focus-bg);
+  box-shadow: var(--s-focus-edge), var(--s-glow);
+  transform: scale(1.035);
+}
+
+.series-play__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 4.2rem;
+  height: 4.2rem;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+.series-play__icon svg {
+  display: block;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin-left: 0.15rem;
+}
+
+.series-play__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.15rem;
+}
+.series-play__label,
+.series-play__sub {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.series-play__label {
+  font-size: 2.1rem;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+}
+.series-play__sub {
+  font-size: 1.25rem;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+/* ---------- Untere Hälfte: Staffel-Auswahl und Folgenliste ---------- */
+
+.series-lower {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: var(--s-pad);
+  right: var(--s-pad);
+  height: calc(100% - var(--s-top-collapsed));
+  max-width: 108rem;
+  transform: translate3d(0, var(--s-top-expanded), 0);
+  transition: transform 0.65s var(--s-ease);
+}
+.series-screen.is-collapsed .series-lower {
+  transform: translate3d(0, var(--s-top-collapsed), 0);
+}
+
+.series-bar-row {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2.2rem;
+  height: 4.4rem;
+}
+
+.series-bar-row__stats {
+  font-size: 1.3rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  opacity: 0.65;
+}
+
+.series-lists {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  top: 5.4rem;
+  bottom: var(--s-hints);
+  transition: opacity 0.35s ease;
+}
+.series-lower.has-menu .series-lists {
+  opacity: 0.35;
+  pointer-events: none; /* der Klick, der die Staffelliste schließt, öffnet nicht gleichzeitig eine Folge darunter */
+}
+
+/* ---------- Staffel-Auswahl („Staffel 2 ▾“) ---------- */
+
+.series-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.4rem;
+  min-width: 22rem;
+  height: 4.4rem;
+  padding: 0 1.4rem 0 2.2rem;
+  border: 1px solid rgba(190, 212, 255, 0.32);
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: inherit;
+  font-size: 1.9rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-shadow: inherit;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transform-origin: 0 50%;
+  transition:
+    background 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.5s var(--s-spring);
+}
+.series-select.is-single {
+  padding-right: 2.2rem;
+  cursor: default;
+}
+.series-select.is-focused {
+  border-color: rgba(220, 235, 255, 0.5);
+  background: var(--s-focus-bg);
+  box-shadow: var(--s-focus-edge), var(--s-glow);
+  transform: scale(1.03);
+}
+.series-select__caret {
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  transition: transform 0.4s var(--s-ease);
+}
+.series-select.is-open .series-select__caret {
+  transform: rotate(180deg);
+}
+
+.series-menu {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  top: calc(100% + 0.6rem);
+  width: min(38rem, 90%);
+  overflow: hidden;
+  border: 1px solid rgba(190, 212, 255, 0.24);
+  border-radius: 0.6rem;
+  background: linear-gradient(180deg, rgba(46, 76, 152, 0.97) 0%, rgba(16, 34, 86, 0.99) 40%, rgba(6, 14, 44, 1) 100%);
+  box-shadow:
+    0 1.8rem 4rem rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 12, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transform-origin: 3rem 0;
+  animation: series-menu-in 0.38s var(--s-spring) both;
+}
+
+.series-menu__view {
+  position: absolute;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+}
+.series-menu__track {
+  position: relative;
+  will-change: transform;
+}
+.series-menu.is-ready .series-menu__track,
+.series-menu.is-ready .series-menu__bar {
+  transition: transform 0.45s var(--s-spring);
+}
+.series-menu__bar {
+  position: absolute;
+  z-index: 0;
+  left: 0.8rem;
+  right: 0.8rem;
+  top: 0;
+  border-radius: 0.45rem;
+  background: var(--s-focus-bg);
+  box-shadow: var(--s-focus-edge);
+  will-change: transform;
+}
+.series-menu__row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 2.4rem 0 1.8rem;
+  opacity: 0.68;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+.series-menu__row.is-focused {
+  opacity: 1;
+}
+.series-menu__check {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  color: #d6e6ff;
+  filter: drop-shadow(0 0 0.35rem rgba(180, 210, 255, 0.7));
+}
+.series-menu__check svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.series-menu__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1.65rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.series-menu__status {
+  flex: none;
+  font-size: 1.2rem;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+/* ---------- Folgenliste ---------- */
+
+.series-list {
+  position: absolute;
+  inset: 0;
+  --dx: 2.4rem;
+}
+.series-list[data-dir="-1"] {
+  --dx: -2.4rem;
+}
+.series-list.is-entering {
+  animation: series-list-in 0.36s var(--s-ease) both;
+}
+.series-list.is-leaving {
+  z-index: 0;
+  pointer-events: none;
+  animation: series-list-out 0.3s ease both;
+}
+
+.series-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  contain: layout paint;
+  --fade-top: 0rem;
+  --fade-bottom: 0rem;
+  transition:
+    --fade-top 0.4s ease,
+    --fade-bottom 0.4s ease;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+}
+
+.series-track {
+  position: relative;
+  z-index: 1;
+  will-change: transform;
+}
+.series-list.is-ready .series-track {
+  transition: transform 0.5s var(--s-spring);
+}
+
+/* Wandernder Leuchtbalken (wie in den Listen der App) */
+.series-bar {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  border-radius: 0.6rem;
+  background: var(--s-focus-bg);
+  box-shadow: var(--s-focus-edge);
+  opacity: 0;
+  will-change: transform;
+  transition: opacity 0.3s ease;
+}
+.series-list.is-ready .series-bar {
+  transition:
+    opacity 0.3s ease,
+    transform 0.5s var(--s-spring);
+}
+.series-bar.is-on {
+  opacity: 1;
+}
+.series-bar__halo {
+  position: absolute;
+  inset: -0.15rem;
+  border-radius: 0.75rem;
+  pointer-events: none;
+  box-shadow: 0 0 1.1rem rgba(150, 190, 255, 0.6);
+  animation: series-pulse 2.6s ease-in-out infinite;
+}
+
+.series-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1.8rem;
+  height: var(--s-row);
+  padding: 0 2rem 0 1.4rem;
+  opacity: 0.66;
+  cursor: pointer;
+  transition: opacity 0.35s ease;
+}
+.series-row.is-focused {
+  opacity: 1;
+}
+
+.series-row__num {
+  flex: none;
+  width: 3rem;
+  font-size: 2.4rem;
+  font-weight: 300;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.series-row__thumb {
+  position: relative;
+  flex: none;
+  width: 14.2rem;
+  height: 8rem;
+  overflow: hidden;
+  border-radius: 0.45rem;
+  background: rgba(10, 16, 40, 0.5);
+  box-shadow: 0 0.3rem 0.9rem rgba(0, 0, 0, 0.42);
+}
+/* Glanz wie bei den Kacheln der XMB */
+.series-row__thumb::after,
+.series-tile__art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.07) 34%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.series-row__progress {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0.34rem;
+  background: rgba(0, 4, 20, 0.62);
+}
+.series-row__progress > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #8fb8ff, #fff);
+  box-shadow: 0 0 0.5rem rgba(150, 190, 255, 0.85);
+}
+
+.series-row__badge {
+  position: absolute;
+  z-index: 2;
+  top: 0.45rem;
+  right: 0.45rem;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  background: rgba(6, 14, 44, 0.78);
+  color: var(--pop-ok, #9af2c0);
+  filter: drop-shadow(0 0 0.4rem rgba(0, 0, 0, 0.5));
+}
+.series-row__badge svg {
+  display: block;
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.series-row__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.series-row__head {
+  display: flex;
+  align-items: baseline;
+  gap: 1.6rem;
+  min-width: 0;
+}
+.series-row__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.1rem 0;
+  font-size: 1.85rem;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.series-row__time {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.72;
+}
+.series-row__seen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--pop-ok, #9af2c0);
+}
+.series-row__seen svg {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.series-row__desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 1.3rem;
+  line-height: 1.5;
+  letter-spacing: 0.025em;
+  opacity: 0.72;
+}
+
+/* ---------- Hinweisleiste ---------- */
+
+.series-hints {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--s-bg), 0.95);
+}
+/* Darüber läuft die Liste weich aus, statt an der Leiste hart abzureißen */
+.series-hints::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 3.2rem;
+  pointer-events: none;
+  background: linear-gradient(0deg, rgba(var(--s-bg), 0.95), rgba(var(--s-bg), 0));
+}
+.series-hints .pop-hints {
+  padding: 1.1rem var(--s-pad) 1rem;
+  border-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24) 10%, rgba(255, 255, 255, 0.24) 90%, transparent) 1;
+}
+.series-hints .pop-hints__end {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.4rem;
+  padding: 0;
+  opacity: 0.85;
+}
+.series-hints__pos {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.series-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.series-keys > span {
+  margin-left: 0.4rem;
+}
+.series-keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.8rem;
+  height: 2rem;
+  padding: 0 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.12);
+  font: inherit;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+/* ---------- Detailseite ---------- */
+
+.series-detail {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 90% 80% at 72% 12%, rgba(22, 42, 100, 0.92) 0%, rgba(var(--s-bg), 0.97) 72%),
+    rgb(var(--s-bg));
+  animation: series-detail-in 0.42s var(--s-ease) both;
+}
+.series-detail.is-leaving {
+  pointer-events: none;
+  animation: series-detail-out 0.22s ease both;
+}
+
+.series-detail__art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 66rem;
+  aspect-ratio: 16 / 9;
+  animation: series-fade 0.5s ease both;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 42%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 42%);
+}
+.series-detail__art-fade {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: linear-gradient(180deg, #000 52%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 52%, transparent 100%);
+}
+
+.series-detail__shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(var(--s-bg), 0.88) 0%, rgba(var(--s-bg), 0.55) 46%, rgba(var(--s-bg), 0) 74%),
+    linear-gradient(0deg, rgba(var(--s-bg), 0.96) 0%, rgba(var(--s-bg), 0) 40%);
+}
+
+.series-detail__body {
+  position: absolute;
+  top: 3.6rem;
+  left: var(--s-pad);
+  bottom: 21rem;
+  width: min(48rem, 56%);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  animation: series-fade 0.45s ease both;
+}
+
+.series-detail__kicker {
+  flex: none;
+  margin: 0 0 0.6rem;
+  overflow: hidden;
+  font-size: 1.3rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.65;
+}
+.series-detail__title {
+  flex: none;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  margin: 0 0 0.9rem;
+  padding: 0.1rem 0;
+  overflow: hidden;
+  font-size: 3.6rem;
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: 0.015em;
+  overflow-wrap: anywhere;
+}
+.series-detail__meta {
+  flex: none;
+  margin: 0 0 1.3rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.series-detail__textwrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 5rem;
+  border-radius: 0.5rem;
+  transition: box-shadow 0.3s ease;
+}
+.series-detail__textwrap.is-focused {
+  box-shadow:
+    0 0 0 1px rgba(190, 212, 255, 0.5),
+    0 0 1.2rem rgba(150, 190, 255, 0.4);
+}
+.series-detail__text {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.2rem 1.2rem 0.2rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  outline: none;
+}
+.series-detail__textwrap.is-focused .series-detail__text {
+  padding-left: 1.2rem;
+}
+.series-detail__text::-webkit-scrollbar {
+  width: 0.5rem;
+}
+.series-detail__text::-webkit-scrollbar-thumb {
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.3);
+}
+.series-detail__text p {
+  margin: 0 0 1rem;
+  font-size: 1.55rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+.series-detail__text p:last-child {
+  margin-bottom: 0;
+}
+.series-detail__text .series-detail__none {
+  opacity: 0.55;
+}
+/* Lange Beschreibung: oben und unten läuft der Text weich aus, wo es weitergeht */
+.series-detail__textwrap.is-scrollable:not(.at-end):not(.at-start) .series-detail__text {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 2rem, #000 calc(100% - 2.6rem), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 2rem, #000 calc(100% - 2.6rem), transparent 100%);
+}
+.series-detail__textwrap.is-scrollable.at-start:not(.at-end) .series-detail__text {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 2.6rem), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 2.6rem), transparent 100%);
+}
+.series-detail__textwrap.is-scrollable.at-end:not(.at-start) .series-detail__text {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 2rem);
+  mask-image: linear-gradient(180deg, transparent 0, #000 2rem);
+}
+
+.series-detail__state {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 1rem;
+  font-size: 1.3rem;
+  letter-spacing: 0.05em;
+}
+.series-detail__progress {
+  position: relative;
+  width: 22rem;
+  height: 0.4rem;
+  overflow: hidden;
+  border-radius: 0.2rem;
+  background: rgba(255, 255, 255, 0.2);
+}
+.series-detail__progress > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8fb8ff, #fff);
+  box-shadow: 0 0 0.5rem rgba(150, 190, 255, 0.85);
+}
+.series-detail__seen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--pop-ok, #9af2c0);
+}
+.series-detail__seen svg {
+  display: block;
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.series-detail__buttons {
+  flex: none;
+  display: flex;
+  gap: 1.1rem;
+  width: max-content;
+  max-width: calc(96rem - 2 * var(--s-pad));
+  margin-top: 1.3rem;
+}
+.series-detail__problem {
+  flex: none;
+  margin: 0.8rem 0 0;
+  font-size: 1.3rem;
+  color: var(--pop-error, #ff9d9d);
+}
+
+.series-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  height: 4.8rem;
+  padding: 0 2.2rem;
+  border: 1px solid rgba(190, 212, 255, 0.3);
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: inherit;
+  font-size: 1.55rem;
+  font-weight: 400;
+  letter-spacing: 0.035em;
+  white-space: nowrap;
+  text-shadow: inherit;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transform-origin: 50% 50%;
+  transition:
+    background 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    opacity 0.3s ease,
+    transform 0.5s var(--s-spring);
+}
+.series-btn.is-primary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07));
+}
+.series-btn.is-focused {
+  border-color: rgba(220, 235, 255, 0.5);
+  background: var(--s-focus-bg);
+  box-shadow: var(--s-focus-edge), var(--s-glow);
+  transform: scale(1.035);
+}
+.series-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.series-btn__glyph {
+  display: block;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin-left: -0.3rem;
+}
+
+/* Ein generiertes Platzhalter-Cover trägt seinen Titel im Bild – als Hintergrund stört der Text die Schrift davor */
+.series-art .art-ph__center,
+.series-art .art-ph__credits,
+.series-art .art-ph__name,
+.series-art .art-ph__bar,
+.series-detail__art .art-ph__center,
+.series-detail__art .art-ph__credits,
+.series-detail__art .art-ph__name,
+.series-detail__art .art-ph__bar {
+  visibility: hidden;
+}
+
+/* Reihe „Weitere Folgen“ */
+.series-more {
+  position: absolute;
+  z-index: 1;
+  left: var(--s-pad);
+  right: var(--s-pad);
+  bottom: calc(var(--s-hints) + 0.7rem);
+  animation: series-fade 0.5s ease 0.08s both;
+}
+.series-more__head {
+  margin: 0 0 0.7rem;
+  font-size: 1.3rem;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.series-more__row {
+  display: flex;
+  gap: 1.2rem;
+}
+
+.series-tile {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 12.6rem;
+  padding: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-shadow: inherit;
+  cursor: pointer;
+  outline: none;
+  opacity: 0.66;
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    opacity 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.5s var(--s-spring);
+}
+.series-tile.is-focused {
+  opacity: 1;
+  border-color: rgba(220, 235, 255, 0.45);
+  background: var(--s-focus-bg);
+  box-shadow: var(--s-focus-edge), var(--s-glow);
+  transform: translate3d(0, -0.2rem, 0) scale(1.03);
+}
+.series-tile__art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 0.4rem;
+  background: rgba(10, 16, 40, 0.5);
+  box-shadow: 0 0.3rem 0.9rem rgba(0, 0, 0, 0.42);
+}
+.series-tile__code {
+  display: block;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  opacity: 0.65;
+}
+.series-tile__title {
+  display: block;
+  overflow: hidden;
+  font-size: 1.3rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Die Hinweisleiste liegt in der Detailseite über allem */
+.series-detail .series-hints {
+  z-index: 3;
+}
+
+/* ---------- Bewegung ---------- */
+
+@keyframes series-in {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes series-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes series-detail-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.6rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes series-detail-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 1rem, 0);
+  }
+}
+@keyframes series-list-in {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--dx), 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes series-list-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(calc(var(--dx) * -1), 0, 0);
+  }
+}
+@keyframes series-menu-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -0.8rem, 0) scaleY(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes series-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Animationen „reduziert“: nur Ein- und Ausblenden, keine Wege; „aus“: alles springt direkt */
+html[data-anim="reduced"] .series-screen *,
+html[data-anim="reduced"] .series-screen *::before,
+html[data-anim="reduced"] .series-screen *::after {
+  transition-property: opacity, background, box-shadow, border-color !important;
+  animation-name: series-fade !important;
+  animation-iteration-count: 1 !important;
+}
+html[data-anim="reduced"] .series-bar__halo {
+  animation: none !important;
+}
+html[data-anim="off"] .series-screen,
+html[data-anim="off"] .series-screen *,
+html[data-anim="off"] .series-screen *::before,
+html[data-anim="off"] .series-screen *::after {
+  transition: none !important;
+  animation: none !important;
+}
+html[data-anim="reduced"] .series-list.is-leaving,
+html[data-anim="off"] .series-list.is-leaving {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-anim]) .series-screen *,
+  html:not([data-anim]) .series-screen *::before,
+  html:not([data-anim]) .series-screen *::after {
+    transition-property: opacity, background, box-shadow, border-color !important;
+    animation-name: series-fade !important;
+    animation-iteration-count: 1 !important;
+  }
+  html:not([data-anim]) .series-bar__halo {
+    animation: none !important;
+  }
+  html:not([data-anim]) .series-list.is-leaving {
+    display: none;
+  }
+}

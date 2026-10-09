@@ -28,6 +28,16 @@ export const USER_TOKEN = "alice-token";
 const TICKS = 10_000_000;
 const CLIP_SEC = 30;
 const RUN_TICKS = CLIP_SEC * TICKS;
+/** Trickplay wie beim echten Server: 1 Bild pro Sekunde, 5 × 5 Bilder je Kachelbild, Dateien media/trickplay/<breite>/<n>.jpg (make-media.sh). */
+const TRICKPLAY_WIDTHS = [160, 320];
+const TRICKPLAY_TILES = 5;
+const TRICKPLAY_INTERVAL_MS = 1000;
+/** Kapitel der 30-Sekunden-Clips. */
+const CHAPTERS = [
+  { Name: "Anfang", StartPositionTicks: 0 },
+  { Name: "Die Mitte", StartPositionTicks: 10 * TICKS },
+  { Name: "Finale", StartPositionTicks: 20 * TICKS },
+];
 
 /* ============================================================== Testdaten */
 
@@ -36,6 +46,10 @@ const gid = (code, n) => `${code}${n.toString(16).padStart(6, "0")}`.padEnd(32, 
 
 const LONG =
   "Im Jahr 2049 stößt ein junger Blade Runner auf ein lange verborgenes Geheimnis, das die Reste der Gesellschaft ins Chaos stürzen könnte. Seine Entdeckung führt ihn zu Rick Deckard, einem seit dreißig Jahren verschwundenen ehemaligen Blade Runner. Gemeinsam begeben sie sich auf eine gefährliche Suche quer durch ein zerstörtes Los Angeles, in dem nichts so ist, wie es scheint, und jede Spur ins Verderben führen kann. Am Ende steht eine Entscheidung, die alles verändert.";
+
+/** Lange Serienbeschreibung (Serien-Screen: Auslassungspunkte, mehrere Absätze). */
+const STRANGER =
+  "Seltsame Dinge geschehen in Hawkins, Indiana. Als ein Junge spurlos verschwindet, begibt sich seine Mutter gemeinsam mit dem örtlichen Polizeichef auf die Suche nach der Wahrheit. Sie stoßen auf geheime Experimente, unheimliche Kräfte und ein kleines Mädchen mit außergewöhnlichen Fähigkeiten.\n\nVier Staffeln lang wächst die Bedrohung: Aus einem Rätsel in einer Kleinstadt wird ein Kampf, der weit über die Grenzen von Hawkins hinausreicht – und der nur gelingt, wenn die Freunde zusammenhalten.";
 
 // [Name, Jahr, Genres, Inhalt, hatCover]
 const MOVIE_ROWS = [
@@ -67,7 +81,7 @@ const SERIES_ROWS = [
   ["Dark", 2017, ["Mystery", "Drama"], "Das Verschwinden eines Kindes erschüttert eine Kleinstadt.", true, 3],
   ["Einzelstaffel-Serie", 2020, ["Krimi"], "Nur eine Staffel.", true, 1],
   ["Serie ohne Staffelzahl", 2015, ["Fantasy", "Abenteuer"], "ChildCount fehlt komplett.", true, undefined],
-  ["Stranger Things", 2016, ["Fantasy"], "Seltsame Dinge geschehen in Hawkins, Indiana.", true, 4],
+  ["Stranger Things", 2016, ["Fantasy"], STRANGER, true, 4],
   ["The Expanse", 2015, ["Science-Fiction"], "Ein Komplott im Sonnensystem steht kurz vor dem Krieg.", false, 6],
   ["Tatort München", 1970, ["Krimi"], "Zwei Kommissare, ein Fall, sonntags um viertel nach acht.", true, 52],
   ["Ärzte ohne Grenzen", 2012, ["Drama"], "Ein Team zwischen Hoffnung und Erschöpfung.", true, 2],
@@ -93,7 +107,13 @@ const SERIES = SERIES_ROWS.map(([name, year, genres, overview, cover, childCount
   childCount,
 }));
 
-// [Serie (Index), Staffel, Folge, Name, virtuell?]
+const STRANGER_EP = Array.from(
+  { length: 4 },
+  (_, i) =>
+    `Absatz ${i + 1}: In der Nacht, in der Will Byers verschwindet, gehen in ganz Hawkins die Lichter flackernd aus. Seine Mutter sucht verzweifelt nach ihm, während der Polizeichef zunächst an einen bösen Streich glaubt – bis sich seltsame Spuren im Wald häufen.`,
+).join("\n\n");
+
+// [Serie (Index), Staffel, Folge, Name, virtuell?, lange Beschreibung?]
 const EPISODE_ROWS = [
   [0, 1, 1, "Der Anfang"],
   [0, 1, 2, "Die Mitte"],
@@ -107,8 +127,20 @@ const EPISODE_ROWS = [
   [2, 1, 1, "Erste Folge"],
   [2, 1, 2, "Zweite Folge"],
   [2, 1, 3, "Dritte Folge"],
+  // Serien-Screen: vier Staffeln, lange Texte und ein sehr langer Folgentitel (Reihenfolge ab hier nicht ändern: Ids folgen dem Index)
+  [7, 1, 1, "Kapitel Eins: Das Verschwinden von Will Byers", false, STRANGER_EP],
+  [7, 1, 2, "Kapitel Zwei: Die Verrückte in der Straße"],
+  [7, 1, 3, "Kapitel Drei: Holly, Jolly"],
+  [7, 2, 1, "Kapitel Eins: Mad Max"],
+  [7, 2, 2, "Kapitel Zwei: Süßes oder Saures, Freak"],
+  [7, 3, 1, "Kapitel Eins: Suzie, hörst du mich?"],
+  [7, 3, 2, "Kapitel Zwei: Die Sache mit dem Spielplatz im Einkaufszentrum und den unheimlichen Ratten am Hintereingang"],
+  [7, 4, 1, "Kapitel Eins: Der Hellfire Club"],
+  [7, 4, 2, "Kapitel Zwei: Vecnas Fluch"],
+  [7, 4, 3, "Kapitel Drei: Der Monsterschlächter"],
+  [7, 0, 1, "Zurück nach Hawkins"],
 ];
-const EPISODES = EPISODE_ROWS.map(([s, season, number, name, virtual], i) => ({
+const EPISODES = EPISODE_ROWS.map(([s, season, number, name, virtual, longOverview], i) => ({
   id: gid("c3", i),
   type: "Episode",
   seriesIndex: s,
@@ -116,7 +148,7 @@ const EPISODES = EPISODE_ROWS.map(([s, season, number, name, virtual], i) => ({
   number,
   name,
   virtual: !!virtual,
-  overview: `${name} – Folge ${number} der Staffel ${season}.`,
+  overview: longOverview ?? `${name} – Folge ${number} der Staffel ${season}.`,
   cover: !virtual,
 }));
 
@@ -169,6 +201,8 @@ function seedUserData() {
   const ep = (s, season, number) => EPISODES.find((e) => e.seriesIndex === s && e.season === season && e.number === number).id;
   set(alice, ep(0, 1, 1), { pos: 0, count: 1, played: true, last: "2026-09-30T18:00:00.0000000Z" });
   set(alice, ep(0, 1, 2), { pos: 12 * TICKS, count: 0, played: false, last: "2026-10-01T18:00:00.0000000Z" });
+  for (const [season, number] of [[1, 1], [1, 2], [1, 3], [2, 1]]) set(alice, ep(7, season, number), { pos: 0, count: 1, played: true, last: "2026-09-25T18:00:00.0000000Z" });
+  set(alice, ep(7, 2, 2), { pos: 12 * TICKS, count: 0, played: false, last: "2026-09-26T18:00:00.0000000Z" });
   set(alice, ep(1, 1, 1), { pos: 0, count: 1, played: true, last: "2026-09-20T18:00:00.0000000Z" });
   set(alice, ep(1, 1, 2), { pos: 0, count: 1, played: true, last: "2026-09-21T18:00:00.0000000Z" });
   return data;
@@ -256,6 +290,10 @@ const SCENARIOS = {
   // Form der TranscodingUrl in PlaybackInfo
   "url-root": ["url", "url-root"],
   "url-rel": ["url", "url-rel"],
+  // Vorschaubilder der Zeitleiste (Trickplay): vorhanden, nicht vorhanden (Rückfall im Player), angekündigt aber nicht lieferbar
+  trickplay: ["trickplay", "trickplay"],
+  notrickplay: ["trickplay", "notrickplay"],
+  trickplay404: ["trickplay", "trickplay404"],
 };
 const DEFAULT_SCENARIO = {
   playback: "direct",
@@ -265,6 +303,7 @@ const DEFAULT_SCENARIO = {
   auth: "legacyauth",
   hls: "hls-relative",
   url: "url-root",
+  trickplay: "trickplay",
 };
 const DEFAULT_CONFIG = {
   /** Tonspur, die der Server von sich aus wählt (Stream-Index). */
@@ -502,7 +541,26 @@ export async function startMockJellyfin(options = {}) {
     return { PlaybackPositionTicks: 0, PlayCount: 0, IsFavorite: false, Played: eps.length > 0 && unplayed === 0, UnplayedItemCount: unplayed, Key: series.id, ItemId: series.id };
   }
 
-  function itemDto(item, userId, withUserData) {
+  /** Quellen-Id des Titels (wie in PlaybackInfo). */
+  const sourceIdOf = (item) => (state.config.altSourceIds ? md5(`quelle-${item.id}`) : item.id);
+  const trickplayDto = (item) => {
+    const widths = {};
+    for (const w of TRICKPLAY_WIDTHS) {
+      widths[w] = {
+        Width: w,
+        Height: Math.round((w * 9) / 16),
+        TileWidth: TRICKPLAY_TILES,
+        TileHeight: TRICKPLAY_TILES,
+        ThumbnailCount: CLIP_SEC,
+        Interval: TRICKPLAY_INTERVAL_MS,
+        Bandwidth: w * 2000,
+      };
+    }
+    return { [sourceIdOf(item)]: widths };
+  };
+
+  /** `extras`: { trickplay, chapters } – im Einzelabruf immer, in Listen nur auf Anfrage (`fields=Trickplay,Chapters`). */
+  function itemDto(item, userId, withUserData, extras = {}) {
     const dto = {
       Name: item.name,
       ServerId: "mock-server-id",
@@ -532,6 +590,10 @@ export async function startMockJellyfin(options = {}) {
       });
     }
     if (withUserData && userId) dto.UserData = item.type === "Series" ? seriesUserData(userId, item) : userDataDto(userId, item);
+    if (item.type !== "Series" && !item.virtual) {
+      if (extras.trickplay && state.scenario.trickplay !== "notrickplay") dto.Trickplay = trickplayDto(item);
+      if (extras.chapters) dto.Chapters = CHAPTERS;
+    }
     return dto;
   }
 
@@ -946,6 +1008,15 @@ export async function startMockJellyfin(options = {}) {
         if (mode === "slow") await sleep(12_000);
         const userId = param(url, "userId");
         const withData = (param(url, "enableUserData") ?? "true") !== "false" && !!userId && !!userById(userId);
+        const fields = csv(param(url, "fields"));
+        const extras = { trickplay: fields.includes("trickplay"), chapters: fields.includes("chapters") };
+        const ids = csv(param(url, "ids"));
+        if (ids.length > 0) {
+          // Abruf bestimmter Titel (z. B. mit fields=Trickplay,Chapters): in der Reihenfolge der Anfrage, Unbekanntes entfällt.
+          const hits = ids.map((id) => ITEM_BY_ID.get(id)).filter(Boolean);
+          const who = userById(userId);
+          return sendJson(req, res, 200, { Items: hits.map((it) => itemDto(it, who?.id, withData, extras)), TotalRecordCount: hits.length, StartIndex: 0 });
+        }
         const type = param(url, "IncludeItemTypes");
         const limit = Number(param(url, "Limit") ?? 100000);
         let all = type === "Series" ? (mode === "many" ? MANY_SERIES : SERIES) : MOVIES_FOR(mode);
@@ -958,7 +1029,7 @@ export async function startMockJellyfin(options = {}) {
           const collator = new Intl.Collator("de");
           all = [...all].sort((a, b) => (desc ? -1 : 1) * collator.compare(a.name, b.name));
         }
-        return sendJson(req, res, 200, { Items: all.slice(0, limit).map((it) => itemDto(it, user?.id, withData)), TotalRecordCount: all.length, StartIndex: 0 });
+        return sendJson(req, res, 200, { Items: all.slice(0, limit).map((it) => itemDto(it, user?.id, withData, extras)), TotalRecordCount: all.length, StartIndex: 0 });
       }
       if ((m = /^\/items\/([^/]+)$/.exec(low)) && req.method === "GET") {
         // Server ≤ 10.8 kennen nur /Users/{id}/Items/{id}; auf GET /Items/{id} antworten sie mit 405 (dort gibt es nur POST/DELETE).
@@ -966,14 +1037,14 @@ export async function startMockJellyfin(options = {}) {
         const item = ITEM_BY_ID.get(m[1]);
         if (!item) return sendText(req, res, 404, "");
         const user = userById(param(url, "userId"));
-        return sendJson(req, res, 200, itemDto(item, user?.id, true));
+        return sendJson(req, res, 200, itemDto(item, user?.id, true, { trickplay: true, chapters: true }));
       }
       if ((m = /^\/users\/([^/]+)\/items\/([^/]+)$/.exec(low)) && req.method === "GET") {
         if (state.scenario.userdata !== "legacy") return sendText(req, res, 404, "");
         const item = ITEM_BY_ID.get(m[2]);
         const user = userById(m[1]);
         if (!item || !user) return sendText(req, res, 404, "");
-        return sendJson(req, res, 200, itemDto(item, user.id, true));
+        return sendJson(req, res, 200, itemDto(item, user.id, true, { trickplay: true, chapters: true }));
       }
       if ((m = /^\/items\/([^/]+)\/images\/primary$/.exec(low)) && req.method === "GET") {
         return sendBody(req, res, 200, coverPng(m[1], 200, 300), "image/png");
@@ -1027,6 +1098,16 @@ export async function startMockJellyfin(options = {}) {
       if ((m = /^\/videos\/([^/]+)\/([^/]+)\/subtitles\/(\d+)(?:\/(\d+))?\/stream\.([a-z0-9]+)$/.exec(low)) && req.method === "GET") {
         if (m[5] !== "vtt") return sendText(req, res, 400, "Nur WebVTT");
         return subtitleRoute(req, res, Number(m[3]));
+      }
+      if ((m = /^\/videos\/([^/]+)\/trickplay\/(\d+)\/(\d+)\.jpg$/.exec(low)) && (req.method === "GET" || req.method === "HEAD")) {
+        // Wie der echte Server: nur Auflösungen, die es gibt, und nur Kachelbilder im Bereich; sonst 404.
+        const width = Number(m[2]);
+        const sheet = Number(m[3]);
+        const sheets = Math.ceil(CLIP_SEC / (TRICKPLAY_TILES * TRICKPLAY_TILES));
+        if (!ITEM_BY_ID.has(m[1]) || state.scenario.trickplay !== "trickplay" || !TRICKPLAY_WIDTHS.includes(width) || sheet >= sheets) {
+          return sendText(req, res, 404, "Kein Trickplay");
+        }
+        return sendFile(req, res, path.join(mediaDir, "trickplay", String(width), `${sheet}.jpg`), "image/jpeg");
       }
       if (low === "/videos/activeencodings" && req.method === "DELETE") {
         const device = param(url, "deviceId");

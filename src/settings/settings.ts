@@ -22,11 +22,21 @@ export interface Settings {
   biosDir?: string;
   /** Darstellung und Klang (siehe src/prefs/uiPrefs.ts); fehlt es, gelten die Standardwerte. */
   ui?: Partial<UiPrefs>;
+  /** Spiele-Cover (siehe src/art/coverService.ts); fehlt es, gilt auto = true. */
+  covers?: CoverSettings;
   /** Absoluter Pfad des Spiele-Basisordners; leer = Standardordner/Demo-Modus. */
   gamesDir: string;
   /** Zeitpunkt des Setup-Abschlusses (ISO). */
   completedAt: string;
 }
+
+/** Einstellungen für automatische Spiele-Cover. */
+export interface CoverSettings {
+  /** true = fehlende Cover bei thumbnails.libretro.com suchen (dabei gehen Spiel- und Systemname ins Netz). */
+  auto: boolean;
+}
+
+export const coversAuto = (settings: Pick<Settings, "covers"> | null | undefined): boolean => settings?.covers?.auto !== false;
 
 export const emptySettings = (): Omit<Settings, "completedAt"> => ({
   version: 1,
@@ -88,6 +98,7 @@ function validate(raw: unknown): Settings | null {
     ...(isStringRecord(r.emulators) ? { emulators: r.emulators } : {}),
     ...(typeof r.biosDir === "string" && r.biosDir.trim() ? { biosDir: r.biosDir } : {}),
     ...(r.ui && typeof r.ui === "object" ? { ui: sanitizeUiPrefs(r.ui) } : {}),
+    ...(r.covers && typeof r.covers === "object" ? { covers: { auto: r.covers.auto !== false } } : {}),
     gamesDir: typeof r.gamesDir === "string" ? r.gamesDir : "",
     completedAt: r.completedAt,
   };
