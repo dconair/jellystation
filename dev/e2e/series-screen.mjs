@@ -538,15 +538,13 @@ if (run("demo")) {
   await key(page, "Enter", 1, 900);
   check("Staffel 2 (Demo)", (await seasonLabel(page)) === "Staffel 2" && (await rowTitles(page)).length === 3, `${await seasonLabel(page)} / ${(await rowTitles(page)).join(" | ")}`);
   await shot(page, "d03-staffel2");
-  await key(page, "ArrowDown", 2);
-  await key(page, "ArrowDown", 1, 600);
+  await key(page, "ArrowDown", 2, 600);
   check("lange Titel werden gekürzt, nicht umgebrochen", (await focusedRow(page)) === "Wenn der Wind sich dreht und alle Pläne in Frage stehen", await focusedRow(page));
   await shot(page, "d04-langer-titel");
   await key(page, "Enter", 1, 900);
   await shot(page, "d05-detail-langer-titel");
   await key(page, "Escape", 1, 900);
   await key(page, "PageUp", 1, 700);
-  await key(page, "ArrowDown", 1, 500);
   await key(page, "ArrowDown", 1, 500);
   await key(page, "Enter", 1, 900);
   check("Detail der angefangenen Demo-Folge", (await buttonLabels(page))[0] === "Fortsetzen bei 20:15", (await buttonLabels(page)).join("|"));
