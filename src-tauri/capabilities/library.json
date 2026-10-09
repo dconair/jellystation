@@ -19,7 +19,11 @@
     },
     {
       "identifier": "fs:allow-read-file",
-      "allow": [{ "path": "$HOME/JellyStation/Games" }, { "path": "$HOME/JellyStation/Games/**" }]
+      "allow": [
+        { "path": "$HOME/JellyStation/Games" },
+        { "path": "$HOME/JellyStation/Games/**" },
+        { "path": "$APPCACHE/covers/**" }
+      ]
     }
   ]
 }

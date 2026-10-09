@@ -75,6 +75,27 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
 Shell-Plugin (`@tauri-apps/plugin-shell`): nur für `open()` (Webseiten öffnen; `plugins.shell.open` in tauri.conf.json) und
 `brew install --cask <name>` (Scope in `capabilities/emulators.json`, Pfade `/opt/homebrew/bin/brew` und `/usr/local/bin/brew`).
 
+### Cover (`covers.rs`)
+- `cover_resolve({ system, path, title, online, retry? }) -> { path, source: "embedded"|"online"|"cache"|null, width, height, serial, error }` –
+  liefert eine Bilddatei im Cache für ein Spiel ohne eigenes Bild. Reihenfolge: Cache → eingebettet → online. Ein Treffer
+  wird unverändert abgelegt (`<App-Cache>/covers/<system>/<hash>.png|jpg|webp`, Name aus Hash von System und Spielname).
+  `online: false` ruft nichts im Netz ab. `error` ist gesetzt, wenn nur ein Netzproblem die Suche verhindert hat (kein „nicht gefunden“).
+  `retry: true` ignoriert den Merker „nicht gefunden“ (Knopf „Jetzt nach fehlenden Covern suchen“).
+- Eingebettet (`covers/iso.rs`, `embedded.rs`): ISO 9660 nur lesend (2048-Byte-Sektoren, auch rohe 2352-Byte-Abbilder Mode 1/Mode 2 Form 1),
+  nie komplett gelesen. PS3: `PS3_GAME/ICON0.PNG` (320x176, Querformat) und `PARAM.SFO`; PSP: `PSP_GAME/ICON0.PNG`; PS1/PS2: `SYSTEM.CNF`
+  (Seriennummer für die Suche). Auch entpackte Spielordner. Verschlüsselte PS3-Abbilder (ungültige PNG-Signatur) weichen auf Online aus.
+- Online (`matching.rs`): libretro-Thumbnails `https://thumbnails.libretro.com/<System>/Named_Boxarts|Named_Snaps|Named_Titles/<Titel>.png`.
+  Die Dateiliste je System wird einmal geholt (30 Tage im Cache); Fuzzy-Abgleich (Normalisierung, Token-Jaccard + Levenshtein, Schwelle,
+  Region-Vorzug). Gesendet werden nur System- und Bildname. Limits: 8 MB, Verbindung 8 s / gesamt 20 s, höchstens 2 Abrufe gleichzeitig,
+  nur Bild-Signaturen, Weiterleitungen nur auf denselben Host. „Nicht gefunden“ wird 7 Tage, ein Netzfehler 10 Minuten gemerkt.
+- `JELLYSTATION_COVER_BASE` ersetzt die Adresse (nur Debug-Build und Tests; Tests und `dev/e2e/covers.mjs` nutzen einen lokalen Mock-Server).
+- `cover_cache_stats() -> { count, bytes }`, `cover_cache_clear() -> { removed, bytes }` (nur Bilder und Merker im Cover-Cache).
+- Frontend: `src/art/coverService.ts` (Hülle, Warteschlange mit 2 parallelen Suchen), `useGameLibrary` (Kategorien sofort mit Platzhaltern,
+  Cover danach nach und nach; Einträge behalten ihre IDs, nur `art`/`artShape` ändern sich), `CoverSettingsDialog` (Einstellungen →
+  „Cover & Grafiken“, `settings.covers.auto`, Standard An). Eigene Bilder neben dem Spiel (`findCover`) haben immer Vorrang; Demo-Spiele holen nichts.
+  Gelesen werden die Cache-Bilder wie jede Datei über den ArtLoader (`fs:allow-read-file` für `$APPCACHE/covers/**` in `capabilities/library.json`).
+  Boxart ist Hochformat (`artShape: "poster"`): `ArtImage` zeigt sie ganz (`object-fit: contain`) vor einer unscharfen Kopie.
+
 ## Jellyfin (`src/jellyfin/`)
 
 - `createJfContext({ url, apiKey, userId? }) -> JfContext` – ermittelt den Benutzer (per `GET /Users`; ohne gespeicherte

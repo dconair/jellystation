@@ -29,6 +29,9 @@ Die App spricht ihn mit `http://127.0.0.1:18110` und dem Key `abc123` an. Ohne `
 | `media/clip.mkv` | derselbe Inhalt in Matroska – wird im Szenario `transcode` als "HEVC + DTS, nicht direkt abspielbar" ausgegeben |
 | `media/hls0/`, `media/hls1/` | HLS (fMP4, VP9 + Opus), je Tonspur – Chromium-tauglich; `AudioStreamIndex=2` liefert `hls1` |
 | `media/sub.de.vtt`, `sub.en.vtt` | WebVTT-Untertitel |
+| `media/trickplay/160/`, `trickplay/320/` | Kachelbilder für die Vorschau auf der Zeitleiste: 1 Bild pro Sekunde, 5 × 5 Bilder je JPG (`0.jpg` voll, `1.jpg` mit 5 Bildern), Bilder 160×90 bzw. 320×180 |
+
+`make-media.sh` erzeugt nur, was fehlt (laufende Mock-Server mit den vorhandenen Medien werden nicht gestört); `--force` erzeugt alles neu.
 
 Streams jedes Titels: 0 Video, 1 Audio Deutsch (Standard), 2 Audio English, 3 Untertitel Deutsch (extern, Text), 4 Untertitel English (Text),
 5 Untertitel Deutsch (PGS, Bild → nur per Einbrennen).
@@ -46,6 +49,7 @@ Streams jedes Titels: 0 Video, 1 Audio Deutsch (Standard), 2 Audio English, 3 Un
 | Anmeldung | `legacyauth` (alles geht), `strictauth` (wie neue Server: `X-Emby-Token` und `?api_key=` werden abgelehnt) |
 | Adressen in HLS-Listen | `hls-relative`, `hls-root` (`/videos/…`), `hls-absolute` (`http://host/videos/…`) |
 | Form der `TranscodingUrl` | `url-root` (`/videos/…`), `url-rel` (`videos/…`) |
+| Vorschaubilder (Trickplay) | `trickplay` (Item-DTO meldet `Trickplay`, Kachelbilder gibt es), `notrickplay` (kein Feld, Kachelbilder 404 → Player nimmt die Bilder selbst auf), `trickplay404` (Feld da, Kachelbilder 404) |
 
 Weitere Befehle:
 
@@ -73,6 +77,8 @@ Weitere Befehle:
 - `Sessions/Playing*` werden angenommen (204), speichern aber nichts (API-Key-Sitzung ohne Benutzer); `Sessions/Playing/Stopped` beendet die Umwandlung.
 - `PlaybackInfo` prüft das gesendete `DeviceProfile` (Container, Video-/Audiocodec, zweite Tonspur, Bitrate, Untertitelformat) und liefert danach Direct Play
   oder eine `TranscodingUrl` mit `TranscodeReasons`; Bild-Untertitel werden eingebrannt (`SubtitleMethod=Encode`).
+- Vorschau: `GET /Items/{id}` und `GET /Items?ids=…&fields=Trickplay,Chapters` liefern `Trickplay` (`{ <quellenId>: { "160": {Width, Height, TileWidth, TileHeight, ThumbnailCount, Interval, Bandwidth}, "320": … } }`)
+  und `Chapters` (Anfang / Die Mitte / Finale); `GET /Videos/{id}/Trickplay/{breite}/{n}.jpg[?mediaSourceId=…]` liefert die Kachelbilder (404 für unbekannte Breite/Nummer).
 - Medien: `GET /Videos/{id}/stream[.ext]` mit `Range` (206, `Content-Range`), HLS unter `/videos/{id}/master.m3u8` → `main.m3u8` → `hls1/main/N.mp4`,
   Untertitel unter `/Videos/{id}/{quelle}/Subtitles/{index}[/{ticks}]/Stream.vtt`.
 - Proxy-Nachbildung: Alles unter `/p/<beliebig>/…` geht ohne Anmeldung durch (nur GET/HEAD); `.m3u8`-Antworten werden wie beim echten Proxy umgeschrieben

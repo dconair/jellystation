@@ -18,11 +18,12 @@ import type { PopupItem } from "./ui/popup";
 import { formatClock, formatRemaining, watchState } from "./xmb/progress";
 import { useJellyfinLibrary } from "./jellyfin/useJellyfinLibrary";
 import { useGameLauncher } from "./launcher/useGameLauncher";
+import { CoverSettingsDialog } from "./art/CoverSettingsDialog";
 import { useGameLibrary } from "./library/useGameLibrary";
 import { useAmbientMusic } from "./audio/useAmbientMusic";
 import { initUiPrefs, THEMES, useUiPrefs } from "./prefs/uiPrefs";
 import { MOODS } from "./audio/moods";
-import { loadSettings, saveSettings } from "./settings/settings";
+import { coversAuto, loadSettings, saveSettings } from "./settings/settings";
 import type { Settings } from "./settings/settings";
 import { SetupWizard } from "./setup/SetupWizard";
 import { Xmb } from "./xmb/Xmb";
@@ -100,6 +101,7 @@ type Overlay =
   | { kind: "resume"; entry: XmbEntry; playlist?: XmbEntry[] }
   | { kind: "series"; series: XmbEntry }
   | { kind: "settings"; section: SettingsSection }
+  | { kind: "covers" }
   | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[] };
 
 const jfConfigOf = (settings: Settings | null) =>
@@ -116,7 +118,7 @@ function Main({
   onChangeSettings: (next: Settings) => void;
   onRunSetup: () => void;
 }) {
-  const library = useGameLibrary(settings?.gamesDir);
+  const library = useGameLibrary(settings?.gamesDir, coversAuto(settings));
   const jellyfin = useJellyfinLibrary(settings?.jellyfin);
   const emulators = useEmulators(settings?.emulators);
   const biosDir = settings?.biosDir ?? "";
@@ -185,6 +187,8 @@ function Main({
                       ? { ...e, subtitle: motionSummary }
                     : e.action === "open-sound-settings"
                       ? { ...e, subtitle: soundSummary }
+                    : e.action === "open-covers"
+                      ? { ...e, subtitle: coversAuto(settings) ? "Automatisch laden: An" : "Automatisch laden: Aus" }
                     : e.action === "open-requirements"
                       ? { ...e, subtitle: filesSummary }
                     : e.action === "toggle-transcode"
@@ -238,6 +242,7 @@ function Main({
       else if (entry.action === "open-display-settings") openOverlay({ kind: "settings", section: "display" });
       else if (entry.action === "open-motion-settings") openOverlay({ kind: "settings", section: "motion" });
       else if (entry.action === "open-sound-settings") openOverlay({ kind: "settings", section: "sound" });
+      else if (entry.action === "open-covers") openOverlay({ kind: "covers" });
       else if (entry.action === "choose-jellyfin-user") void openUsers();
       else if (entry.action === "toggle-transcode") {
         const next = !loadPrefs().alwaysTranscode;
@@ -308,6 +313,15 @@ function Main({
     );
   } else if (overlay?.kind === "settings") {
     layer = <SettingsDialog section={overlay.section} onClose={close} />;
+  } else if (overlay?.kind === "covers") {
+    layer = (
+      <CoverSettingsDialog
+        auto={coversAuto(settings)}
+        onChangeAuto={(auto) => settings && onChangeSettings({ ...settings, covers: { auto } })}
+        library={library}
+        onClose={close}
+      />
+    );
   } else if (overlay?.kind === "users") {
     layer = (
       <UsersList

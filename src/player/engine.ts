@@ -6,11 +6,15 @@ import { planPlayback } from "../jellyfin/playback";
 import type { PlanOptions, PlaybackPlan } from "../jellyfin/playback";
 import { hlsMode } from "../jellyfin/profile";
 import { PlaybackReporter } from "../jellyfin/reporter";
+import { fetchPreviewMeta, pickTrickplay, trickplaySheetUrl } from "../jellyfin/trickplay";
+import type { PreviewChapter } from "../jellyfin/trickplay";
 import { isDemoEntry, makeDemoPlan } from "./demoPlan";
 import { METHOD_LABEL } from "./format";
 import { attachHls } from "./hlsLoader";
 import type { HlsFatal, HlsHandle } from "./hlsLoader";
 import { langKey, loadPrefs, savePrefs } from "./prefs";
+import { canPreviewLocally, LocalPreviewSource, TrickplaySource } from "./previews";
+import type { PreviewSource } from "./previews";
 
 /*
  * Die Wiedergabe-Maschine des Players: alles, was mit <video>, hls.js, Planung und Berichten zu tun hat –
@@ -77,6 +81,10 @@ export interface EngineState {
   notice: PlayerNotice | null;
   /** Gewählte Bitrate-Grenze (Bit/s), undefined = Original. */
   maxBitrate: number | undefined;
+  /** Vorschaubilder für die Zeitleiste (Server-Trickplay oder lokal erzeugt); null = keine, dann nur die Zeit. */
+  previews: PreviewSource | null;
+  /** Kapitel des Titels (leer, wenn der Server keine liefert). */
+  chapters: PreviewChapter[];
 }
 
 export interface PlayerCloseInfo {
@@ -238,6 +246,12 @@ export class PlayerEngine {
   private snapshot: HTMLCanvasElement | null = null;
   private lastPos = 0;
   private pendingStart = 0;
+  /** Vorschaubilder: Schlüssel des Titels, dessen Metadaten geladen werden bzw. wurden, und die beiden Quellen. */
+  private pvKey = "";
+  private pvMetaDone = false;
+  private pvAbort: AbortController | null = null;
+  private pvTrickplay: TrickplaySource | null = null;
+  private pvLocal: LocalPreviewSource | null = null;
 
   constructor(video: HTMLVideoElement, opts: EngineOptions = {}) {
     this.video = video;
@@ -268,6 +282,8 @@ export class PlayerEngine {
       problem: null,
       notice: null,
       maxBitrate: prefs.maxBitrate,
+      previews: null,
+      chapters: [],
     };
     const events = [
       "loadedmetadata", "durationchange", "timeupdate", "progress", "play", "pause", "playing", "waiting", "stalled",
@@ -315,6 +331,7 @@ export class PlayerEngine {
     const hadReporter = this.reporter !== null;
     if (hadReporter) void this.reportStop(this.s.ended, this.position());
     this.teardownMedia();
+    this.teardownPreviews();
 
     this.entry = entry;
     this.demo = isDemoEntry(entry);
@@ -440,6 +457,7 @@ export class PlayerEngine {
     this.applySubtitle(plan, o.wanted);
     this.video.playbackRate = this.s.rate;
     this.emit({ phase: "ready", time: this.video.currentTime || clamped });
+    this.refreshPreviews(plan, gen);
     if (o.play) {
       await this.playNow(gen);
     } else {
@@ -960,6 +978,86 @@ export class PlayerEngine {
     this.trackEl = el;
   }
 
+  /* ------------------------------------------------------------ Vorschaubilder */
+
+  /**
+   * Sorgt für die Vorschaubilder der Zeitleiste. Erste Wahl: die Kachelbilder des Servers (Trickplay; die Metadaten
+   * kommen nebenher, Fehler bleiben still). Gibt es sie nicht und lässt sich die Datei direkt lesen (Demo, Direktwiedergabe),
+   * nimmt ein verstecktes zweites <video> Bilder auf. Bei HLS-Umwandlung bleibt es bei der Zeit.
+   */
+  private refreshPreviews(plan: PlaybackPlan, gen: number) {
+    const key = `${plan.itemId}|${plan.mediaSourceId}`;
+    if (key !== this.pvKey) {
+      this.teardownPreviews();
+      this.pvKey = key;
+    }
+    const ctx = this.ctx;
+    if (!this.demo && ctx && !this.pvMetaDone && !this.pvAbort) {
+      const abort = new AbortController();
+      this.pvAbort = abort;
+      fetchPreviewMeta(ctx, plan.itemId, plan.mediaSourceId, { signal: abort.signal }).then(
+        (meta) => {
+          if (abort.signal.aborted || gen !== this.gen) return;
+          this.pvMetaDone = true;
+          const info = pickTrickplay(meta.trickplay);
+          if (info) {
+            const source = new TrickplaySource(info, (n) => trickplaySheetUrl(ctx, plan.itemId, plan.mediaSourceId, info.width, n));
+            this.pvTrickplay = source;
+            // Liefert der Server die Bilder doch nicht aus, springt die lokale Aufnahme ein.
+            source.subscribe(() => {
+              if (!source.failed || this.pvTrickplay !== source) return;
+              source.dispose();
+              this.pvTrickplay = null;
+              this.syncPreviews();
+            });
+          }
+          this.emit({ chapters: meta.chapters });
+          this.syncPreviews();
+        },
+        () => {
+          if (abort.signal.aborted || gen !== this.gen) return;
+          this.pvMetaDone = true;
+          this.syncPreviews();
+        },
+      );
+      return;
+    }
+    this.syncPreviews();
+  }
+
+  /** Stellt die Quelle für die Oberfläche ein: Trickplay, sonst (wenn möglich) die lokale Aufnahme, sonst keine. */
+  private syncPreviews() {
+    const plan = this.plan;
+    if (this.disposed || !plan) return;
+    let next: PreviewSource | null = this.pvTrickplay;
+    const waiting = !this.demo && !!this.ctx && !this.pvMetaDone && !this.pvTrickplay;
+    if (!next && !waiting && canPreviewLocally(plan)) {
+      if (this.pvLocal) {
+        this.pvLocal.retarget(plan.url);
+      } else {
+        const { width, height } = plan.source;
+        this.pvLocal = new LocalPreviewSource(plan.url, plan.durationSec, width && height ? width / height : undefined);
+      }
+      next = this.pvLocal;
+    } else if (this.pvLocal) {
+      this.pvLocal.dispose();
+      this.pvLocal = null;
+    }
+    this.emit({ previews: next });
+  }
+
+  private teardownPreviews() {
+    this.pvAbort?.abort();
+    this.pvAbort = null;
+    this.pvTrickplay?.dispose();
+    this.pvTrickplay = null;
+    this.pvLocal?.dispose();
+    this.pvLocal = null;
+    this.pvKey = "";
+    this.pvMetaDone = false;
+    if (this.s.previews || this.s.chapters.length > 0) this.emit({ previews: null, chapters: [] });
+  }
+
   /* ------------------------------------------------------------------ Hilfen */
 
   /** Standbild der laufenden Wiedergabe in die Fläche hinter dem Video (Umstellen: das Bild bleibt stehen). */
@@ -1029,6 +1127,7 @@ export class PlayerEngine {
     this.abortWork();
     const stop = this.reportStop(ended, pos);
     this.teardownMedia();
+    this.teardownPreviews();
     this.emit({ busy: null, buffering: false, fault: null });
     await Promise.race([stop, new Promise<void>((r) => window.setTimeout(r, FINISH_WAIT_MS))]);
     return { positionSec: ended && dur > 0 ? dur : pos, ended, entry };
@@ -1043,6 +1142,7 @@ export class PlayerEngine {
     this.abortWork();
     void this.reportStop(ended, pos);
     this.teardownMedia();
+    this.teardownPreviews();
     window.clearTimeout(this.frozenTimer);
     this.disposed = true;
     const v = this.video;

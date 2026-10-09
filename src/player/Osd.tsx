@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { chapterAt } from "../jellyfin/trickplay";
+import type { PreviewChapter } from "../jellyfin/trickplay";
 import { DotSpinner } from "../ui/popup";
 import { PsSymbol } from "../ui/PsSymbol";
 import type { PsSymbolName } from "../ui/PsSymbol";
 import { formatClock, formatDayTime } from "./format";
 import type { Headline } from "./format";
+import { PreviewPicture } from "./Preview";
+import type { PreviewSource } from "./previews";
 
 /*
  * Reine Anzeige des Players: Titelzeile, Bedienfeld, Lautstärke, Untertitel, Ladeanzeige. Keine Logik –
@@ -97,6 +101,10 @@ export interface OsdProps {
   buffered: number;
   /** Zielzeit beim Spulen; null = kein Spulen. */
   scrub: number | null;
+  /** Vorschaubilder für die Blase über der Leiste (beim Spulen und beim Überfahren mit der Maus); fehlen sie, steht dort nur die Zeit. */
+  previews?: PreviewSource | null;
+  /** Kapitel; das aktuelle erscheint unter der Zeit in der Blase. */
+  chapters?: PreviewChapter[];
   /** Kurzbeschreibung der Methode ("Direkt", "Transkodiert") für die Ecke rechts unten. */
   methodLabel?: string;
   onToggle(): void;
@@ -125,6 +133,31 @@ export function Osd(p: OsdProps) {
     if (!r || r.width <= 0) return 0;
     return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
   };
+
+  // Blase: beim Spulen an der Zielzeit, sonst (Maus über der Leiste) dort, wo der Zeiger steht.
+  const [hover, setHover] = useState<number | null>(null);
+  const bubbleSec = p.scrub ?? (hover !== null && dur > 0 ? hover * dur : null);
+  const bubbleRatio = bubbleSec !== null && dur > 0 ? Math.min(1, Math.max(0, bubbleSec / dur)) : 0;
+  const previews = p.previews && !p.previews.failed ? p.previews : null;
+  const chapter = bubbleSec !== null ? chapterAt(p.chapters ?? [], bubbleSec) : null;
+
+  // Jedes neue Bild (und jede Größenänderung) erneuert die Blase.
+  const [, bump] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => (p.previews ? p.previews.subscribe(bump) : undefined), [p.previews]);
+
+  // Am Rand der Leiste rutscht die Blase nach innen, damit sie im Bild bleibt; die Spitze zeigt weiter auf die Stelle.
+  const cardRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    const track = trackRef.current;
+    if (!card || !track) return;
+    const r = track.getBoundingClientRect();
+    const width = card.offsetWidth;
+    const pad = Math.max(12, window.innerWidth * 0.012);
+    const center = r.left + bubbleRatio * r.width;
+    const left = Math.min(Math.max(center - width / 2, pad), Math.max(pad, window.innerWidth - pad - width));
+    card.style.setProperty("--shift", `${Math.round(left - (center - width / 2))}px`);
+  });
 
   return (
     <div className={`player-osd${p.visible ? " is-on" : ""}`} aria-hidden={!p.visible}>
@@ -163,19 +196,24 @@ export function Osd(p: OsdProps) {
               if (e.button !== 0 || dur <= 0) return;
               e.stopPropagation();
               dragging.current = true;
+              setHover(null);
               e.currentTarget.setPointerCapture(e.pointerId);
               p.onScrub(ratioAt(e), false);
             }}
             onPointerMove={(e) => {
               if (dragging.current) p.onScrub(ratioAt(e), false);
+              else if (e.pointerType !== "touch" && dur > 0) setHover(ratioAt(e));
             }}
             onPointerUp={(e) => {
               if (!dragging.current) return;
               dragging.current = false;
               p.onScrub(ratioAt(e), true);
+              if (e.pointerType === "touch") setHover(null);
             }}
+            onPointerLeave={() => setHover(null)}
             onPointerCancel={() => {
               dragging.current = false;
+              setHover(null);
             }}
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
@@ -194,9 +232,13 @@ export function Osd(p: OsdProps) {
               <i className="player-track__buffer" />
               <i className="player-track__played" />
               <i className="player-track__knob" />
-              {p.scrub !== null && (
-                <span className="player-bubble" style={{ left: `${ratio * 100}%` }} role="status">
-                  {formatClock(p.scrub)}
+              {bubbleSec !== null && (
+                <span className="player-bubble" style={{ left: `${bubbleRatio * 100}%` }} role="status">
+                  <span className="player-bubble__card" ref={cardRef}>
+                    {previews && <PreviewPicture source={previews} sec={bubbleSec} />}
+                    <span className="player-bubble__time">{formatClock(bubbleSec)}</span>
+                    {chapter && <span className="player-bubble__chapter">{chapter.name}</span>}
+                  </span>
                 </span>
               )}
             </div>

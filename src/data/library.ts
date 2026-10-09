@@ -129,6 +129,10 @@ export const categories: XmbCategory[] = [
         action: "open-display-settings",
       },
       {
+        ...entry("st-covers", "Cover & Grafiken", "Automatisch laden", 305, "Holt fehlende Spiele-Cover aus dem Spiel selbst oder aus dem Netz (thumbnails.libretro.com). Eigene Bilder neben dem Spiel haben immer Vorrang."),
+        action: "open-covers",
+      },
+      {
         ...entry("st-motion", "Animationen", "Tempo und Stärke der Bewegung", 120, "Menü-Animationen ein- oder ausschalten und das Tempo der Bewegung wählen."),
         action: "open-motion-settings",
       },

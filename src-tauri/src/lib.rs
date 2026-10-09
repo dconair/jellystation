@@ -1,3 +1,4 @@
+pub mod covers;
 pub mod discovery;
 pub mod emulators;
 pub mod media_proxy;
@@ -27,6 +28,8 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         // Lokaler Medien-Proxy für <video>/hls.js (Anmeldung, http im LAN) – media_proxy.rs
         .manage(media_proxy::MediaProxy::default())
+        // Automatische Spiele-Cover (eingebettet + libretro-Thumbnails, mit Cache) – covers.rs
+        .manage(covers::Covers::default())
         .setup(|app| {
             // Laufende Spiele und launch.log (App-Log-Ordner) – emulators.rs
             let processes = emulators::init_state(app.handle());
@@ -45,6 +48,9 @@ pub fn run() {
             emulators::launch_log_tail,
             requirements::requirements_scan,
             requirements::bios_copy,
+            covers::cover_resolve,
+            covers::cover_cache_stats,
+            covers::cover_cache_clear,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten der Tauri-Anwendung");

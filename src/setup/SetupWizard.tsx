@@ -173,6 +173,7 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
       ...(initial?.emulators ? { emulators: initial.emulators } : {}),
       ...(draft.biosDir.trim() ? { biosDir: draft.biosDir.trim() } : {}),
       ...(initial?.ui ? { ui: initial.ui } : {}),
+      ...(initial?.covers ? { covers: initial.covers } : {}),
       gamesDir: draft.gamesDir.trim(),
       completedAt: new Date().toISOString(),
     };
