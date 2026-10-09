@@ -124,8 +124,18 @@ export const categories: XmbCategory[] = [
         ...entry("st-transcode", "Wiedergabe", "Direkt, wenn möglich", 175, "Wählt, ob der Player Dateien direkt abspielt oder der Jellyfin-Server alles umwandelt (HLS). „Immer umwandeln“ hilft bei Formaten, die dein Mac nicht abspielen kann."),
         action: "toggle-transcode",
       },
-      entry("st3", "Anzeige", "Vollbild, Skalierung", 195),
-      entry("st4", "Ton", "Ausgabegerät und Lautstärke", 170),
+      {
+        ...entry("st3", "Anzeige & Farben", "Helligkeit, Farbthema, Hintergrund", 195, "Helligkeit, Farbthema und Hintergrund-Elemente (Wellen, Formen, Lichtpartikel) anpassen."),
+        action: "open-display-settings",
+      },
+      {
+        ...entry("st-motion", "Animationen", "Tempo und Stärke der Bewegung", 120, "Menü-Animationen ein- oder ausschalten und das Tempo der Bewegung wählen."),
+        action: "open-motion-settings",
+      },
+      {
+        ...entry("st4", "Ton & Musik", "Menü-Töne, Hintergrundmusik", 170, "Lautstärke der Menü-Töne und atmosphärische Hintergrundmusik wie auf der PS4."),
+        action: "open-sound-settings",
+      },
       { ...entry("st-setup", "Einrichtung erneut ausführen", "Jellyfin, Ordner, Controller", 150, "Startet den Setup-Assistenten mit deinen aktuellen Werten."), action: "run-setup" },
       entry("st5", "Über JellyStation", `Version ${APP_VERSION_LABEL}`, 280, aboutDescription),
     ],

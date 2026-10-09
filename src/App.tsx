@@ -5,11 +5,13 @@ import { EmulatorsDialog, summarizeEmulators, useEmulators } from "./emulators";
 import { RequirementsDialog } from "./emulators/RequirementsDialog";
 import { biosDirOf, blockingMissing, checkRequirements, missingLabels, requirementsFor } from "./emulators/requirements";
 import { useRequirements } from "./emulators/useRequirements";
-import { getJfContext, listJfUsers } from "./jellyfin/context";
+import { listJfUsers } from "./jellyfin/context";
 import type { JfUser } from "./jellyfin/context";
-import { getEpisodes, getNextUp } from "./jellyfin/items";
 import { emptyLibraryEntry } from "./jellyfin/library";
 import { Player } from "./player/Player";
+import { SettingsDialog } from "./prefs/SettingsDialog";
+import type { SettingsSection } from "./prefs/SettingsDialog";
+import { SeriesScreen } from "./series/SeriesScreen";
 import { loadPrefs, savePrefs } from "./player/prefs";
 import { PopupList } from "./ui/popup";
 import type { PopupItem } from "./ui/popup";
@@ -17,6 +19,9 @@ import { formatClock, formatRemaining, watchState } from "./xmb/progress";
 import { useJellyfinLibrary } from "./jellyfin/useJellyfinLibrary";
 import { useGameLauncher } from "./launcher/useGameLauncher";
 import { useGameLibrary } from "./library/useGameLibrary";
+import { useAmbientMusic } from "./audio/useAmbientMusic";
+import { initUiPrefs, THEMES, useUiPrefs } from "./prefs/uiPrefs";
+import { MOODS } from "./audio/moods";
 import { loadSettings, saveSettings } from "./settings/settings";
 import type { Settings } from "./settings/settings";
 import { SetupWizard } from "./setup/SetupWizard";
@@ -31,10 +36,24 @@ export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [phase, setPhase] = useState<"loading" | "setup" | "ready">("loading");
 
+  // Neuester Stand der Einstellungen für das (entprellte) Speichern der Darstellungs-Einstellungen.
+  const latest = useRef<Settings | null>(null);
+  latest.current = settings;
+
   useEffect(() => {
     let cancelled = false;
     void loadSettings().then((loaded) => {
       if (cancelled) return;
+      latest.current = loaded;
+      // Darstellung/Klang sofort anwenden; Änderungen werden in settings.ui gespeichert.
+      initUiPrefs(loaded?.ui, (ui) => {
+        const cur = latest.current;
+        if (!cur) return;
+        const next = { ...cur, ui };
+        latest.current = next;
+        setSettings(next);
+        void saveSettings(next).catch((err) => console.warn("Einstellungen nicht gespeichert", err));
+      });
       setSettings(loaded);
       setPhase(loaded ? "ready" : "setup");
     });
@@ -79,7 +98,8 @@ type Overlay =
   | { kind: "files"; focusEmulatorId?: string; message?: string }
   | { kind: "users"; users: JfUser[] | null; error?: string }
   | { kind: "resume"; entry: XmbEntry; playlist?: XmbEntry[] }
-  | { kind: "episodes"; series: XmbEntry; episodes: XmbEntry[] | null; focusId?: string; error?: string }
+  | { kind: "series"; series: XmbEntry }
+  | { kind: "settings"; section: SettingsSection }
   | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[] };
 
 const jfConfigOf = (settings: Settings | null) =>
@@ -124,10 +144,16 @@ function Main({
   });
 
   const jfConfig = jfConfigOf(settings);
+  // Hintergrundmusik pausiert, solange ein Film läuft oder ein Spiel startet/läuft.
+  useAmbientMusic({ suspended: overlay?.kind === "player" || running.size > 0 || !!launcherOverlay });
 
   // Echte Jellyfin-Titel ersetzen die Demo-Einträge – aber nur, wenn überhaupt etwas geladen wurde.
   const hasJellyfinItems = jellyfin.status === "ok" && jellyfin.movies.length + jellyfin.series.length > 0;
 
+  const ui = useUiPrefs();
+  const displaySummary = `${THEMES.find((t) => t.id === ui.themeId)?.label ?? "Automatisch"} · Helligkeit ${Math.round(ui.brightness * 100)} %`;
+  const motionSummary = ui.animations === "full" ? "Voll" : ui.animations === "reduced" ? "Reduziert" : "Aus";
+  const soundSummary = ui.musicEnabled ? `Musik: ${MOODS.find((m) => m.id === ui.musicMood)?.label ?? ""}` : "Musik aus";
   const emulatorSummary = useMemo(() => summarizeEmulators(emulators.statuses), [emulators.statuses]);
   const filesSummary = useMemo(() => {
     const m = missingLabels(requirements.statuses);
@@ -153,6 +179,12 @@ function Main({
                   ? { ...e, subtitle: settings.gamesDir }
                   : e.action === "open-emulators"
                     ? { ...e, subtitle: emulatorSummary }
+                    : e.action === "open-display-settings"
+                      ? { ...e, subtitle: displaySummary }
+                    : e.action === "open-motion-settings"
+                      ? { ...e, subtitle: motionSummary }
+                    : e.action === "open-sound-settings"
+                      ? { ...e, subtitle: soundSummary }
                     : e.action === "open-requirements"
                       ? { ...e, subtitle: filesSummary }
                     : e.action === "toggle-transcode"
@@ -166,7 +198,7 @@ function Main({
     // Spiele-Systeme (PS1, PS2, PS3 …) landen direkt hinter den Serien.
     const at = base.findIndex((c) => c.id === "series") + 1;
     return [...base.slice(0, at), ...library.categories, ...base.slice(at)];
-  }, [library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, filesSummary, userName, jfConfig, alwaysTranscode]);
+  }, [library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
 
   /** Titel abspielen; ab einer gespeicherten Position fragt vorher ein Dialog nach Fortsetzen/Von vorn. */
   const play = useCallback(
@@ -179,25 +211,11 @@ function Main({
   );
 
   const openSeries = useCallback(
-    async (series: XmbEntry) => {
-      // Demo-Serien (ohne Server) spielen direkt das Demo-Video.
-      if (!series.jellyfin || !jfConfig) return play(series);
-      openOverlay({ kind: "episodes", series, episodes: null });
-      const seq = overlaySeq.current;
-      try {
-        const ctx = await getJfContext(jfConfig);
-        const [episodes, next] = await Promise.all([
-          getEpisodes(ctx, series.jellyfin.id),
-          getNextUp(ctx, series.jellyfin.id).catch(() => null),
-        ]);
-        if (overlaySeq.current !== seq) return;
-        setOverlay({ kind: "episodes", series, episodes, focusId: next?.id ?? episodes[0]?.id });
-      } catch (err) {
-        if (overlaySeq.current !== seq) return;
-        setOverlay({ kind: "episodes", series, episodes: [], error: errorMessage(err) });
-      }
+    (series: XmbEntry) => {
+      // Demo-Serien (ohne Server) und echte Serien öffnen denselben Serien-Screen.
+      openOverlay({ kind: "series", series });
     },
-    [jfConfig, openOverlay, play],
+    [openOverlay],
   );
 
   const openUsers = useCallback(async () => {
@@ -217,6 +235,9 @@ function Main({
       if (entry.action === "run-setup") onRunSetup();
       else if (entry.action === "open-emulators") openOverlay({ kind: "emulators" });
       else if (entry.action === "open-requirements") openOverlay({ kind: "files" });
+      else if (entry.action === "open-display-settings") openOverlay({ kind: "settings", section: "display" });
+      else if (entry.action === "open-motion-settings") openOverlay({ kind: "settings", section: "motion" });
+      else if (entry.action === "open-sound-settings") openOverlay({ kind: "settings", section: "sound" });
       else if (entry.action === "choose-jellyfin-user") void openUsers();
       else if (entry.action === "toggle-transcode") {
         const next = !loadPrefs().alwaysTranscode;
@@ -226,7 +247,7 @@ function Main({
       }
       else if (entry.id.startsWith("jf-empty/")) return; // Platzhalter einer leeren Spalte
       else if (category.id === "movies") play(entry);
-      else if (category.id === "series") void openSeries(entry);
+      else if (category.id === "series") openSeries(entry);
       else void launch(entry, notify);
     },
     [launch, onRunSetup, openOverlay, openUsers, openSeries, play],
@@ -276,8 +297,17 @@ function Main({
         onBack={close}
       />
     );
-  } else if (overlay?.kind === "episodes") {
-    layer = <EpisodesList overlay={overlay} onPick={(ep, list) => play(ep, list)} onBack={close} />;
+  } else if (overlay?.kind === "series") {
+    layer = (
+      <SeriesScreen
+        series={overlay.series}
+        jellyfin={jfConfig}
+        onPlay={(episode, playlist, startSec) => openOverlay({ kind: "player", entry: episode, startSec, playlist })}
+        onClose={close}
+      />
+    );
+  } else if (overlay?.kind === "settings") {
+    layer = <SettingsDialog section={overlay.section} onClose={close} />;
   } else if (overlay?.kind === "users") {
     layer = (
       <UsersList
@@ -346,58 +376,6 @@ const remainingText = (entry: XmbEntry) => {
   const left = watchState(entry)?.remainingSec;
   return left ? `noch ${formatRemaining(left)}` : undefined;
 };
-
-function EpisodesList({
-  overlay,
-  onPick,
-  onBack,
-}: {
-  overlay: Extract<Overlay, { kind: "episodes" }>;
-  onPick: (episode: XmbEntry, list: XmbEntry[]) => void;
-  onBack: () => void;
-}) {
-  const { series, episodes, error, focusId } = overlay;
-  const items = useMemo<PopupItem[]>(() => {
-    const out: PopupItem[] = [];
-    let season: number | undefined | null = null;
-    for (const ep of episodes ?? []) {
-      const n = ep.jellyfin?.seasonNumber;
-      if (n !== season) {
-        season = n;
-        out.push({ id: `season/${n ?? "x"}`, label: n === 0 ? "Specials" : n ? `Staffel ${n}` : "Folgen", header: true });
-      }
-      const state = watchState(ep);
-      out.push({
-        id: ep.id,
-        label: ep.title,
-        detail: ep.subtitle,
-        art: ep,
-        progress: state && !state.played && state.ratio > 0 ? state.ratio : undefined,
-        status: state?.played ? "ok" : undefined,
-        trailing: state?.played ? "Gesehen" : state?.remainingSec ? formatRemaining(state.remainingSec) : undefined,
-      });
-    }
-    return out;
-  }, [episodes]);
-
-  return (
-    <PopupList
-      title={series.title}
-      subtitle="Folgen"
-      width="wide"
-      items={items}
-      busy={episodes === null}
-      focusId={focusId}
-      emptyText={episodes === null ? "Lade Folgen …" : "Keine Folgen gefunden"}
-      footer={error ? { text: error, kind: "error" } : undefined}
-      onSelect={(id) => {
-        const ep = episodes?.find((e) => e.id === id);
-        if (ep && episodes) onPick(ep, episodes);
-      }}
-      onBack={onBack}
-    />
-  );
-}
 
 function UsersList({
   users,

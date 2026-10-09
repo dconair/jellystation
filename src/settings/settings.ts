@@ -1,4 +1,6 @@
 import { isTauri } from "../platform";
+import { sanitizeUiPrefs } from "../prefs/uiPrefs";
+import type { UiPrefs } from "../prefs/uiPrefs";
 
 export interface Settings {
   /** Schema-Version für spätere Migrationen. */
@@ -18,6 +20,8 @@ export interface Settings {
   emulators?: Record<string, string>;
   /** Ordner mit BIOS- und Firmware-Dateien (vom Nutzer bereitgestellt); fehlt er, gilt ~/JellyStation/BIOS. */
   biosDir?: string;
+  /** Darstellung und Klang (siehe src/prefs/uiPrefs.ts); fehlt es, gelten die Standardwerte. */
+  ui?: Partial<UiPrefs>;
   /** Absoluter Pfad des Spiele-Basisordners; leer = Standardordner/Demo-Modus. */
   gamesDir: string;
   /** Zeitpunkt des Setup-Abschlusses (ISO). */
@@ -83,6 +87,7 @@ function validate(raw: unknown): Settings | null {
     },
     ...(isStringRecord(r.emulators) ? { emulators: r.emulators } : {}),
     ...(typeof r.biosDir === "string" && r.biosDir.trim() ? { biosDir: r.biosDir } : {}),
+    ...(r.ui && typeof r.ui === "object" ? { ui: sanitizeUiPrefs(r.ui) } : {}),
     gamesDir: typeof r.gamesDir === "string" ? r.gamesDir : "",
     completedAt: r.completedAt,
   };
