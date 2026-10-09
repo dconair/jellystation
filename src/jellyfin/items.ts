@@ -29,6 +29,10 @@ export interface JfItem {
   userData?: JfUserData;
   /** "Virtual" = fehlende Folge (nur Platzhalter, nicht abspielbar). */
   isVirtual: boolean;
+  /** Genres (nur wenn der Server sie mitliefert, z. B. bei Einzelabfragen). */
+  genres?: string[];
+  /** ISO-Datum der Erstausstrahlung bzw. Veröffentlichung. */
+  premiereDate?: string;
   // Nur bei Folgen:
   seriesId?: string;
   seriesName?: string;
@@ -70,6 +74,12 @@ export function parseItem(raw: unknown): JfItem | null {
       ...(text(d.LastPlayedDate) ? { lastPlayed: text(d.LastPlayedDate) } : {}),
     };
   }
+  if (Array.isArray(dto.Genres)) {
+    const genres = dto.Genres.map(text).filter(Boolean);
+    if (genres.length) item.genres = genres;
+  }
+  const premiere = text(dto.PremiereDate);
+  if (premiere) item.premiereDate = premiere;
   const seriesId = text(dto.SeriesId);
   if (seriesId) item.seriesId = seriesId;
   const seriesName = text(dto.SeriesName);
@@ -225,6 +235,58 @@ export async function getEpisodes(
   opts: { signal?: AbortSignal } = {},
 ): Promise<JfEpisodeEntry[]> {
   return (await loadEpisodes(ctx, seriesId, opts.signal)).map((item) => episodeToEntry(ctx, item, seriesId));
+}
+
+/** Eine Folge als Menü-Eintrag samt Rohdaten (volle Beschreibung, Premierendatum). */
+export interface JfEpisodeInfo {
+  entry: JfEpisodeEntry;
+  item: JfItem;
+}
+
+/** Wie {@link getEpisodes}, aber mit den Rohdaten jeder Folge (für Oberflächen, die mehr als den gekürzten Eintrag zeigen). */
+export async function getEpisodeInfos(
+  ctx: JfContext,
+  seriesId: string,
+  opts: { signal?: AbortSignal } = {},
+): Promise<JfEpisodeInfo[]> {
+  return (await loadEpisodes(ctx, seriesId, opts.signal)).map((item) => ({
+    entry: episodeToEntry(ctx, item, seriesId),
+    item,
+  }));
+}
+
+/**
+ * Markiert einen Titel als gesehen bzw. ungesehen (`POST`/`DELETE /UserPlayedItems/{id}?userId=…`). Server bis 10.8
+ * kennen nur `/Users/{userId}/PlayedItems/{id}` – bei 404/405 wird dieser Pfad versucht. Liefert den neuen Wiedergabestand.
+ */
+export async function setItemPlayed(
+  ctx: JfContext,
+  id: string,
+  played: boolean,
+  opts: { signal?: AbortSignal } = {},
+): Promise<JfUserData> {
+  const { signal } = opts;
+  const method = played ? "POST" : "DELETE";
+  let res = await jfRaw(ctx, `/UserPlayedItems/${encodeURIComponent(id)}`, { method, signal, query: { userId: ctx.userId } });
+  if (res.status === 404 || res.status === 405) {
+    const legacy = await jfRaw(ctx, `/Users/${encodeURIComponent(ctx.userId)}/PlayedItems/${encodeURIComponent(id)}`, {
+      method,
+      signal,
+    });
+    if (legacy.ok) res = legacy;
+  }
+  if (!res.ok) throw statusError(res.status, { 404: "Titel auf dem Server nicht gefunden" });
+  // Die Antwort enthält den neuen Stand; fehlt sie oder ist sie unlesbar, gilt, was gewünscht war.
+  try {
+    const d = JSON.parse(res.text) as Record<string, unknown>;
+    return {
+      positionTicks: Math.max(0, finite(d.PlaybackPositionTicks) ?? 0),
+      played: typeof d.Played === "boolean" ? d.Played : played,
+      playCount: Math.max(0, finite(d.PlayCount) ?? 0),
+    };
+  } catch {
+    return { positionTicks: 0, played, playCount: 0 };
+  }
 }
 
 /** Positionen unter dieser Grenze zählen nicht als "angefangen" (wie in der XMB, src/xmb/progress.ts). */
