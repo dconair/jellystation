@@ -53,14 +53,21 @@ export function nightAt(date: Date) {
   return 0.5 - 0.5 * Math.cos(((hour - 14) / 24) * Math.PI * 2);
 }
 
-export function paletteFor(date: Date): Palette {
-  const hue = monthHues[date.getMonth()];
+export interface PaletteOptions {
+  /** Eigener Farbton statt der Monatsfarbe. */
+  hue?: number | null;
+  /** false = kein Abdunkeln nach Tageszeit. */
+  dayNight?: boolean;
+}
+
+export function paletteFor(date: Date, opts: PaletteOptions = {}): Palette {
+  const hue = opts.hue ?? monthHues[date.getMonth()];
   // In Zehn-Minuten-Stufen gerechnet: so ändert sich der Verlauf ohne sichtbaren Sprung.
   const step = Math.floor((date.getHours() * 60 + date.getMinutes()) / 10);
-  const night = nightAt(new Date(2000, 0, 1, 0, step * 10));
+  const night = opts.dayNight === false ? 0 : nightAt(new Date(2000, 0, 1, 0, step * 10));
   const k = 1 - (1 - NIGHT_FACTOR) * night;
   return {
-    key: `${date.getMonth()}:${step}`,
+    key: `${hue}:${opts.dayNight === false ? "d" : step}`,
     hue,
     night,
     top: css(hue, 0.72, Y_TOP * k),

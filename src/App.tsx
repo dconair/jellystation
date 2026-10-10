@@ -13,6 +13,7 @@ import { SettingsDialog } from "./prefs/SettingsDialog";
 import type { SettingsSection } from "./prefs/SettingsDialog";
 import { SeriesScreen } from "./series/SeriesScreen";
 import { loadPrefs, savePrefs } from "./player/prefs";
+import { UiEffects } from "./prefs/UiEffects";
 import { MessageDialog, PopupList } from "./ui/popup";
 import { APP_COMMIT_SUBJECT, APP_VERSION_LABEL } from "./version";
 import type { PopupItem } from "./ui/popup";
@@ -23,7 +24,6 @@ import { CoverSettingsDialog } from "./art/CoverSettingsDialog";
 import { useGameLibrary } from "./library/useGameLibrary";
 import { useAmbientMusic } from "./audio/useAmbientMusic";
 import { initUiPrefs, THEMES, useUiPrefs } from "./prefs/uiPrefs";
-import { MOODS } from "./audio/moods";
 import { coversAuto, loadSettings, saveSettings } from "./settings/settings";
 import type { Settings } from "./settings/settings";
 import { SetupWizard } from "./setup/SetupWizard";
@@ -165,7 +165,7 @@ function Main({
   const ui = useUiPrefs();
   const displaySummary = `${THEMES.find((t) => t.id === ui.themeId)?.label ?? "Automatisch"} · Helligkeit ${Math.round(ui.brightness * 100)} %`;
   const motionSummary = ui.animations === "full" ? "Voll" : ui.animations === "reduced" ? "Reduziert" : "Aus";
-  const soundSummary = ui.musicEnabled ? `Musik: ${MOODS.find((m) => m.id === ui.musicMood)?.label ?? ""}` : "Musik aus";
+  const soundSummary = `Menü-Töne ${Math.round(ui.sfxVolume * 100)} %`;
   const emulatorSummary = useMemo(() => summarizeEmulators(emulators.statuses), [emulators.statuses]);
   const filesSummary = useMemo(() => {
     const m = missingLabels(requirements.statuses);
@@ -425,6 +425,7 @@ function Main({
       />
       {layer}
       {launcherOverlay}
+      <UiEffects />
     </>
   );
 }

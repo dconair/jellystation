@@ -1,3 +1,4 @@
+import { getUiPrefs } from "../prefs/uiPrefs";
 /**
  * Synthetisierte XMB-Klänge (Web Audio) – keine Audiodateien nötig.
  * Alle Eingabewege (Tastatur, Controller, Maus) lösen dieselben Effekte aus.
@@ -506,12 +507,13 @@ import.meta.hot?.dispose(() => {
 });
 
 export function playSfx(name: Sfx) {
-  if (muted) return;
+  const volume = getUiPrefs().sfxVolume;
+  if (muted || volume <= 0) return;
   const p = ensureAudio();
   if (!p) return;
   p.play(name, {
     pitch: 1 + (Math.random() * 2 - 1) * PITCH_JITTER,
-    level: 1 + (Math.random() * 2 - 1) * LEVEL_JITTER,
+    level: (1 + (Math.random() * 2 - 1) * LEVEL_JITTER) * volume,
     noiseOffset: Math.random() * 0.4,
   });
 }

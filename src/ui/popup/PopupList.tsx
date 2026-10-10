@@ -29,6 +29,8 @@ export interface PopupListProps {
   /** △ / O (Optionen) mit der fokussierten Zeile (null, wenn keine fokussiert ist). Ohne diese Funktion gibt es keinen △-Hinweis. */
   onAlt?: (id: string | null, item: PopupItem | null) => void;
   altLabel?: string;
+  /** ←/→ auf der fokussierten Zeile (z. B. Regler verstellen); ohne diese Funktion tun die Tasten nichts. */
+  onHorizontal?: (id: string, item: PopupItem, dir: -1 | 1) => void;
   /** □ (Zusatzfunktion), sonst wie onAlt. */
   onSquare?: (id: string | null, item: PopupItem | null) => void;
   squareLabel?: string;
@@ -339,6 +341,11 @@ export function PopupList(props: PopupListProps) {
     const item = focused();
     handler(item?.id ?? null, item);
   };
+  const horizontal = (dir: -1 | 1) => {
+    const handler = propsRef.current.onHorizontal;
+    const item = focused();
+    if (handler && item) handler(item.id, item, dir);
+  };
   const square = () => {
     const handler = propsRef.current.onSquare;
     if (!handler) return;
@@ -364,6 +371,9 @@ export function PopupList(props: PopupListProps) {
           return step(-1);
         case "down":
           return step(1);
+        case "left":
+        case "right":
+          return horizontal(action === "left" ? -1 : 1);
         case "l1":
           return page(-1);
         case "r1":

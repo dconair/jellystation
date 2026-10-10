@@ -21,6 +21,7 @@ import { MotionEngine } from "./MotionEngine";
 import { isMuted, playSfx, setMuted } from "./sound";
 import { watchState } from "./progress";
 import { useClock } from "./useClock";
+import { getUiPrefs, subscribeUiPrefs } from "../prefs/uiPrefs";
 import "./xmb.css";
 
 interface XmbProps {
@@ -316,7 +317,13 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
   // Bewegungsmaschine: hält die sichtbaren Positionen und schreibt sie pro Bild direkt in den DOM.
   const [motion] = useState(() => {
     const m = new MotionEngine();
-    m.setReduced(prefersReducedMotion());
+    const apply = () => {
+      const p = getUiPrefs();
+      m.setReduced(prefersReducedMotion() || p.animations === "off");
+      m.setSpeed(p.motionSpeed * (p.animations === "reduced" ? 1.8 : 1));
+    };
+    apply();
+    subscribeUiPrefs(apply);
     return m;
   });
 

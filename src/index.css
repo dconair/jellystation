@@ -45,3 +45,12 @@ body,
   inset: 0;
   background: radial-gradient(ellipse at 30% 40%, #0d1638, #050816);
 }
+
+/* Einstellungen → Animationen: aus = Übergänge und Animationen der Oberfläche entfallen (Menü und Hintergrund steuern ihre Bewegung selbst). */
+:root[data-anim="off"] *,
+:root[data-anim="off"] *::before,
+:root[data-anim="off"] *::after {
+  transition-duration: 0.001ms !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+}

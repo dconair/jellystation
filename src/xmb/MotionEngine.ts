@@ -220,6 +220,8 @@ const differs = (a: number, b: number, eps: number) => !(Math.abs(a - b) <= eps)
 export class MotionEngine {
   private host: MotionHost | null = null;
   private reduced = false;
+  /** Tempo-Faktor der Federn (Einstellungen → Animationen). */
+  private speed = 1;
 
   private readonly cats = new Map<string, CatState>();
   private readonly cols = new Map<string, ColState>();
@@ -263,6 +265,10 @@ export class MotionEngine {
     this.reduced = reduced;
     if (reduced) this.snapAll();
     this.wake();
+  }
+
+  setSpeed(speed: number) {
+    this.speed = Math.min(2, Math.max(0.4, speed));
   }
 
   get isReduced() {
@@ -641,7 +647,7 @@ export class MotionEngine {
       this.snapAll();
       forced = true;
     }
-    const moving = this.step(Math.min(Math.max(rawDt, 0), DT_MAX), now);
+    const moving = this.step(Math.min(Math.max(rawDt, 0), DT_MAX) * this.speed, now);
     // Im Ruhezustand genügt ein Teil der Bilder für das langsame Schweben
     if (moving || this.wasMoving || forced || now - this.lastApply >= IDLE_FRAME_MS - 3) {
       this.lastApply = now;

@@ -12,7 +12,10 @@ export interface Scene {
   /** Größe aus dem Canvas lesen und alle zwischengespeicherten Verläufe neu aufbauen. */
   resize(): void;
   setPalette(pal: Palette): void;
-  draw(t: number): void;
+  /** Welche Ebenen gezeichnet werden (Einstellungen → Anzeige). */
+  setLayers(layers: { ribbons: boolean; dust: boolean; floaters: boolean }): void;
+  /** `wt` = Zeit der Wellen (kann langsamer/schneller laufen als `t`). */
+  draw(t: number, wt?: number): void;
 }
 
 /**
@@ -33,6 +36,7 @@ export function createScene(
   let ribbons: (t: number) => void = () => {};
   let dust: (t: number) => void = () => {};
   let floaters: (t: number) => void = () => {};
+  let layers = { ribbons: true, dust: true, floaters: true };
 
   const paintBackdrop = () => {
     const night = pal.night;
@@ -82,18 +86,21 @@ export function createScene(
       paintBackdrop();
       rebuild();
     },
-    draw(t) {
+    setLayers(next) {
+      layers = next;
+    },
+    draw(t, wt = t) {
       if (!w || !h) return;
       ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, w, h);
       // Auf dem transparenten Canvas wirkt Alpha-Überlagerung wie additives Licht auf dem Verlauf –
       // und rastert deutlich billiger als "lighter".
       ctx.globalCompositeOperation = "source-over";
-      ribbons(t);
+      if (layers.ribbons) ribbons(wt);
       ctx.globalCompositeOperation = "lighter";
-      dust(t);
+      if (layers.dust) dust(t);
       ctx.globalCompositeOperation = "source-over";
-      floaters(t);
+      if (layers.floaters) floaters(t);
     },
   };
 }
