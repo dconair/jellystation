@@ -91,7 +91,7 @@ export function parseItem(raw: unknown): JfItem | null {
   return item;
 }
 
-function parseItems(json: unknown): JfItem[] {
+export function parseItems(json: unknown): JfItem[] {
   const list = (json as { Items?: unknown } | null)?.Items;
   if (!Array.isArray(list)) throw new JfError("Unerwartete Antwort des Servers", "protocol");
   const items: JfItem[] = [];

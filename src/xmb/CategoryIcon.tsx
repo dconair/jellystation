@@ -33,6 +33,12 @@ const glyphs: Record<CategoryIconName, Glyph> = {
     ),
   },
 
+  // Zuletzt: Uhr mit Zeigern (Verlauf).
+  recent: {
+    fill: (p) => <circle cx="12" cy="12" r="9.2" fill={p} />,
+    cut: <path d="M12 6.6V12l3.9 2.4" fill="none" stroke={K} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />,
+  },
+
   // Filmklappe: aufgeklappter Streifenarm über dem Körper, durch einen Spalt getrennt.
   movies: {
     fill: (p) => (

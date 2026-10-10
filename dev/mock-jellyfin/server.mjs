@@ -1059,6 +1059,13 @@ export async function startMockJellyfin(options = {}) {
         const list = episodesOf(series).filter((e) => !(e.virtual && missingFalse));
         return sendJson(req, res, 200, { Items: list.map((e) => itemDto(e, user?.id, true)), TotalRecordCount: list.length, StartIndex: 0 });
       }
+      if (low === "/useritems/resume" && req.method === "GET") {
+        const user = userById(param(url, "userId"));
+        const list = user
+          ? [...ITEM_BY_ID.values()].filter((it) => (it.type === "Movie" || it.type === "Episode") && !it.virtual && (stored(user.id, it.id)?.pos ?? 0) > 0 && !stored(user.id, it.id)?.played)
+          : [];
+        return sendJson(req, res, 200, { Items: list.slice(0, Number(param(url, "limit") ?? 12)).map((e) => itemDto(e, user?.id, true)), TotalRecordCount: list.length, StartIndex: 0 });
+      }
       if (low === "/shows/nextup" && req.method === "GET") {
         const user = userById(param(url, "userId"));
         const only = param(url, "seriesId");

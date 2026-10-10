@@ -39,6 +39,8 @@ interface XmbProps {
   inputEnabled?: boolean;
   /** △ bzw. Taste "O" (Optionen) auf dem fokussierten Eintrag, z. B. für ein Kontextmenü. */
   onSecondary?: (entry: XmbEntry, category: XmbCategory, notify: (text: string) => void) => void;
+  /** Kategorie, auf der das Menü beim ersten Aufbau steht (Standard: die zweite, direkt hinter der Suche). */
+  startCategoryId?: string;
 }
 
 /** Logischer Zustand (sofort aktuell). Die sichtbare Position folgt ihm in der MotionEngine per Feder. */
@@ -303,9 +305,9 @@ function Column({ motion, cat, active, focus, pitchArt, ranges, runningIds, acti
 
 /* ------------------------------------------------------------------ Hauptkomponente */
 
-export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled = true, onSecondary }: XmbProps) {
+export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled = true, onSecondary, startCategoryId }: XmbProps) {
   const [nav, setNav] = useState<NavState>(() => ({
-    categoryId: categories[Math.min(1, categories.length - 1)].id,
+    categoryId: (startCategoryId && categories.find((c) => c.id === startCategoryId)?.id) || categories[Math.min(1, categories.length - 1)].id,
     focus: {},
   }));
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);

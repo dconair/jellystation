@@ -49,6 +49,7 @@ export type ArtSource =
 
 export type CategoryIconName =
   | "search"
+  | "recent"
   | "movies"
   | "series"
   | "music"

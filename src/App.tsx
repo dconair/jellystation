@@ -22,6 +22,8 @@ import { useJellyfinLibrary } from "./jellyfin/useJellyfinLibrary";
 import { useGameLauncher } from "./launcher/useGameLauncher";
 import { CoverSettingsDialog } from "./art/CoverSettingsDialog";
 import { useGameLibrary } from "./library/useGameLibrary";
+import { useRecentJellyfin } from "./jellyfin/useRecent";
+import { loadRecentGames, rememberGame } from "./library/recentGames";
 import { useAmbientMusic } from "./audio/useAmbientMusic";
 import { initUiPrefs, THEMES, useUiPrefs } from "./prefs/uiPrefs";
 import { coversAuto, loadSettings, saveSettings } from "./settings/settings";
@@ -156,6 +158,10 @@ function Main({
   });
 
   const jfConfig = jfConfigOf(settings);
+  const recentJf = useRecentJellyfin(jfConfig);
+  const [recentGameIds, setRecentGameIds] = useState(loadRecentGames);
+  // Beim ersten Aufbau startet das Menü auf „Zuletzt“, wenn dort voraussichtlich etwas steht.
+  const [startCategory] = useState(() => (loadRecentGames().length > 0 || jfConfig ? "recent" : "movies"));
   // Hintergrundmusik pausiert, solange ein Film läuft oder ein Spiel startet/läuft.
   useAmbientMusic({ suspended: overlay?.kind === "player" || running.size > 0 || !!launcherOverlay });
 
@@ -209,10 +215,15 @@ function Main({
             ),
           };
     });
+    // „Zuletzt“: angefangene Filme/Folgen aus Jellyfin, dahinter die zuletzt gestarteten Spiele.
+    const games = new Map(library.categories.flatMap((c) => c.entries).map((e) => [e.id, e] as const));
+    const recentGames = recentGameIds.map((id) => games.get(id)).filter((e): e is XmbEntry => !!e);
+    const recentEntries = [...recentJf.entries, ...recentGames];
+    const withRecent = base.map((cat) => (cat.id === "recent" && recentEntries.length > 0 ? { ...cat, entries: recentEntries } : cat));
     // Spiele-Systeme (PS1, PS2, PS3 …) landen direkt hinter den Serien.
-    const at = base.findIndex((c) => c.id === "series") + 1;
-    return [...base.slice(0, at), ...library.categories, ...base.slice(at)];
-  }, [library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
+    const at = withRecent.findIndex((c) => c.id === "series") + 1;
+    return [...withRecent.slice(0, at), ...library.categories, ...withRecent.slice(at)];
+  }, [recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
 
   /** Titel abspielen; ab einer gespeicherten Position fragt vorher ein Dialog nach Fortsetzen/Von vorn. */
   const play = useCallback(
@@ -263,7 +274,11 @@ function Main({
         setAlwaysTranscode(next);
         notify(next ? "Der Server wandelt jetzt immer um" : "Dateien werden direkt abgespielt, wenn möglich");
       }
-      else if (entry.id.startsWith("jf-empty/")) return; // Platzhalter einer leeren Spalte
+      else if (entry.id.startsWith("jf-empty/") || entry.id === "recent-empty") return; // Platzhalter einer leeren Spalte
+      else if (entry.game) {
+        setRecentGameIds(rememberGame(entry.id));
+        void launch(entry, notify);
+      } else if (category.id === "recent") play(entry);
       else if (category.id === "movies") play(entry);
       else if (category.id === "series") openSeries(entry);
       else void launch(entry, notify);
@@ -295,7 +310,10 @@ function Main({
         onClose={(info) => {
           close();
           // Neue Wiedergabestände (Balken, Haken) sofort sichtbar machen.
-          if (info.entry.jellyfin) jellyfin.reload();
+          if (info.entry.jellyfin) {
+            jellyfin.reload();
+            recentJf.reload();
+          }
         }}
       />
     );
@@ -422,6 +440,7 @@ function Main({
         runningIds={running}
         notice={notice}
         inputEnabled={!overlay && !launcherOverlay}
+        startCategoryId={startCategory}
       />
       {layer}
       {launcherOverlay}

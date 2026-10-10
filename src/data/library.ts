@@ -39,6 +39,12 @@ export const categories: XmbCategory[] = [
     ],
   },
   {
+    id: "recent",
+    label: "Zuletzt",
+    icon: "recent",
+    entries: [entry("recent-empty", "Noch nichts angefangen", "Hier erscheinen deine angefangenen Filme, Folgen und Spiele", 215)],
+  },
+  {
     id: "movies",
     label: "Filme",
     icon: "movies",
