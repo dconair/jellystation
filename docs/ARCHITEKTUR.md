@@ -7,6 +7,8 @@ UI-Texte und Kommentare sind deutsch. Dieses Dokument beschreibt die Bausteine u
 src/
   App.tsx                  Gatekeeper (Einstellungen laden → Setup-Wizard oder Hauptmenü) + Overlay-Steuerung
   xmb/                     Hauptmenü (Xmb.tsx), Hintergrund, Icons, Sound, Detailkarte
+  boot/                    Start-Animation (BootAnimation.tsx)
+  audio/                   Hintergrundmusik und PS3-Klänge (ps3Sounds.ts)
   setup/                   Setup-Wizard (4 Schritte) und Abhängigkeits-Checks
   settings/settings.ts     Persistenz (Tauri-Store bzw. localStorage im Browser)
   library/                 Spiele-Scan (Ordner → Kategorien), Demo-Daten
@@ -28,6 +30,24 @@ Tastatur: Pfeile, Enter = ✕, Esc/Backspace = ○, `o` = △.
 Das Hauptmenü (`<Xmb inputEnabled={…}>`) ignoriert jede Eingabe, solange ein Overlay offen ist. Jedes Overlay
 (Player, Dialoge) nimmt seine Eingabe selbst entgegen (Tastatur + `useGamepad`) und gibt sie bei `active={false}`
 (z. B. weil darüber ein weiteres Overlay liegt) frei.
+
+## Start-Animation, Hintergründe, Klänge
+
+- **Start-Animation** (`src/boot/BootAnimation.tsx`): läuft einmal pro App-Start über dem Hauptmenü (10 s, passend zum Startklang `coldboot`),
+  zeigt den Hintergrund aus den Einstellungen (Tuch blendet auf, dann der Schriftzug) und blendet ins Menü über. Jede Taste, jeder Klick und jede
+  Controller-Taste überspringt (nach 0,6 s). `settings.ui.bootAnimation` (Standard An) schaltet sie ab; bei „Animationen: Aus“ entfällt sie. Einstellungen →
+  Animationen hat zusätzlich „Start-Animation ansehen“.
+- **Hintergrund-Designs** (`src/xmb/background/`): `xmb` = „PS3-Original“ (seidiges Tuch, Standard für neue Installationen), `ps3` = die bisherigen
+  „JellyStation-Wellen“ (bleiben wählbar, gespeicherte Einstellungen ändern sich nicht), dazu Nordlicht, Sternenhimmel, Tiefsee, Neon-Gitter, Farbverlauf.
+  Farbe: Monatsfarbe (Standard), feste Farbthemen oder eigener Farbton – gilt für jedes Design.
+- **PS3-Klänge** (`src/audio/ps3Sounds.ts`, Dateien in `public/sounds/ps3/`, Einstellung `soundPack`: `ps3` | `synth`): Zuordnung in `sound.ts`
+  (`SFX_AS_PS3`): Zurück → `snd_cancel`, Bestätigen → `snd_system_ok`, Fehler → `snd_system_ng`; dazu `playSound("option")` (△-Optionen: Player-Menü,
+  Lesezeichen), `playSound("trophy")` (Erfolgsmeldung), `playSound("gameboot")` (Spielstart) und `startBootSound()` (coldboot). Cursor-Bewegung und
+  Kategoriewechsel bleiben synthetisch. Die Originale sind sehr leise; `psGain` hebt sie auf einen einheitlichen Pegel. `snd_error.wav` ist praktisch
+  stumm (1,75 ms, −91 dB) und wird nicht verwendet.
+- **Herkunft/Rechte:** Die WAV-Dateien stammen aus der PS3-Systemsoftware (Sony) und liegen auf ausdrücklichen Wunsch des Projekteigentümers im Repo.
+  Rechte daran liegen bei Sony. Wer sie nicht ausliefern will, löscht `public/sounds/ps3/`: Die App fällt dann automatisch auf die synthetischen Töne
+  zurück (Boot-Animation läuft lautlos).
 
 ## Rust-Befehle (Aufruf mit `invoke` aus `@tauri-apps/api/core`)
 

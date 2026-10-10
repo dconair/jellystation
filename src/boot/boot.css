@@ -1,0 +1,69 @@
+/*
+ * Start-Animation (BootAnimation). Zeitplan über CSS-Animationen, Gesamtdauer siehe BOOT_MS:
+ *   0–1 s Schwarz · 1–4 s Tuch blendet auf · 3,2–5 s Schriftzug · bis 9,2 s Halten · danach Überblenden ins Menü.
+ */
+.boot-anim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #000;
+  overflow: hidden;
+  cursor: none;
+}
+.boot-anim.is-leaving {
+  animation: boot-out var(--boot-fade, 0.4s) ease-in forwards;
+}
+.boot-anim__waves {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: boot-waves 3.4s ease-in-out 0.9s forwards;
+}
+.boot-anim__logo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 44%;
+  transform: translateY(-50%);
+  text-align: center;
+  color: #fff;
+  opacity: 0;
+  animation: boot-logo 2.2s ease-out 3.2s forwards;
+}
+.boot-anim__word {
+  font-size: 5.2rem;
+  font-weight: 200;
+  letter-spacing: 0.34em;
+  padding-left: 0.34em; /* gleicht den Zeichenabstand hinter dem letzten Buchstaben aus */
+  text-shadow: 0 0 1.6rem rgba(255, 255, 255, 0.55), 0 0 4.5rem rgba(180, 220, 255, 0.35);
+}
+.boot-anim__symbols {
+  margin-top: 1.6rem;
+  display: flex;
+  justify-content: center;
+  gap: 1.4rem;
+  opacity: 0.7;
+}
+
+@keyframes boot-waves {
+  from { opacity: 0; transform: scale(1.04); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes boot-logo {
+  from { opacity: 0; letter-spacing: 0.5em; filter: blur(0.6rem); }
+  to { opacity: 1; letter-spacing: 0.34em; filter: blur(0); }
+}
+@keyframes boot-out {
+  to { opacity: 0; }
+}
+
+html[data-anim="reduced"] .boot-anim__waves,
+html[data-anim="reduced"] .boot-anim__logo {
+  animation-duration: 1.2s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-anim__waves,
+  .boot-anim__logo {
+    animation-duration: 1.2s;
+  }
+}

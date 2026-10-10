@@ -1,4 +1,6 @@
 import { getUiPrefs } from "../prefs/uiPrefs";
+import { PRELOAD, loadPsSound, peekPsSound, psGain } from "../audio/ps3Sounds";
+import type { PsSound } from "../audio/ps3Sounds";
 /**
  * Synthetisierte XMB-Klänge (Web Audio) – keine Audiodateien nötig.
  * Alle Eingabewege (Tastatur, Controller, Maus) lösen dieselben Effekte aus.
@@ -480,6 +482,7 @@ function ensureAudio(): SfxPlayer | null {
       if (!Ctor) return null;
       ctx = new Ctor({ latencyHint: "interactive" });
       player = createSfxPlayer(ctx, ctx.destination);
+      for (const id of PRELOAD) void loadPsSound(ctx, id);
     }
     // Browser starten den Kontext erst nach einer Nutzeraktion (Safari: "interrupted").
     if (ctx.state !== "running") Promise.resolve(ctx.resume()).catch(() => undefined);
@@ -506,9 +509,76 @@ import.meta.hot?.dispose(() => {
   void ctx?.close().catch(() => undefined);
 });
 
+/** Welche Menü-Töne im Klangpaket "ps3" durch Originalklänge ersetzt werden; alles andere bleibt synthetisch. */
+const SFX_AS_PS3: Partial<Record<Sfx, PsSound>> = { back: "cancel", confirm: "ok", error: "ng" };
+
+/** Spielt einen PS3-Klang ab; false, wenn er (noch) nicht geladen ist. */
+function playPs3(id: PsSound, volume: number): AudioBufferSourceNode | null {
+  if (!ensureAudio() || !ctx) return null;
+  const buffer = peekPsSound(id);
+  if (!buffer) {
+    void loadPsSound(ctx, id);
+    return null;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const gain = ctx.createGain();
+  gain.gain.value = volume * psGain(id);
+  src.connect(gain).connect(ctx.destination);
+  src.onended = () => gain.disconnect();
+  src.start();
+  return src;
+}
+
+/** Klänge, die keine Entsprechung in `Sfx` haben: △-Optionen, Erfolgsmeldung (Trophäe), Spielstart. Beachtet Stumm und Klangpaket. */
+export function playSound(id: "option" | "trophy" | "gameboot") {
+  const { sfxVolume, soundPack } = getUiPrefs();
+  if (muted || sfxVolume <= 0) return;
+  // Ohne Originalklang bleibt für △-Optionen der normale Bestätigungston; Trophäe und Spielstart sind dann still.
+  if ((soundPack !== "ps3" || !playPs3(id, sfxVolume)) && id === "option") playSfx("confirm");
+}
+
+/**
+ * Startklang der Boot-Animation. Gibt null zurück, wenn er nicht abspielbar ist (stumm, Klangpaket "synth", Datei fehlt
+ * oder der Browser lässt noch keinen Ton zu); dann läuft die Animation lautlos. `stop` blendet ihn aus.
+ */
+export async function startBootSound(): Promise<{ stop: (fadeS?: number) => void } | null> {
+  const { sfxVolume, soundPack } = getUiPrefs();
+  if (muted || sfxVolume <= 0 || soundPack !== "ps3") return null;
+  if (!ensureAudio() || !ctx) return null;
+  const c = ctx;
+  const buffer = await loadPsSound(c, "coldboot");
+  if (!buffer) return null;
+  // Ohne Nutzeraktion bleibt der Kontext manchmal angehalten: dann lieber lautlos, statt zu spät einzusetzen.
+  if (c.state !== "running") await Promise.race([c.resume().catch(() => undefined), new Promise((r) => setTimeout(r, 400))]);
+  if ((c.state as AudioContextState) !== "running") return null;
+  const src = c.createBufferSource();
+  src.buffer = buffer;
+  const gain = c.createGain();
+  gain.gain.value = sfxVolume * psGain("coldboot");
+  src.connect(gain).connect(c.destination);
+  src.onended = () => gain.disconnect();
+  src.start();
+  return {
+    stop(fadeS = 0.4) {
+      const now = c.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(0, now + fadeS);
+      try {
+        src.stop(now + fadeS + 0.05);
+      } catch {
+        /* schon beendet */
+      }
+    },
+  };
+}
+
 export function playSfx(name: Sfx) {
-  const volume = getUiPrefs().sfxVolume;
+  const { sfxVolume: volume, soundPack } = getUiPrefs();
   if (muted || volume <= 0) return;
+  const ps3 = soundPack === "ps3" ? SFX_AS_PS3[name] : undefined;
+  if (ps3 && playPs3(ps3, volume)) return;
   const p = ensureAudio();
   if (!p) return;
   p.play(name, {

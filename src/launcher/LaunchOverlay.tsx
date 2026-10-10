@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import type { CSSProperties } from "react";
 import { ArtImage } from "../art/ArtImage";
 import type { XmbEntry } from "../data/types";
 import { DotSpinner, OverlayFrame, useOverlayInput } from "../ui/popup";
+import { playSound } from "../xmb/sound";
 import "./launcher.css";
 
 export interface LaunchOverlayProps {
@@ -25,6 +27,8 @@ export interface LaunchOverlayProps {
 export function LaunchOverlay({ entry, status, open = true, active = true, onExited }: LaunchOverlayProps) {
   // Tasten schlucken, damit während des Starts nichts im Hauptmenü passiert (z. B. ein zweiter Start per ✕).
   useOverlayInput({ active: active && open, onAction: () => undefined });
+  // Startklang der PS3 (gameboot), einmal pro Spielstart.
+  useEffect(() => playSound("gameboot"), []);
 
   const poster = entry.artShape === "poster";
   return (

@@ -165,4 +165,84 @@ const grid: StyleFactory = (ctx, w, h, ui, pal) => (t) => {
   ctx.fillRect(0, horizon - h * 0.12, w, h * 0.14);
 };
 
-export const STYLES: Record<string, StyleFactory> = { aurora, stars, bubbles, grid };
+/**
+ * PS3-Original: Das große, seidige Tuch der XMB. Mehrere breite Flächen mit hellem Rand liegen übereinander, darunter fächern
+ * feine Fäden auf – alles dreht sich sehr langsam und wirft sanfte Falten. Die Farbe kommt aus dem Farbthema (Monatsfarbe).
+ */
+const xmb: StyleFactory = (ctx, w, h, ui, pal) => {
+  const n = Math.max(40, Math.min(96, Math.ceil(w / 20)));
+  const xs = new Float32Array(n + 1);
+  for (let i = 0; i <= n; i++) xs[i] = (i / n) * w;
+  const top = new Float32Array(n + 1);
+  const low = new Float32Array(n + 1);
+
+  // Jedes Tuch: Grundlinie (Anteil der Höhe), Welle 1+2, Dicke, Helligkeit, Farbverschiebung.
+  const sheets = [
+    { y: 0.56, tilt: -0.1, a1: 0.075, f1: 0.62, s1: 0.045, p1: 0.2, a2: 0.03, f2: 1.35, s2: -0.07, p2: 1.7, th: 0.2, fill: 0.1, edge: 0.34, shift: 10 },
+    { y: 0.64, tilt: -0.07, a1: 0.085, f1: 0.55, s1: 0.04, p1: 1.0, a2: 0.035, f2: 1.2, s2: -0.06, p2: 3.1, th: 0.24, fill: 0.12, edge: 0.4, shift: 0 },
+    { y: 0.72, tilt: -0.04, a1: 0.08, f1: 0.7, s1: -0.05, p1: 2.4, a2: 0.03, f2: 1.5, s2: 0.075, p2: 0.6, th: 0.2, fill: 0.09, edge: 0.3, shift: -12 },
+    { y: 0.8, tilt: -0.02, a1: 0.07, f1: 0.5, s1: 0.035, p1: 4.1, a2: 0.025, f2: 1.1, s2: -0.05, p2: 2.2, th: 0.16, fill: 0.07, edge: 0.24, shift: 8 },
+  ].map((d) => {
+    const nominal = (d.y + d.tilt * 0.5) * h;
+    const g = ctx.createLinearGradient(0, nominal - d.a1 * h, 0, nominal + d.th * h);
+    g.addColorStop(0, silk(pal, d.fill * 2, d.shift));
+    g.addColorStop(0.35, silk(pal, d.fill * 0.95, d.shift));
+    g.addColorStop(1, silk(pal, 0, d.shift));
+    return { ...d, body: g };
+  });
+  const line = (shift: number, a: number) => silk(pal, a, shift);
+  const strands = 16;
+
+  const curve = (d: (typeof sheets)[number], t: number, u: number, k: number) =>
+    (d.y + d.tilt * (u - 0.5) + d.a1 * Math.sin(TAU * d.f1 * u + d.s1 * t + d.p1 + k) + d.a2 * Math.sin(TAU * d.f2 * u + d.s2 * t + d.p2 + k * 1.7)) * h;
+
+  return (t) => {
+    ctx.lineJoin = "round";
+    sheets.forEach((d, si) => {
+      const breathe = 0.85 + 0.15 * Math.sin(t * 0.13 + si * 1.9);
+      for (let i = 0; i <= n; i++) {
+        const u = i / n;
+        top[i] = curve(d, t, u, 0);
+        // Dicke schwillt entlang des Tuchs an und ab, an den Rändern läuft es spitz zu.
+        const bulge = 0.35 + 0.65 * Math.sin(Math.PI * Math.min(1, Math.max(0, u * 0.9 + 0.05))) ** 0.8;
+        low[i] = top[i] + d.th * h * bulge * (0.8 + 0.2 * Math.sin(TAU * 0.9 * u + t * 0.05 + si));
+      }
+      ctx.globalAlpha = breathe;
+      ctx.beginPath();
+      ctx.moveTo(xs[0], top[0]);
+      for (let i = 1; i <= n; i++) ctx.lineTo(xs[i], top[i]);
+      for (let i = n; i >= 0; i--) ctx.lineTo(xs[i], low[i]);
+      ctx.closePath();
+      ctx.fillStyle = d.body;
+      ctx.fill();
+
+      // Feine Fäden zwischen Ober- und Unterkante: die Falten des Stoffs.
+      ctx.lineWidth = Math.max(0.8, ui * 1.1);
+      for (let k = 1; k < strands; k += 1) {
+        const q = k / strands;
+        ctx.strokeStyle = line(d.shift, d.edge * 0.28 * (1 - q) * breathe);
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+          const y = top[i] + (low[i] - top[i]) * q ** 1.4 + Math.sin(TAU * 1.3 * (i / n) + t * 0.08 + k * 0.5) * h * 0.006 * q;
+          if (i === 0) ctx.moveTo(xs[i], y);
+          else ctx.lineTo(xs[i], y);
+        }
+        ctx.stroke();
+      }
+
+      // Heller Rand mit weichem Schein darunter.
+      ctx.beginPath();
+      ctx.moveTo(xs[0], top[0]);
+      for (let i = 1; i <= n; i++) ctx.lineTo(xs[i], top[i]);
+      ctx.strokeStyle = line(d.shift, d.edge * 0.22 * breathe);
+      ctx.lineWidth = Math.max(4, ui * 7);
+      ctx.stroke();
+      ctx.strokeStyle = line(d.shift, d.edge * breathe);
+      ctx.lineWidth = Math.max(1, ui * 1.6);
+      ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+  };
+};
+
+export const STYLES: Record<string, StyleFactory> = { xmb, aurora, stars, bubbles, grid };
