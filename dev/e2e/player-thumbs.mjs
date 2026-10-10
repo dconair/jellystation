@@ -264,7 +264,7 @@ console.log("\n== 1. Trickplay vom Server (Direktwiedergabe) ==");
     const m = await bestMatchSec(page, shots[label].prev.px);
     check(`Vorschau passt zur Zeit: Bild bei ${label} s entspricht dem Video bei ±2 s`, Math.abs(m.sec - Number(label)) <= 2, `bestes Video-Bild: ${m.sec} s (Δ ${m.d.toFixed(1)})`);
   }
-  check("unterschiedliche Positionen → unterschiedliche Bilder", diff(shots["6"].prev.px, shots["24"].prev.px) > 3, `Δ=${d(shots["6"].prev.px, shots["24"].prev.px)}`);
+  check("unterschiedliche Positionen → unterschiedliche Bilder", diff(shots["6"].prev.px, shots["24"].prev.px) > 3, `Δ=${diff(shots["6"].prev.px, shots["24"].prev.px)}`);
   check("Kapitel unter der Zeit (Finale bei 24 s)", shots["24"].info.chapter === "Finale", String(shots["24"].info.chapter));
   check("Kapitel unter der Zeit (Die Mitte bei 6 s ist noch Anfang)", shots["6"].info.chapter === "Anfang", String(shots["6"].info.chapter));
   const sheetsAfter = new Set(sheetRequests().map((r) => r.path));
