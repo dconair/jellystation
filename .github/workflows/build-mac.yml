@@ -1,0 +1,53 @@
+# Baut JellyStation für macOS (Apple Silicon und Intel) und hängt die Installationsdateien (.dmg) an eine GitHub-Release.
+#
+# Auslösen:  git tag v0.1.0 && git push origin v0.1.0     (oder in GitHub: Actions → „Mac-Build“ → Run workflow)
+# Die App ist NICHT signiert/notarisiert: Beim ersten Öffnen Rechtsklick → „Öffnen“ (oder im Terminal:
+#   xattr -dr com.apple.quarantine /Applications/JellyStation.app ).
+name: Mac-Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest   # Apple Silicon
+            args: --target aarch64-apple-darwin
+            target: aarch64-apple-darwin
+          - os: macos-13       # Intel
+            args: --target x86_64-apple-darwin
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+          releaseName: JellyStation ${{ github.ref_type == 'tag' && github.ref_name || format('(Testbuild {0})', github.run_number) }}
+          releaseBody: |
+            Nicht signierte Mac-App. Beim ersten Öffnen: Rechtsklick → „Öffnen“.
+            Spiele, BIOS und Firmware bringst du selbst mit – siehe docs/ANLEITUNG-MAC.md.
+          releaseDraft: false
+          prerelease: true
+          args: ${{ matrix.args }}
