@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
-import { DEFAULT_SERVER_URL } from "../config/server";
+import { defaultAltFor, DEFAULT_SERVER_URL } from "../config/server";
 import { biosDirOf } from "../emulators/requirements";
 import { useEmulators } from "../emulators/useEmulators";
 import { useRequirements } from "../emulators/useRequirements";
@@ -71,12 +71,15 @@ function Hint({ symbol, label, onClick, disabled, primary }: HintProps) {
 export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWizardProps) {
   const single = onlyStep !== undefined;
   const [step, setStep] = useState(onlyStep ?? 0);
-  const [draft, setDraft] = useState<Draft>({
-    url: initial?.jellyfin.url || DEFAULT_SERVER_URL,
-    altUrl: initial?.jellyfin.altUrl ?? "",
-    apiKey: initial?.jellyfin.apiKey ?? "",
-    gamesDir: initial?.gamesDir ?? "",
-    biosDir: initial?.biosDir ?? "",
+  const [draft, setDraft] = useState<Draft>(() => {
+    const url = initial?.jellyfin.url || DEFAULT_SERVER_URL;
+    return {
+      url,
+      altUrl: initial?.jellyfin.altUrl || defaultAltFor(url),
+      apiKey: initial?.jellyfin.apiKey ?? "",
+      gamesDir: initial?.gamesDir ?? "",
+      biosDir: initial?.biosDir ?? "",
+    };
   });
   const emulators = useEmulators(initial?.emulators);
   const requirements = useRequirements(biosDirOf(draft.biosDir));
