@@ -12,9 +12,13 @@ import type { MoodId } from "../audio/moods";
 
 export type AnimationMode = "full" | "reduced" | "off";
 
-/** Hintergrund-Designs (siehe src/xmb/background/styles.ts); "ps3" sind die klassischen Wellen mit Formen und Partikeln. */
+/**
+ * Hintergrund-Designs (siehe src/xmb/background/styles.ts). "xmb" ist das seidige Tuch wie auf der PS3 (Standard);
+ * "ps3" sind die bisherigen JellyStation-Wellen mit Formen und Partikeln und bleiben als Option erhalten.
+ */
 export const BACKGROUND_STYLES = [
-  { id: "ps3", label: "PS3-Wellen" },
+  { id: "xmb", label: "PS3-Original" },
+  { id: "ps3", label: "JellyStation-Wellen (bisher)" },
   { id: "aurora", label: "Nordlicht" },
   { id: "stars", label: "Sternenhimmel" },
   { id: "bubbles", label: "Tiefsee" },
@@ -34,7 +38,9 @@ export interface UiPrefs {
   dayNight: boolean;
   /** Hintergrund-Design. */
   backgroundStyle: BackgroundStyle;
-  /** Hintergrund-Elemente (nur beim PS3-Design: Wellen und Formen). */
+  /** Start-Animation beim Öffnen der App (Vorspann mit Klang). */
+  bootAnimation: boolean;
+  /** Hintergrund-Elemente (nur beim Design "JellyStation-Wellen": Wellen und Formen). */
   waves: boolean;
   shapes: boolean;
   dust: boolean;
@@ -50,12 +56,15 @@ export interface UiPrefs {
   musicEnabled: boolean;
   musicVolume: number;
   musicMood: MoodId;
+  /** Klang der Menü-Töne: "ps3" = Originalklänge der PS3-Systemsoftware (soweit vorhanden), "synth" = synthetisch. */
+  soundPack: "ps3" | "synth";
 }
 
 export const DEFAULT_UI_PREFS: UiPrefs = {
   brightness: 1,
   themeId: "auto",
-  backgroundStyle: "ps3",
+  backgroundStyle: "xmb",
+  bootAnimation: true,
   customHue: 215,
   dayNight: true,
   waves: true,
@@ -68,6 +77,7 @@ export const DEFAULT_UI_PREFS: UiPrefs = {
   musicEnabled: true,
   musicVolume: 0.4,
   musicMood: DEFAULT_MOOD,
+  soundPack: "ps3",
 };
 
 export interface Theme {
@@ -116,6 +126,7 @@ export function sanitizeUiPrefs(raw: unknown): UiPrefs {
     backgroundStyle: BACKGROUND_STYLES.some((s) => s.id === r.backgroundStyle) ? (r.backgroundStyle as BackgroundStyle) : d.backgroundStyle,
     customHue: Math.round(num(r.customHue, d.customHue, LIMITS.customHue.min, LIMITS.customHue.max)),
     dayNight: bool(r.dayNight, d.dayNight),
+    bootAnimation: bool(r.bootAnimation, d.bootAnimation),
     waves: bool(r.waves, d.waves),
     shapes: bool(r.shapes, d.shapes),
     dust: bool(r.dust, d.dust),
@@ -126,6 +137,7 @@ export function sanitizeUiPrefs(raw: unknown): UiPrefs {
     musicEnabled: bool(r.musicEnabled, d.musicEnabled),
     musicVolume: num(r.musicVolume, d.musicVolume, LIMITS.musicVolume.min, LIMITS.musicVolume.max),
     musicMood: isMoodId(r.musicMood) ? r.musicMood : d.musicMood,
+    soundPack: r.soundPack === "ps3" || r.soundPack === "synth" ? r.soundPack : d.soundPack,
   };
 }
 

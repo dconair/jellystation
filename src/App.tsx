@@ -30,7 +30,8 @@ import { useGameLibrary } from "./library/useGameLibrary";
 import { useRecentJellyfin } from "./jellyfin/useRecent";
 import { loadRecentGames, rememberGame } from "./library/recentGames";
 import { useAmbientMusic } from "./audio/useAmbientMusic";
-import { initUiPrefs, THEMES, useUiPrefs } from "./prefs/uiPrefs";
+import { BootAnimation } from "./boot/BootAnimation";
+import { getUiPrefs, initUiPrefs, THEMES, useUiPrefs } from "./prefs/uiPrefs";
 import { coversAuto, loadSettings, saveSettings } from "./settings/settings";
 import type { Settings } from "./settings/settings";
 import { SetupWizard } from "./setup/SetupWizard";
@@ -136,6 +137,9 @@ const jfConfigOf = (jellyfin: Settings["jellyfin"] | undefined) =>
 
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : "Unerwarteter Fehler");
 
+/** Die Start-Animation läuft nur einmal pro App-Start (nicht erneut nach dem Setup-Assistenten). */
+let bootHandled = false;
+
 function Main({
   settings,
   onChangeSettings,
@@ -180,8 +184,15 @@ function Main({
   const [recentGameIds, setRecentGameIds] = useState(loadRecentGames);
   // Beim ersten Aufbau startet das Menü auf „Zuletzt“, wenn dort voraussichtlich etwas steht.
   const [startCategory] = useState(() => (loadRecentGames().length > 0 || jfConfig ? "recent" : "movies"));
-  // Hintergrundmusik pausiert, solange ein Film läuft oder ein Spiel startet/läuft.
-  useAmbientMusic({ suspended: overlay?.kind === "player" || running.size > 0 || !!launcherOverlay });
+  // Start-Animation: einmal pro App-Start, wenn sie nicht abgeschaltet ist; in den Einstellungen auch zur Vorschau.
+  const [booting, setBooting] = useState(() => {
+    if (bootHandled) return false;
+    bootHandled = true;
+    const p = getUiPrefs();
+    return p.bootAnimation && p.animations !== "off";
+  });
+  // Hintergrundmusik pausiert, solange ein Film läuft oder ein Spiel startet/läuft (und während der Start-Animation).
+  useAmbientMusic({ suspended: booting || overlay?.kind === "player" || running.size > 0 || !!launcherOverlay });
 
   // Echte Jellyfin-Titel ersetzen die Demo-Einträge – aber nur, wenn überhaupt etwas geladen wurde.
   const hasJellyfinItems = jellyfin.status === "ok" && jellyfin.movies.length + jellyfin.series.length > 0;
@@ -541,7 +552,7 @@ function Main({
       />
     );
   } else if (overlay?.kind === "settings") {
-    layer = <SettingsDialog section={overlay.section} onClose={close} />;
+    layer = <SettingsDialog section={overlay.section} onClose={close} onPreviewBoot={() => setBooting(true)} />;
   } else if (overlay?.kind === "covers") {
     layer = (
       <CoverSettingsDialog
@@ -624,7 +635,7 @@ function Main({
         onActivate={onActivate}
         runningIds={running}
         notice={notice}
-        inputEnabled={!overlay && !launcherOverlay}
+        inputEnabled={!overlay && !launcherOverlay && !booting}
         startCategoryId={startCategory}
         onSecondary={(entry) => {
           if (entry.id.startsWith("bm/")) openOverlay({ kind: "bookmarkDelete", id: entry.id.slice(3) });
@@ -632,6 +643,7 @@ function Main({
       />
       {layer}
       {launcherOverlay}
+      {booting && <BootAnimation onDone={() => setBooting(false)} />}
       <UiEffects />
     </>
   );

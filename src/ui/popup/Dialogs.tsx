@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { PadAction } from "../../input/useGamepad";
-import { playSfx } from "../../xmb/sound";
+import { playSfx, playSound } from "../../xmb/sound";
 import { MaybeFrame, useFrameClaim } from "./OverlayFrame";
 import type { OverlayAlign } from "./OverlayFrame";
 import { DotSpinner, HintBar, KindIcon, useResizeGuard } from "./parts";
@@ -277,6 +277,12 @@ export function MessageDialog({
     playSfx(sound);
     onCloseRef.current();
   };
+
+  // Beim Erscheinen: Erfolg = Trophäen-Klang, Fehler = Fehlerton.
+  useEffect(() => {
+    if (kind === "success") playSound("trophy");
+    else if (kind === "error") playSfx("error");
+  }, [kind]);
 
   // ↑↓ blättern im Detailblock, ohne ihn (oder wenn er nichts zu scrollen hat) in der Meldung selbst
   const scrollDetail = (dir: 1 | -1, pageWise: boolean) => {

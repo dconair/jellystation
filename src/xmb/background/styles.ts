@@ -165,4 +165,124 @@ const grid: StyleFactory = (ctx, w, h, ui, pal) => (t) => {
   ctx.fillRect(0, horizon - h * 0.12, w, h * 0.14);
 };
 
-export const STYLES: Record<string, StyleFactory> = { aurora, stars, bubbles, grid };
+/**
+ * PS3-Original: das seidige Band der XMB. Wie auf der Konsole ist es ein einziges, verdrehtes Tuch aus vielen feinen Fäden: In der Mitte
+ * fächern die Fäden weit auf, an den Rändern und an den Engstellen drängen sie sich zusammen und leuchten dort hell auf. Ein zweites,
+ * leiseres Band liegt dahinter; dazu funkeln einzelne Lichtpunkte. Das Ganze driftet sehr langsam; die Farbe kommt aus dem Farbthema.
+ */
+const xmb: StyleFactory = (ctx, w, h, ui, pal) => {
+  const n = Math.max(48, Math.min(120, Math.ceil(w / 16)));
+  const xs = new Float32Array(n + 1);
+  for (let i = 0; i <= n; i++) xs[i] = (i / n) * w;
+  const mid = new Float32Array(n + 1);
+  const half = new Float32Array(n + 1);
+  const twist = new Float32Array(n + 1);
+
+  // y/amp: Lage und Schwung (Anteile der Höhe); wid: größte halbe Breite; fil: Zahl der Fäden; gain: Helligkeit.
+  const ribbons = [
+    { y: 0.68, tilt: -0.2, a1: 0.095, f1: 0.5, s1: 0.05, p1: 0.4, a2: 0.03, f2: 1.1, s2: -0.07, p2: 1.9, wid: 0.17, wf: 0.6, ws: 0.045, wp: 0.3, fil: 30, gain: 1, shift: 6 },
+    { y: 0.78, tilt: -0.12, a1: 0.07, f1: 0.62, s1: -0.04, p1: 2.6, a2: 0.025, f2: 1.4, s2: 0.06, p2: 0.7, wid: 0.11, wf: 0.8, ws: -0.05, wp: 2.2, fil: 22, gain: 0.55, shift: -10 },
+    { y: 0.56, tilt: -0.06, a1: 0.05, f1: 0.42, s1: 0.035, p1: 4.4, a2: 0.02, f2: 1.7, s2: -0.05, p2: 3.1, wid: 0.05, wf: 1.1, ws: 0.06, wp: 4.0, fil: 12, gain: 0.35, shift: 14 },
+  ];
+  const lw = Math.max(0.8, ui * 1.05);
+
+  const rand = mulberry32(11);
+  const glints = Array.from({ length: 70 }, () => ({
+    x: rand(),
+    y: 0.12 + rand() * 0.8,
+    r: (0.7 + rand() * 1.5) * Math.max(1, ui * 1.3),
+    f: 0.25 + rand() * 0.7,
+    p: rand() * TAU,
+    big: rand() > 0.88,
+  }));
+
+  return (t) => {
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.globalCompositeOperation = "lighter";
+    ribbons.forEach((d, ri) => {
+      for (let i = 0; i <= n; i++) {
+        const u = i / n;
+        mid[i] =
+          (d.y + d.tilt * (u - 0.5) + d.a1 * Math.sin(TAU * d.f1 * u + d.s1 * t + d.p1) + d.a2 * Math.sin(TAU * d.f2 * u + d.s2 * t + d.p2)) * h;
+        // Engstellen: dort läuft das Band fast zu einer Linie zusammen.
+        const m = 0.5 + 0.5 * Math.sin(TAU * d.wf * u + d.ws * t + d.wp);
+        half[i] = d.wid * h * (0.16 + 0.84 * m ** 1.2);
+        // Verdrehung: bestimmt, wo sich die Fäden drängen und wo sie auffächern.
+        twist[i] = 1.1 * Math.sin(TAU * 0.55 * u + 0.05 * t + d.p1 + ri);
+      }
+      const breathe = 0.82 + 0.18 * Math.sin(t * 0.13 + ri * 2.1);
+      const g = d.gain * breathe;
+
+      // Weiche Fläche des Bandes.
+      ctx.beginPath();
+      for (let i = 0; i <= n; i++) (i ? ctx.lineTo(xs[i], mid[i] - half[i]) : ctx.moveTo(xs[0], mid[0] - half[0]));
+      for (let i = n; i >= 0; i--) ctx.lineTo(xs[i], mid[i] + half[i]);
+      ctx.closePath();
+      ctx.fillStyle = silk(pal, 0.08 * g, d.shift);
+      ctx.fill();
+
+      // Die feinen Fäden. Winkel a verteilt sie über die Bandbreite; an a = ±π/2 (den Rändern) liegen sie dicht beieinander.
+      ctx.lineWidth = lw;
+      for (let k = 0; k < d.fil; k++) {
+        const s = (k / (d.fil - 1)) * 2 - 1;
+        const edge = Math.abs(s);
+        ctx.strokeStyle = silk(pal, g * (0.1 + 0.28 * edge ** 2), d.shift + s * 8);
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+          const a = Math.max(-1.45, Math.min(1.45, s * 1.25 + twist[i] * 0.55 * (1 - edge * 0.4)));
+          const y = mid[i] + half[i] * Math.sin(a);
+          if (i === 0) ctx.moveTo(xs[0], y);
+          else ctx.lineTo(xs[i], y);
+        }
+        ctx.stroke();
+      }
+
+      // Leuchtende Ränder: breiter Schein darunter, feine helle Kante obenauf.
+      for (const q of [-1, 1]) {
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+          const y = mid[i] + q * half[i] * 0.97;
+          if (i === 0) ctx.moveTo(xs[0], y);
+          else ctx.lineTo(xs[i], y);
+        }
+        ctx.strokeStyle = silk(pal, 0.05 * g, d.shift);
+        ctx.lineWidth = Math.max(6, ui * 14);
+        ctx.stroke();
+        ctx.strokeStyle = silk(pal, 0.1 * g, d.shift);
+        ctx.lineWidth = Math.max(2.5, ui * 4.5);
+        ctx.stroke();
+        ctx.strokeStyle = silk(pal, 0.42 * g, d.shift);
+        ctx.lineWidth = lw * 1.3;
+        ctx.stroke();
+      }
+    });
+
+    // Funkelnde Lichtpunkte, einige mit kleinem Kreuzglanz.
+    for (const s of glints) {
+      const tw = 0.5 + 0.5 * Math.sin(t * s.f + s.p);
+      const a = tw * tw;
+      if (a < 0.03) continue;
+      const x = s.x * w;
+      const y = s.y * h;
+      ctx.fillStyle = silk(pal, 0.55 * a);
+      ctx.beginPath();
+      ctx.arc(x, y, s.r, 0, TAU);
+      ctx.fill();
+      if (s.big) {
+        const l = s.r * 7 * a;
+        ctx.strokeStyle = silk(pal, 0.35 * a);
+        ctx.lineWidth = Math.max(0.8, ui);
+        ctx.beginPath();
+        ctx.moveTo(x - l, y);
+        ctx.lineTo(x + l, y);
+        ctx.moveTo(x, y - l);
+        ctx.lineTo(x, y + l);
+        ctx.stroke();
+      }
+    }
+    ctx.globalCompositeOperation = "source-over";
+  };
+};
+
+export const STYLES: Record<string, StyleFactory> = { xmb, aurora, stars, bubbles, grid };

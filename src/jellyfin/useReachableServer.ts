@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Settings } from "../settings/settings";
 import { isValidServerUrl, normalizeServerUrl } from "./url";
-import { pingServer } from "./testConnection";
+import { ALT_PING_TIMEOUT_MS, pingServer } from "./testConnection";
 
 type JellyfinSettings = Settings["jellyfin"];
 
 /**
  * Wählt zwischen Hauptadresse und zweiter Adresse (z. B. Tailscale) die, die gerade antwortet.
  * Geprüft wird beim Start, wenn das Netz wechselt (online), beim Zurückkehren ins Fenster und – solange
- * nichts antwortet – alle 20 s. Ohne zweite Adresse bleibt alles beim Alten (keine Netzwerkanfrage).
+ * nichts antwortet – alle 15 s. Ohne zweite Adresse bleibt alles beim Alten (keine Netzwerkanfrage).
  */
 export function useReachableServer(config: JellyfinSettings | null): JellyfinSettings | null {
   const url = config?.url ?? "";
@@ -23,12 +23,12 @@ export function useReachableServer(config: JellyfinSettings | null): JellyfinSet
     const check = async () => {
       let chosen: string | null = null;
       // Beide gleichzeitig prüfen; die Hauptadresse hat Vorrang, wenn beide antworten.
-      const [a, b] = await Promise.all([pingServer(url), pingServer(alt)]);
+      const [a, b] = await Promise.all([pingServer(url), pingServer(alt, ALT_PING_TIMEOUT_MS)]);
       if (a) chosen = url;
       else if (b) chosen = alt;
       if (cancelled) return;
       if (chosen) setActive({ primary: url, url: chosen });
-      else timer = setTimeout(() => void check(), 20_000);
+      else timer = setTimeout(() => void check(), 15_000);
     };
     const recheck = () => {
       if (timer) clearTimeout(timer);

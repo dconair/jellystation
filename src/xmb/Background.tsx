@@ -38,7 +38,7 @@ export function Background({ paused = false }: { paused?: boolean }) {
     const menuGlow = !!parent && getComputedStyle(parent).getPropertyValue("--stage-shift").trim() !== "";
     const currentPalette = () => {
       const p = getUiPrefs();
-      return paletteFor(new Date(), { hue: themeHue(p), dayNight: p.dayNight });
+      return paletteFor(new Date(), { hue: themeHue(p), dayNight: p.dayNight, vivid: p.backgroundStyle === "xmb" });
     };
     const scene = createScene(canvas, ctx, currentPalette(), { menuGlow });
     const applyLayers = () => {

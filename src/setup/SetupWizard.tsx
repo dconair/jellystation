@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
+import { DEFAULT_SERVER_URL } from "../config/server";
 import { biosDirOf } from "../emulators/requirements";
 import { useEmulators } from "../emulators/useEmulators";
 import { useRequirements } from "../emulators/useRequirements";
 import { useControllerProbe } from "../input/useControllerProbe";
 import { useGamepad } from "../input/useGamepad";
 import type { PadAction } from "../input/useGamepad";
-import { isValidServerUrl, normalizeServerUrl, testJellyfin } from "../jellyfin/testConnection";
+import { isValidServerUrl, normalizeServerUrl, testJellyfinAddresses } from "../jellyfin/testConnection";
 import type { ConnectionResult } from "../jellyfin/testConnection";
 import { saveSettings } from "../settings/settings";
 import type { Settings } from "../settings/settings";
@@ -71,7 +72,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
   const single = onlyStep !== undefined;
   const [step, setStep] = useState(onlyStep ?? 0);
   const [draft, setDraft] = useState<Draft>({
-    url: initial?.jellyfin.url ?? "",
+    url: initial?.jellyfin.url || DEFAULT_SERVER_URL,
     altUrl: initial?.jellyfin.altUrl ?? "",
     apiKey: initial?.jellyfin.apiKey ?? "",
     gamesDir: initial?.gamesDir ?? "",
@@ -108,6 +109,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
     const prev = draftRef.current;
     const changed =
       (p.url !== undefined && normalizeServerUrl(p.url) !== normalizeServerUrl(prev.url)) ||
+      (p.altUrl !== undefined && normalizeServerUrl(p.altUrl) !== normalizeServerUrl(prev.altUrl)) ||
       (p.apiKey !== undefined && p.apiKey.trim() !== prev.apiKey.trim());
     if (changed) {
       testSeq.current++;
@@ -120,7 +122,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
   const runTest = async () => {
     const seq = ++testSeq.current;
     setTest({ busy: true, result: null });
-    const result = await testJellyfin(draft.url, draft.apiKey);
+    const result = await testJellyfinAddresses(draft.url, draft.altUrl, draft.apiKey);
     if (seq !== testSeq.current) return;
     setTest({ busy: false, result });
     playSfx(result.status === "ok" ? "confirm" : "error");
@@ -135,6 +137,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
     void runChecks(
       {
         jellyfinUrl: draft.url,
+        jellyfinAltUrl: draft.altUrl,
         apiKey: draft.apiKey,
         gamesDir: draft.gamesDir,
         biosDir: draft.biosDir,
