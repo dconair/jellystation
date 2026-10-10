@@ -1,3 +1,4 @@
+import { useReachableServer } from "./jellyfin/useReachableServer";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { categories as baseCategories } from "./data/library";
 import type { XmbCategory, XmbEntry } from "./data/types";
@@ -125,8 +126,8 @@ type Overlay =
   | { kind: "covers" }
   | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[] };
 
-const jfConfigOf = (settings: Settings | null) =>
-  settings && settings.jellyfin.url.trim() && settings.jellyfin.apiKey.trim() ? settings.jellyfin : null;
+const jfConfigOf = (jellyfin: Settings["jellyfin"] | undefined) =>
+  jellyfin && jellyfin.url.trim() && jellyfin.apiKey.trim() ? jellyfin : null;
 
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : "Unerwarteter Fehler");
 
@@ -140,7 +141,9 @@ function Main({
   onRunSetup: (onlyStep?: number) => void;
 }) {
   const library = useGameLibrary(settings?.gamesDir, coversAuto(settings));
-  const jellyfin = useJellyfinLibrary(settings?.jellyfin);
+  // Hauptadresse oder (unterwegs, z. B. Tailscale) zweite Adresse – je nachdem, was gerade antwortet.
+  const reachableJf = useReachableServer(settings?.jellyfin ?? null);
+  const jellyfin = useJellyfinLibrary(reachableJf ?? undefined);
   const emulators = useEmulators(settings?.emulators);
   const biosDir = settings?.biosDir ?? "";
   const requirements = useRequirements(biosDirOf(biosDir));
@@ -166,7 +169,7 @@ function Main({
     onNeedFiles: (emulatorId, message) => openOverlay({ kind: "files", focusEmulatorId: emulatorId, message }),
   });
 
-  const jfConfig = jfConfigOf(settings);
+  const jfConfig = jfConfigOf(reachableJf ?? undefined);
   const recentJf = useRecentJellyfin(jfConfig);
   const [recentGameIds, setRecentGameIds] = useState(loadRecentGames);
   // Beim ersten Aufbau startet das Menü auf „Zuletzt“, wenn dort voraussichtlich etwas steht.

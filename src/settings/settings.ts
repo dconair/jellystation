@@ -9,6 +9,8 @@ export interface Settings {
   jellyfin: {
     /** z. B. "http://192.168.1.20:8096" (ohne abschließenden Slash) */
     url: string;
+    /** Zweite Adresse für unterwegs (z. B. Tailscale-IP oder MagicDNS-Name); wird genutzt, wenn url nicht antwortet. */
+    altUrl?: string;
     apiKey: string;
     /** Benutzer, für den Wiedergabestatus gilt; fehlt er, nimmt die App den zuletzt aktiven Benutzer. */
     userId?: string;
@@ -95,6 +97,7 @@ function validate(raw: unknown): Settings | null {
     jellyfin: {
       url: typeof r.jellyfin?.url === "string" ? r.jellyfin.url : "",
       apiKey: typeof r.jellyfin?.apiKey === "string" ? r.jellyfin.apiKey : "",
+      ...(typeof r.jellyfin?.altUrl === "string" && r.jellyfin.altUrl.trim() ? { altUrl: r.jellyfin.altUrl.trim() } : {}),
       ...(typeof r.jellyfin?.userId === "string" && r.jellyfin.userId ? { userId: r.jellyfin.userId } : {}),
       ...(typeof r.jellyfin?.userName === "string" && r.jellyfin.userName ? { userName: r.jellyfin.userName } : {}),
     },

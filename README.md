@@ -13,7 +13,7 @@ npm run tauri build
 >
 > ```bash
 > # einmalig (Terminal):
-> bash -c "$(curl -fsSL https://raw.githubusercontent.com/dconair/jellystation/claude/serene-ride-x8ll06/scripts/bootstrap.sh)"
+> bash -c "$(curl -fsSL https://raw.githubusercontent.com/dconair/jellystation/main/scripts/bootstrap.sh)"
 > # danach immer: aktualisieren + starten
 > jellystation            # auch: --web, --build, --no-update, --status
 > ```

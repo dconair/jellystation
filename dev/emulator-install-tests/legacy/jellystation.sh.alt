@@ -13,7 +13,7 @@
 #   bash scripts/jellystation.sh [Optionen]
 #
 # Umgebungsvariablen:
-#   JELLYSTATION_BRANCH       Branch, dem JellyStation folgt (Standard: claude/serene-ride-x8ll06)
+#   JELLYSTATION_BRANCH       Branch, dem JellyStation folgt (Standard: main)
 #   JELLYSTATION_REMOTE_URL   GitHub-Adresse, falls der Ordner erst verbunden werden muss
 #                             (Standard: https://github.com/dconair/jellystation.git)
 #   JELLYSTATION_DRY_RUN=1    nur anzeigen, was ausgeführt würde (npm, Start), nichts davon tun
@@ -21,7 +21,7 @@ set -euo pipefail
 
 # Interne Option --mark-deps: merkt sich den Stand der Pakete (wird von setup-mac.sh nach npm ci aufgerufen).
 
-BRANCH="${JELLYSTATION_BRANCH:-claude/serene-ride-x8ll06}"
+BRANCH="${JELLYSTATION_BRANCH:-main}"
 REMOTE_URL="${JELLYSTATION_REMOTE_URL:-https://github.com/dconair/jellystation.git}"
 DRY_RUN="${JELLYSTATION_DRY_RUN:-0}"
 DEV_PORT=1420

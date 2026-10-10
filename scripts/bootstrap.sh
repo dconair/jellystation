@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # JellyStation – Ersteinrichtung auf einem frischen Mac mit einem einzigen Befehl.
 #
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/dconair/jellystation/claude/serene-ride-x8ll06/scripts/bootstrap.sh)"
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/dconair/jellystation/main/scripts/bootstrap.sh)"
 #
 # Das Skript
 #   1. prüft macOS und sorgt für git (startet bei Bedarf die Installation der Xcode Command Line Tools),
@@ -17,11 +17,11 @@
 #
 # Umgebungsvariablen:
 #   JELLYSTATION_DIR          Zielordner (Standard: ~/JellyStation)
-#   JELLYSTATION_BRANCH       Branch (Standard: claude/serene-ride-x8ll06)
+#   JELLYSTATION_BRANCH       Branch (Standard: main)
 #   JELLYSTATION_REMOTE_URL   GitHub-Adresse (Standard: https://github.com/dconair/jellystation.git)
 set -euo pipefail
 
-BRANCH="${JELLYSTATION_BRANCH:-claude/serene-ride-x8ll06}"
+BRANCH="${JELLYSTATION_BRANCH:-main}"
 REMOTE_URL="${JELLYSTATION_REMOTE_URL:-https://github.com/dconair/jellystation.git}"
 XCODE_WAIT_SECONDS=1800
 

@@ -18,6 +18,8 @@ import type { CheckResult } from "./checks";
 
 export interface Draft {
   url: string;
+  /** Zweite Adresse für unterwegs (leer = keine). */
+  altUrl: string;
   apiKey: string;
   gamesDir: string;
   /** BIOS-/Firmware-Ordner; leer = Standard (~/JellyStation/BIOS). */
@@ -86,6 +88,20 @@ export function JellyfinStep({ draft, onChange, test }: JellyfinStepProps) {
             value={draft.url}
             onChange={(e) => onChange({ url: e.target.value })}
             onBlur={() => draft.url && onChange({ url: normalizeServerUrl(draft.url) })}
+          />
+        </label>
+
+        <label className="setup-field">
+          <span>Zweite Adresse für unterwegs (optional)</span>
+          <input
+            type="text"
+            inputMode="url"
+            spellCheck={false}
+            autoCapitalize="off"
+            placeholder="z. B. Tailscale: http://100.x.y.z:8096"
+            value={draft.altUrl}
+            onChange={(e) => onChange({ altUrl: e.target.value })}
+            onBlur={() => draft.altUrl && onChange({ altUrl: normalizeServerUrl(draft.altUrl) })}
           />
         </label>
 

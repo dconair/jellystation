@@ -269,7 +269,7 @@ run_tty_sh() {
 # ----------------------------------------------------- Welt mit Git-Ordner ----
 # int_world <Name> – wie new_world, plus: Projektordner $W/home/JellyStation (Git-Klon eines lokalen Ursprungs mit den
 # Skripten und der Datendatei aus diesem Repo), npm-Attrappe, JELLYSTATION_REMOTE_URL auf den lokalen Ursprung.
-BR="claude/serene-ride-x8ll06"
+BR="main"
 gi() { GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t git "$@"; }
 int_world() {
   new_world "$1"

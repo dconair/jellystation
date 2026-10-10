@@ -72,6 +72,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
   const [step, setStep] = useState(onlyStep ?? 0);
   const [draft, setDraft] = useState<Draft>({
     url: initial?.jellyfin.url ?? "",
+    altUrl: initial?.jellyfin.altUrl ?? "",
     apiKey: initial?.jellyfin.apiKey ?? "",
     gamesDir: initial?.gamesDir ?? "",
     biosDir: initial?.biosDir ?? "",
@@ -169,6 +170,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
       version: 1,
       jellyfin: {
         url,
+        ...(isValidServerUrl(draft.altUrl) ? { altUrl: normalizeServerUrl(draft.altUrl) } : {}),
         apiKey: draft.apiKey.trim(),
         ...(sameServer && initial?.jellyfin.userId ? { userId: initial.jellyfin.userId } : {}),
         ...(sameServer && initial?.jellyfin.userName ? { userName: initial.jellyfin.userName } : {}),
@@ -223,7 +225,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
   const skip = () => {
     if (!canSkip) return;
     playSfx("move");
-    if (step === 0) patch({ url: "", apiKey: "" });
+    if (step === 0) patch({ url: "", altUrl: "", apiKey: "" });
     if (step === 1) patch({ gamesDir: "" });
     if (step === STEP_FILES) patch({ biosDir: "" });
     setStep((s) => s + 1);

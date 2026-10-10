@@ -15,7 +15,7 @@ nur dass dort zusätzlich der echte macOS-Ordnerdialog und der Emulator-Start fu
 Öffne das **Terminal** (`Cmd + Leertaste`, „Terminal“ tippen, Enter) und füge diese **eine Zeile** ein:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/dconair/jellystation/claude/serene-ride-x8ll06/scripts/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/dconair/jellystation/main/scripts/bootstrap.sh)"
 ```
 
 Was das Skript macht (du siehst jeden Schritt im Terminal):
@@ -67,7 +67,7 @@ Beenden: im Terminal `Strg + C`.
 
 - **Im Terminal:** `jellystation --status` zeigt deinen Stand und den auf GitHub, und ob sie übereinstimmen.
 - **In der App:** *Einstellungen → Über JellyStation* zeigt Version und Commit (z. B. `0.1.0 · 7250fe6`) samt Beschreibung der letzten Änderung.
-- **Auf GitHub:** Auf dem Branch `claude/serene-ride-x8ll06` steht oben der neueste Commit – dieselbe Kurznummer.
+- **Auf GitHub:** Auf dem Branch `main` steht oben der neueste Commit – dieselbe Kurznummer.
 
 Eigene Änderungen an Dateien gehen beim Update nicht verloren: Sie werden vorher automatisch in einen Git-Stash gesichert
 (`git stash list` zeigt sie).
@@ -195,6 +195,15 @@ Der Jellyfin-Server liefert, die App spielt ab – im PS3-Stil mit Bedienfeld un
 Player-Tasten: ✕ Pause · ○ Beenden · △ Optionen · □ Anzeige · ←/→ Spulen (gedrückt halten = schneller) · ↑/↓ Lautstärke ·
 L1/R1 ±30 s · L2/R2 vorherige/nächste Folge. Tastatur: Leertaste/Enter, Esc, `O`, `J`/`L`, `PageUp`/`PageDown`.
 
+### Unterwegs (Tailscale)
+
+Die automatische Server-Suche funktioniert nur im selben WLAN (UDP-Broadcast läuft nicht durch Tailscale). Unterwegs braucht
+die App eine feste Adresse: Trage unter **Einstellungen → Server** bei „Zweite Adresse für unterwegs“ die Tailscale-Adresse
+deines Servers ein, z. B. `http://100.x.y.z:8096` oder `http://servername.tailnet.ts.net:8096` (Standard-Port von Jellyfin ist 8096).
+Die App probiert beim Start, nach Netzwechsel und beim Zurückkehren in die App selbst, welche der beiden Adressen antwortet
+(Heimadresse hat Vorrang). Eine private LAN-Adresse wie `192.168.x.x` geht über Tailscale nur, wenn der Server dort als
+„Subnet Router“ freigegeben ist – die Tailscale-Adresse ist der einfachere Weg.
+
 ---
 
 ## 6. Bedienung
@@ -256,7 +265,7 @@ gh auth setup-git
 ```
 
 Danach laufen Updates wie gewohnt. Der Einrichtungsbefehl aus Abschnitt 1 (`curl …raw.githubusercontent.com…`) funktioniert bei einem
-privaten Repo nicht mehr; dann einmal manuell klonen: `gh repo clone dconair/jellystation ~/JellyStation -- --branch claude/serene-ride-x8ll06`
+privaten Repo nicht mehr; dann einmal manuell klonen: `gh repo clone dconair/jellystation ~/JellyStation -- --branch main`
 und `bash ~/JellyStation/scripts/bootstrap.sh`.
 
 ---

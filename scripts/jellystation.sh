@@ -20,7 +20,7 @@
 #   bash scripts/jellystation.sh [Optionen]
 #
 # Umgebungsvariablen:
-#   JELLYSTATION_BRANCH       Branch, dem JellyStation folgt (Standard: claude/serene-ride-x8ll06)
+#   JELLYSTATION_BRANCH       Branch, dem JellyStation folgt (Standard: main)
 #   JELLYSTATION_REMOTE_URL   GitHub-Adresse, falls der Ordner erst verbunden werden muss
 #                             (Standard: https://github.com/dconair/jellystation.git)
 #   JELLYSTATION_DRY_RUN=1    nur anzeigen, was ausgeführt würde (npm, Emulatoren, Start), nichts davon tun
@@ -31,7 +31,7 @@ set -euo pipefail
 #   --mark-deps       merkt sich den Stand der Pakete, damit der erste Start sie nicht gleich noch einmal installiert
 #   --mark-emulators  merkt sich den Stand der Emulatoren (Merkdatei), damit der erste Start nicht gleich dasselbe wiederholt
 
-BRANCH="${JELLYSTATION_BRANCH:-claude/serene-ride-x8ll06}"
+BRANCH="${JELLYSTATION_BRANCH:-main}"
 REMOTE_URL="${JELLYSTATION_REMOTE_URL:-https://github.com/dconair/jellystation.git}"
 DRY_RUN="${JELLYSTATION_DRY_RUN:-0}"
 DEV_PORT=1420

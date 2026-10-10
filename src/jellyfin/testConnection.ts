@@ -89,3 +89,15 @@ async function probeUser(
     return {};
   }
 }
+
+/** Antwortet der Server unter dieser Adresse? (GET /System/Info/Public, ohne Anmeldung) */
+export async function pingServer(urlInput: string, ms = 3000): Promise<boolean> {
+  const base = normalizeServerUrl(urlInput);
+  if (!isValidServerUrl(base)) return false;
+  try {
+    const res = await request(`${base}/System/Info/Public`, {}, ms);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
