@@ -209,6 +209,24 @@ L1/R1 ±30 s · L2/R2 vorherige/nächste Folge. Tastatur: Leertaste/Enter, Esc, 
 
 ---
 
+## 6a. Menüpunkte im Überblick
+
+| Menüpunkt | Was er kann |
+| --- | --- |
+| **Zuletzt** | Startseite: angefangene Filme und Folgen aus Jellyfin (mit Fortschrittsbalken), die nächsten Folgen deiner Serien und zuletzt gespielte Spiele. ✕ spielt direkt weiter. |
+| **Filme / Serien** | Serien öffnen einen Bildschirm wie bei Netflix: Weiterschauen-Knopf, **Staffel-Auswahl** (✕ öffnet die Liste, L1/R1 wechseln direkt), Folgenliste der gewählten Staffel. ✕ auf einer Folge öffnet die **Detailseite** (großes Bild, volle Beschreibung, Abspielen/Fortsetzen/Von vorn, als gesehen markieren). |
+| **Spiele · PS1/PS2/PS3/…** | Pro Systemordner eine Spalte; **Cover** kommen automatisch (siehe unten). |
+| **Web** | Eigene Lesezeichen (✕ öffnet in einem App-Fenster, △ löscht). Downloads landen im Ordner `Downloads` deines Spiele-Ordners; danach fragt die App, in welches System die Datei gehört. Es sind **keine Seiten vorinstalliert** – lade nur, was du besitzt oder legal beziehen darfst. Fremdseiten lassen sich nur mit Maus/Tastatur bedienen. |
+| **Einstellungen** | Server (Adresse/Schlüssel ändern), Spiele-Ordner, Emulatoren, BIOS & Firmware, Jellyfin-Benutzer, Wiedergabe, **Anzeige & Farben**, **Cover & Grafiken**, **Animationen**, **Ton & Musik**, Einrichtung, Über. |
+
+**Im Player:** Beim Spulen (←/→ halten, Maus auf der Leiste, Zifferntasten) erscheinen **Vorschaubilder** mit Zeit und Kapitel – von Jellyfin (Trickplay), sonst lokal erzeugt, bei Server-Umwandlung ohne Trickplay nur die Zeit. Nach einigen Sekunden Pause blendet das **Pause-Bild** (Hintergrund, Logo, Beschreibung aus Jellyfin) ein.
+
+**Cover:** Zuerst zählt ein Bild neben dem Spiel (`Spiel.iso` + `Spiel.jpg`). Fehlt es, liest die App eingebettete Grafiken aus PS3-/PSP-Abbildern und holt sonst Boxart von `thumbnails.libretro.com` (nur Spiel- und Systemname werden gesendet; abschaltbar unter *Einstellungen → Cover & Grafiken*). Verschlüsselte PS3-ISOs haben keine lesbare Grafik – dann hilft nur Online oder ein eigenes Bild.
+
+**Anzeige:** Helligkeit, Farbthema (auch eigener Farbton), Tag/Nacht-Verlauf, **Hintergrund-Design** (PS3-Wellen, Nordlicht, Sternenhimmel, Tiefsee, Neon-Gitter, nur Farbverlauf), Animationen voll/reduziert/aus und Tempo. **Musik:** leise, atmosphärische Hintergrundmusik wie auf der PS4 in vier Stimmungen – erzeugt im Programm, pausiert bei Filmen und Spielen; Taste `M` schaltet alles stumm.
+
+---
+
 ## 7. Häufige Probleme
 
 | Symptom | Lösung |

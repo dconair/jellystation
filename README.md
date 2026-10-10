@@ -52,6 +52,12 @@ dieselben Fokus-Animationen und Soundeffekte aus. Der Gamepad-Hook liegt in `src
 - Per Dialog gewählte Ordner werden zur Laufzeit für das Auslesen freigegeben und per `persisted-scope` gemerkt;
   die festen Pfade in `src-tauri/capabilities/library.json` gelten nur für den Standardordner und RPCS3.
 
+## Funktionen (Auswahl)
+
+Menü „Zuletzt“, Serien-Screen mit Staffel-Auswahl und Folgen-Details, Player mit Vorschaubildern und Pause-Bild, automatische Spiele-Cover,
+Web-Bereich mit Lesezeichen und Download-Ablage, Einstellungen für Server, Ordner, Farben, Hintergrund-Designs, Animationen, Menü-Töne und
+generative Hintergrundmusik. Übersicht für Nutzer: [docs/ANLEITUNG-MAC.md](docs/ANLEITUNG-MAC.md#6a-menüpunkte-im-überblick).
+
 ## Emulatoren (macOS)
 
 - Katalog: `src/emulators/catalog.ts` (+ `emulators.json` für das Installationsskript). PS1 → DuckStation, PS2 → PCSX2, PS3 → RPCS3,

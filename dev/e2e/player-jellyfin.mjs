@@ -25,6 +25,7 @@ try {
   const notice = await wd.exec("return [...document.querySelectorAll('.xmb-notice')].map(e=>e.textContent)");
   console.log("Hinweis:", JSON.stringify(notice));
   await wd.screenshot(path.join(out, "p1-menu.png"));
+  await press(wd, "ArrowRight", { pause: 700 }); // Das Menü startet auf „Zuletzt“, der Film steht in „Filme“
   await press(wd, "Enter");
   await sleep(6000);
   const v = await video();
