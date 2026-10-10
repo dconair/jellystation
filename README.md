@@ -2,6 +2,19 @@
 
 Ein Media-Hub im Stil der PS3-XrossMediaBar (XMB) – Tauri 2 + React + TypeScript.
 
+## Download
+
+Die Installer der jeweils neuesten [Release](https://github.com/dconair/jellystation/releases/latest):
+
+| System | Datei |
+| ------ | ----- |
+| macOS (Apple Silicon: M1 und neuer) | [JellyStation-Mac-AppleSilicon.dmg](https://github.com/dconair/jellystation/releases/latest/download/JellyStation-Mac-AppleSilicon.dmg) |
+| macOS (Intel) | [JellyStation-Mac-Intel.dmg](https://github.com/dconair/jellystation/releases/latest/download/JellyStation-Mac-Intel.dmg) |
+| Windows | [JellyStation-Windows-Setup.exe](https://github.com/dconair/jellystation/releases/latest/download/JellyStation-Windows-Setup.exe) |
+
+Die Apps sind nicht signiert. Mac: beim ersten Öffnen Rechtsklick → „Öffnen“ (siehe [docs/ANLEITUNG-MAC.md](docs/ANLEITUNG-MAC.md)).
+Windows: SmartScreen zeigt eine Warnung, dort „Weitere Informationen“ → „Trotzdem ausführen“.
+
 ```bash
 npm install
 npm run dev          # nur Frontend im Browser (Demo-Daten)
