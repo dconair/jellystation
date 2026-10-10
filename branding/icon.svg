@@ -45,9 +45,6 @@
     </g>
     <rect x="100" y="100" width="824" height="824" fill="none" stroke="#9fefff" stroke-opacity="0.18" stroke-width="3" rx="185"/>
   </g>
-  <g fill="none" stroke="#19e6d2" stroke-linecap="round" opacity="0.7">
-    <circle cx="230" cy="330" r="10" stroke-width="4"/><circle cx="190" cy="480" r="6" stroke-width="3"/><circle cx="800" cy="860" r="8" stroke-width="4"/><circle cx="820" cy="250" r="7" stroke-width="3" stroke="#ff8a1f"/>
-  </g>
   <g transform="translate(560 410) rotate(16) scale(0.9)">
     <!-- Tentakel als runde Röhren: orangener Schein, dunkle Unterseite, Farbverlauf, helle Lichtkante -->
     <g fill="none" stroke-linecap="round" stroke-linejoin="round">
