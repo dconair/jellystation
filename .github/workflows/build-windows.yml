@@ -1,0 +1,39 @@
+# Baut JellyStation für Windows und lädt den Installer (.exe, .msi) als Artefakt hoch.
+#
+# Auslösen:  in GitHub: Actions → „Windows-Build“ → Run workflow. Die Dateien liegen danach unten auf der Lauf-Seite
+#   unter „Artifacts“ (ZIP-Datei herunterladen und entpacken).
+# Die App ist NICHT signiert: Windows SmartScreen warnt beim ersten Start („Weitere Informationen“ → „Trotzdem ausführen“).
+name: Windows-Build
+
+on:
+  workflow_dispatch:
+  # Testlauf, wenn nur dieser Workflow geändert wird (z. B. im Pull Request)
+  pull_request:
+    paths:
+      - ".github/workflows/build-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npm run tauri build -- --bundles nsis,msi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JellyStation-Windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
