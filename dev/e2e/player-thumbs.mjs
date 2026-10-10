@@ -60,6 +60,12 @@ async function newPage(jellyfinUrl, size = { width: 1280, height: 720 }) {
 
 /** Öffnet den ersten Film (Mock bzw. Demo; die Leiste steht beim Start auf "Filme") und wartet, bis das Bild läuft. */
 async function openPlayer(page) {
+  // Mit Jellyfin startet die Leiste auf "Zuletzt", der Film steht in "Filme".
+  const hasJf = await page.evaluate(() => !!JSON.parse(localStorage.getItem("jellystation.settings") || "{}").jellyfin?.url);
+  if (hasJf) {
+    await page.keyboard.press("ArrowRight");
+    await sleep(700);
+  }
   await page.keyboard.press("Enter");
   await page.waitForFunction(() => {
     const v = document.querySelector("video.player-video");
