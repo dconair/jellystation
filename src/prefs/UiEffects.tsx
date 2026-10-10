@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { applyAccent } from "./accent";
 import { useUiPrefs } from "./uiPrefs";
 
 /**
@@ -7,7 +8,7 @@ import { useUiPrefs } from "./uiPrefs";
  * data-anim am <html> für die CSS-Regeln zu „Animationen: reduziert/aus“.
  */
 export function UiEffects() {
-  const { brightness, animations } = useUiPrefs();
+  const { brightness, animations, themeId, customHue, accentId, accentHue } = useUiPrefs();
 
   useEffect(() => {
     document.documentElement.dataset.anim = animations;
@@ -15,6 +16,14 @@ export function UiEffects() {
       delete document.documentElement.dataset.anim;
     };
   }, [animations]);
+
+  // Akzentfarbe (Listen, Dialoge, Untermenüs); „Automatisch“ folgt der Monatsfarbe und wird deshalb ab und zu neu gerechnet.
+  useEffect(() => {
+    const apply = () => applyAccent({ themeId, customHue, accentId, accentHue });
+    apply();
+    const timer = window.setInterval(apply, 10 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [themeId, customHue, accentId, accentHue]);
 
   if (Math.abs(brightness - 1) < 0.005) return null;
   return (

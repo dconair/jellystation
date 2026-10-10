@@ -50,27 +50,20 @@ const glyphs: Record<CategoryIconName, Glyph> = {
     cut: <path d="M12 6.6V12l3.9 2.4" fill="none" stroke={K} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />,
   },
 
-  // Filmklappe: aufgeklappter Streifenarm über dem Körper, durch einen Spalt getrennt.
+  // Video: Filmstreifen mit Lochreihen oben und unten und drei Bildfeldern, wie das Video-Symbol der XMB.
   movies: {
-    fill: (p) => (
-      <>
-        <rect x="3" y="11.6" width="18" height="9.6" rx="2.2" fill={p} />
-        <g transform="rotate(-9 3.4 10.6)">
-          <rect x="3" y="6.2" width="18" height="4.6" rx="1.5" fill={p} />
-        </g>
-      </>
-    ),
+    fill: (p) => <rect x="1.8" y="4.6" width="20.4" height="14.8" rx="2.2" fill={p} />,
     cut: (
       <>
-        {/* Spalt rund um den Arm */}
-        <g transform="rotate(-9 3.4 10.6)">
-          <rect x="3" y="6.2" width="18" height="4.6" rx="1.5" fill={K} stroke={K} strokeWidth="2.6" strokeLinejoin="round" />
-          <rect x="3" y="6.2" width="18" height="4.6" rx="1.5" fill="#fff" />
-          {/* Schrägstreifen im Arm */}
-          <path d="M7.4 11.4 9.8 5.6" stroke={K} strokeWidth="1.5" />
-          <path d="M12.4 11.4 14.8 5.6" stroke={K} strokeWidth="1.5" />
-          <path d="M17.4 11.4 19.8 5.6" stroke={K} strokeWidth="1.5" />
-        </g>
+        {/* Perforation */}
+        <path
+          d="M3.6 6.1h1.9v1.9H3.6zM7.3 6.1h1.9v1.9H7.3zM11 6.1h1.9v1.9H11zM14.7 6.1h1.9v1.9h-1.9zM18.4 6.1h1.9v1.9h-1.9zM3.6 16h1.9v1.9H3.6zM7.3 16h1.9v1.9H7.3zM11 16h1.9v1.9H11zM14.7 16h1.9v1.9h-1.9zM18.4 16h1.9v1.9h-1.9z"
+          fill={K}
+        />
+        {/* Bildfelder */}
+        <rect x="3.6" y="9.5" width="5.2" height="5" rx="0.9" fill={K} />
+        <rect x="9.4" y="9.5" width="5.2" height="5" rx="0.9" fill={K} />
+        <rect x="15.2" y="9.5" width="5.2" height="5" rx="0.9" fill={K} />
       </>
     ),
   },
@@ -102,18 +95,22 @@ const glyphs: Record<CategoryIconName, Glyph> = {
     ),
   },
 
-  // Fotos: Bilderrahmen mit Sonne und Bergen.
+  // Fotos: Kamera mit Sucherhöcker, Blitz und Objektiv (das Foto-Symbol der XMB ist eine Kamera).
   photos: {
     fill: (p) => (
       <>
-        <rect x="2.5" y="4" width="19" height="16" rx="2.6" fill={p} />
+        <path d="M8.2 4.2h7.6l1.2 2.4H7z" fill={p} stroke={p} strokeWidth="1" strokeLinejoin="round" />
+        <rect x="2.2" y="6.4" width="19.6" height="14" rx="2.8" fill={p} />
       </>
     ),
     cut: (
       <>
-        <rect x="4.5" y="6" width="15" height="12" rx="1.3" fill={K} />
-        <circle cx="9" cy="10" r="1.7" fill="#fff" />
-        <path d="M4.5 18 9.6 12.6 12.6 15.6 15.6 11.6 19.5 16.4V18z" fill="#fff" stroke="#fff" strokeWidth="0.8" strokeLinejoin="round" />
+        {/* Objektiv: ein durchscheinender Ring um die Linse */}
+        <circle cx="12" cy="13.5" r="5.4" fill={K} />
+        <circle cx="12" cy="13.5" r="3.9" fill="#fff" />
+        <circle cx="10.6" cy="12.1" r="1.1" fill={K} />
+        {/* Blitz */}
+        <rect x="17.6" y="8.2" width="2.4" height="1.6" rx="0.6" fill={K} />
       </>
     ),
   },
@@ -211,10 +208,10 @@ export function CategoryIcon({ name, variant = "category", size, className }: Ca
       focusable="false"
     >
       <defs>
-        {/* Oben reines currentColor, unten zum hellen Blaugrau abgedunkelt: der typische Glanz-Verlauf. */}
+        {/* Oben reines currentColor, unten zur Akzentfarbe hin abgedunkelt: der typische Glanz-Verlauf. */}
         <linearGradient id={grad} gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2="22">
           <stop offset="0" stopColor="currentColor" />
-          <stop offset="1" stopColor="currentColor" style={{ stopColor: "color-mix(in srgb, currentColor 70%, #86a9e6)" }} />
+          <stop offset="1" stopColor="currentColor" style={{ stopColor: "color-mix(in srgb, currentColor 66%, rgb(var(--ui-l76)))" }} />
         </linearGradient>
         <mask id={mask} maskUnits="userSpaceOnUse" x="-3" y="-3" width="30" height="30">
           <rect x="-3" y="-3" width="30" height="30" fill="#fff" />

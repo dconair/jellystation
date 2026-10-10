@@ -9,6 +9,7 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_MOOD, isMoodId } from "../audio/moods";
 import type { MoodId } from "../audio/moods";
+import { monthHues } from "../xmb/background/palette";
 
 export type AnimationMode = "full" | "reduced" | "off";
 
@@ -34,6 +35,13 @@ export interface UiPrefs {
   themeId: string;
   /** Eigener Farbton 0–359 (nur bei themeId "custom"). */
   customHue: number;
+  /**
+   * Akzentfarbe der Listen, Dialoge und Untermenüs (Leuchtbalken, Ränder, Tönung der Flächen): "auto" folgt dem Farbthema
+   * (bzw. der Monatsfarbe), "weiss" ist das neutrale PS3-Weiß/Grau, sonst eine ID aus THEMES oder "custom".
+   */
+  accentId: string;
+  /** Eigener Akzent-Farbton 0–359 (nur bei accentId "custom"). */
+  accentHue: number;
   /** Hintergrund wird nachts dunkler (Tageszeit wie auf der PS3). */
   dayNight: boolean;
   /** Hintergrund-Design. */
@@ -66,6 +74,8 @@ export const DEFAULT_UI_PREFS: UiPrefs = {
   backgroundStyle: "xmb",
   bootAnimation: true,
   customHue: 215,
+  accentId: "auto",
+  accentHue: 215,
   dayNight: true,
   waves: true,
   shapes: true,
@@ -100,10 +110,25 @@ export const THEMES: readonly Theme[] = [
   { id: "custom", label: "Eigener Farbton", hue: null },
 ];
 
+export interface Accent {
+  id: string;
+  label: string;
+  /** Farbton 0–359; null = folgt dem Farbthema (auto), neutral (weiss) bzw. accentHue (custom). */
+  hue: number | null;
+}
+
+export const ACCENTS: readonly Accent[] = [
+  { id: "auto", label: "Wie Farbthema", hue: null },
+  { id: "weiss", label: "PS3-Weiß", hue: null },
+  ...THEMES.filter((t) => t.id !== "auto" && t.id !== "custom").map((t) => ({ id: t.id, label: t.label, hue: t.hue })),
+  { id: "custom", label: "Eigener Farbton", hue: null },
+];
+
 /** Grenzen der Zahlenwerte (für Regler und Prüfung). */
 export const LIMITS = {
   brightness: { min: 0.6, max: 1.25, step: 0.05 },
   customHue: { min: 0, max: 359, step: 5 },
+  accentHue: { min: 0, max: 359, step: 5 },
   waveSpeed: { min: 0.25, max: 2, step: 0.25 },
   motionSpeed: { min: 0.6, max: 1.6, step: 0.1 },
   sfxVolume: { min: 0, max: 1, step: 0.1 },
@@ -125,6 +150,8 @@ export function sanitizeUiPrefs(raw: unknown): UiPrefs {
     themeId: theme,
     backgroundStyle: BACKGROUND_STYLES.some((s) => s.id === r.backgroundStyle) ? (r.backgroundStyle as BackgroundStyle) : d.backgroundStyle,
     customHue: Math.round(num(r.customHue, d.customHue, LIMITS.customHue.min, LIMITS.customHue.max)),
+    accentId: typeof r.accentId === "string" && ACCENTS.some((a) => a.id === r.accentId) ? r.accentId : d.accentId,
+    accentHue: Math.round(num(r.accentHue, d.accentHue, LIMITS.accentHue.min, LIMITS.accentHue.max)),
     dayNight: bool(r.dayNight, d.dayNight),
     bootAnimation: bool(r.bootAnimation, d.bootAnimation),
     waves: bool(r.waves, d.waves),
@@ -192,4 +219,13 @@ export function useUiPrefs(): UiPrefs {
 export function themeHue(p: Pick<UiPrefs, "themeId" | "customHue">): number | null {
   if (p.themeId === "custom") return p.customHue;
   return THEMES.find((t) => t.id === p.themeId)?.hue ?? null;
+}
+
+/** Farbton und Sättigung (0–1) der Akzentfarbe; `date` bestimmt die Monatsfarbe bei „Automatisch“. */
+export function accentColor(p: Pick<UiPrefs, "themeId" | "customHue" | "accentId" | "accentHue">, date: Date = new Date()): { hue: number; sat: number } {
+  if (p.accentId === "weiss") return { hue: 220, sat: 0 };
+  if (p.accentId === "custom") return { hue: p.accentHue, sat: 1 };
+  const own = ACCENTS.find((a) => a.id === p.accentId)?.hue;
+  if (p.accentId !== "auto" && typeof own === "number") return { hue: own, sat: 1 };
+  return { hue: themeHue(p) ?? monthHues[date.getMonth()], sat: 1 };
 }

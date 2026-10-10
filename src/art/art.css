@@ -119,7 +119,7 @@
   background:
     linear-gradient(112deg, transparent 20%, rgba(255, 255, 255, 0.24) 33%, rgba(255, 255, 255, 0.07) 43%, transparent 56%),
     radial-gradient(80% 55% at 0% 0%, rgba(255, 255, 255, 0.26), transparent 62%),
-    linear-gradient(to top, rgba(3, 6, 18, 0.74), rgba(3, 6, 18, 0.3) 38%, transparent 62%);
+    linear-gradient(to top, rgba(var(--ui-l5), 0.74), rgba(var(--ui-l5), 0.3) 38%, transparent 62%);
 }
 
 .art-ph__bar {
@@ -132,7 +132,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 5.5cqmin;
-  background: linear-gradient(to bottom, rgba(5, 8, 20, 0.9), rgba(5, 8, 20, 0.72));
+  background: linear-gradient(to bottom, rgba(var(--ui-l5), 0.9), rgba(var(--ui-l5), 0.72));
   box-shadow:
     0 0.4cqmin 0 hsl(var(--h) 92% 72% / 0.7),
     0 1cqmin 3cqmin rgba(0, 0, 0, 0.35);
@@ -227,8 +227,8 @@
 .art-ph--poster .art-ph__shine {
   background:
     linear-gradient(105deg, transparent 24%, rgba(255, 255, 255, 0.16) 38%, rgba(255, 255, 255, 0.04) 48%, transparent 60%),
-    radial-gradient(120% 90% at 50% 40%, transparent 52%, rgba(2, 4, 14, 0.5) 100%),
-    linear-gradient(to top, rgba(2, 4, 14, 0.78), rgba(2, 4, 14, 0.28) 40%, transparent 64%);
+    radial-gradient(120% 90% at 50% 40%, transparent 52%, rgba(var(--ui-l5), 0.5) 100%),
+    linear-gradient(to top, rgba(var(--ui-l5), 0.78), rgba(var(--ui-l5), 0.28) 40%, transparent 64%);
 }
 
 .art-ph__credits {
@@ -323,7 +323,7 @@
 .art-ph--tile .art-ph__shine {
   background:
     linear-gradient(115deg, transparent 22%, rgba(255, 255, 255, 0.2) 36%, rgba(255, 255, 255, 0.05) 46%, transparent 58%),
-    linear-gradient(to top, rgba(3, 6, 18, 0.5), transparent 55%);
+    linear-gradient(to top, rgba(var(--ui-l5), 0.5), transparent 55%);
 }
 
 .art-ph__center {

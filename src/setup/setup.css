@@ -6,7 +6,7 @@
 
 .setup {
   --setup-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* gleiches Überschwingen wie --xmb-ease */
-  --setup-glow: 150, 190, 255;
+  --setup-glow: var(--ui-l76);
   --setup-ok: #9af2c0;
   --setup-warn: #ffd98a;
   --setup-fail: #ff9d9d;
@@ -49,16 +49,16 @@
   border-radius: 0.6rem;
   background: linear-gradient(
     180deg,
-    rgba(44, 72, 146, 0.5) 0%,
-    rgba(16, 32, 80, 0.62) 40%,
-    rgba(6, 14, 42, 0.74) 100%
+    rgba(var(--ui-l28), 0.56) 0%,
+    rgba(var(--ui-l14), 0.68) 40%,
+    rgba(var(--ui-l5), 0.78) 100%
   );
-  border: 1px solid rgba(190, 212, 255, 0.2);
+  border: 1px solid rgba(var(--ui-l84), 0.2);
   box-shadow:
     0 2.4rem 5.5rem rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(0, 0, 12, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 0 3.2rem rgba(90, 130, 230, 0.1);
+    0 0 0 1px rgba(var(--ui-l5), 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 0 3.2rem rgba(var(--ui-l58), 0.1);
   -webkit-backdrop-filter: blur(1.6rem) saturate(1.15);
   backdrop-filter: blur(1.6rem) saturate(1.15);
   animation: setup-in 0.9s var(--setup-ease) both;
@@ -297,7 +297,7 @@
 
 .setup-lead em {
   font-style: normal;
-  color: #d4e3ff;
+  color: rgb(var(--ui-l92));
   opacity: 1;
 }
 
@@ -361,7 +361,7 @@
   border-radius: 0.35rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 0.1rem 0.4rem rgba(0, 0, 20, 0.35);
+  box-shadow: inset 0 0.1rem 0.4rem rgba(var(--ui-l5), 0.35);
   color: #fff;
   font: inherit;
   font-size: 1.25rem;
@@ -547,7 +547,7 @@
   padding-left: 11.9rem; /* fluchtet mit der Wertspalte der Formularzeilen */
   font-size: 1.1rem;
   line-height: 1.4;
-  color: #d4e3ff;
+  color: rgb(var(--ui-l92));
 }
 
 .setup-tree {
@@ -555,7 +555,7 @@
   padding: 0.9rem 1.3rem;
   border-radius: 0.35rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 4, 24, 0.35);
+  background: rgba(var(--ui-l5), 0.35);
   font:
     1.05rem/1.55 ui-monospace,
     "SF Mono",
@@ -628,8 +628,8 @@
 }
 
 .pad-orb.is-connected {
-  color: #b4cfff;
-  filter: drop-shadow(0 0 1.2rem rgba(120, 170, 255, 0.7));
+  color: rgb(var(--ui-l84));
+  filter: drop-shadow(0 0 1.2rem rgba(var(--ui-l76), 0.7));
   animation: pad-pulse 1.4s ease-in-out infinite;
 }
 

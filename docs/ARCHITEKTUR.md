@@ -41,6 +41,11 @@ Das Hauptmenü (`<Xmb inputEnabled={…}>`) ignoriert jede Eingabe, solange ein 
 - **Hintergrund-Designs** (`src/xmb/background/`): `xmb` = „PS3-Original“ (verdrehtes Band aus feinen Fäden mit Funkeln und kräftigerem Farbverlauf, Standard für neue Installationen), `ps3` = die bisherigen
   „JellyStation-Wellen“ (bleiben wählbar, gespeicherte Einstellungen ändern sich nicht), dazu Nordlicht, Sternenhimmel, Tiefsee, Neon-Gitter, Farbverlauf.
   Farbe: Monatsfarbe (Standard), feste Farbthemen oder eigener Farbton – gilt für jedes Design.
+- **Akzentfarbe** (`src/prefs/accent.ts`, Einstellung `accentId`/`accentHue`, Einstellungen → Anzeige & Farben): Listen, Dialoge, Serien-Screen, Setup und Player sind dunkle, durchscheinende
+  Flächen über dem Hintergrundbild (wie die Listen der PS3), getönt in der Akzentfarbe. Standard „Wie Farbthema“ = Monatsfarbe bzw. gewähltes Farbthema; alternativ PS3-Weiß (neutral),
+  ein Thema oder ein eigener Farbton. `UiEffects` schreibt eine Helligkeitsleiter `--ui-l92 … --ui-l5` (RGB-Tripel, feste HSL-Helligkeit) an `<html>`; die Stylesheets nutzen sie als
+  `rgba(var(--ui-l76), 0.4)` – keine festen Blautöne mehr. Standardwerte (Blau) stehen in `index.css`. Beim Serien-Screen tritt die Menü-Ebene zurück, das Hintergrundbild bleibt (`:has(.series-frame)` in `series.css`).
+- **Kategorie-Icons** (`src/xmb/CategoryIcon.tsx`): selbst gezeichnete Vektor-Piktogramme nach dem Vorbild der XMB (Video = Filmstreifen, Foto = Kamera, Einstellungen = Werkzeugkasten, Spiele = Gamepad …). Es liegen keine Sony-Originaldateien im Repo.
 - **PS3-Klänge** (`src/audio/ps3Sounds.ts`, Dateien in `public/sounds/ps3/`, Einstellung `soundPack`: `ps3` | `synth`): Zuordnung in `sound.ts`
   (`SFX_AS_PS3`): Cursor-Bewegung → `snd_option`, Zurück → `snd_cancel`, Bestätigen → `snd_system_ok`, Fehler → `snd_system_ng`; dazu
   `playSound("trophy")` (Erfolgsmeldung), `playSound("gameboot")` (Spielstart) und `startBootSound()` (coldboot). Der Kategoriewechsel bleibt synthetisch. Die Originale sind sehr leise; `psGain` hebt sie auf einen einheitlichen Pegel. `snd_error.wav` ist praktisch

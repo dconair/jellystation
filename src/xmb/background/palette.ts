@@ -1,5 +1,5 @@
 // Hintergrundfarbe wechselt wie auf der PS3 mit dem Monat.
-const monthHues = [215, 265, 130, 330, 100, 190, 20, 160, 285, 35, 230, 0];
+export const monthHues = [215, 265, 130, 330, 100, 190, 20, 160, 285, 35, 230, 0];
 
 export interface Palette {
   /** Ändert sich nur, wenn Monat oder Tageszeit-Stufe wechseln (zum Neuaufbau der Verläufe). */
