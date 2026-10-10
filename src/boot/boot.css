@@ -67,7 +67,7 @@
   width: 100%;
   height: 100%;
   user-select: none;
-  filter: drop-shadow(0 0 1.2rem rgba(60, 240, 225, 0.55));
+  filter: drop-shadow(0 0 1.2rem rgba(60, 240, 225, 0.55)) drop-shadow(0 0.4rem 1.6rem rgba(255, 138, 31, 0.3));
 }
 
 @keyframes boot-waves {
