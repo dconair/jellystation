@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { defaultAltFor } from "../config/server";
 import type { Settings } from "../settings/settings";
 import { isValidServerUrl, normalizeServerUrl } from "./url";
 import { ALT_PING_TIMEOUT_MS, pingServer } from "./testConnection";
@@ -12,7 +13,8 @@ type JellyfinSettings = Settings["jellyfin"];
  */
 export function useReachableServer(config: JellyfinSettings | null): JellyfinSettings | null {
   const url = config?.url ?? "";
-  const alt = config?.altUrl ?? "";
+  // Ohne eigene zweite Adresse gilt beim Standard-Server die vorgegebene Tailscale-Adresse.
+  const alt = config?.altUrl || defaultAltFor(url);
   const hasAlt = !!alt.trim() && isValidServerUrl(alt) && normalizeServerUrl(alt) !== normalizeServerUrl(url);
   const [active, setActive] = useState<{ primary: string; url: string } | null>(null);
 
