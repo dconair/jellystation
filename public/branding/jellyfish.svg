@@ -1,41 +1,72 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-530 -424 960 960" width="960" height="960">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-400 -300 800 800" width="800" height="800">
   <title>JellyStation – Qualle mit PlayStation-Symbolen (ohne Kachel), für die Start-Animation</title>
   <defs>
-    <linearGradient id="belly" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#19e6d2" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#19e6d2" stop-opacity="0.05"/>
-    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#0b3a52"/><stop offset="0.5" stop-color="#06213a"/><stop offset="1" stop-color="#020a18"/></linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.4" r="0.5"><stop offset="0" stop-color="#19e6d2" stop-opacity="0.32"/><stop offset="0.6" stop-color="#19e6d2" stop-opacity="0.07"/><stop offset="1" stop-color="#19e6d2" stop-opacity="0"/></radialGradient>
+    <linearGradient id="wave1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#27f0da" stop-opacity="0.26"/><stop offset="1" stop-color="#0a5a6a" stop-opacity="0.03"/></linearGradient>
+    <linearGradient id="wave2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a3d" stop-opacity="0.16"/><stop offset="1" stop-color="#0a3a6a" stop-opacity="0.02"/></linearGradient>
+    <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+    <radialGradient id="glass" cx="0.36" cy="0.28" r="0.85">
+      <stop offset="0" stop-color="#9ffcf2" stop-opacity="0.85"/>
+      <stop offset="0.45" stop-color="#19e6d2" stop-opacity="0.50"/>
+      <stop offset="1" stop-color="#0a7f9a" stop-opacity="0.62"/>
+    </radialGradient>
+    <linearGradient id="glassRim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#19e6d2" stop-opacity="0.55"/><stop offset="1" stop-color="#0a7f9a" stop-opacity="0.30"/></linearGradient>
+    <linearGradient id="fillSoft" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#19e6d2" stop-opacity="0.34"/><stop offset="1" stop-color="#19e6d2" stop-opacity="0.08"/></linearGradient>
+    <linearGradient id="tent" gradientUnits="userSpaceOnUse" x1="0" y1="140" x2="0" y2="400"><stop offset="0" stop-color="#2cf0dc"/><stop offset="0.55" stop-color="#7ad9c0"/><stop offset="1" stop-color="#ffb347"/></linearGradient>
     <filter id="glowBig" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="17"/></filter>
     <filter id="glowSmall" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
-    <!-- Glockenumriss und Neonlinien wie in branding/icon.svg (Schwimmrichtung nach oben) -->
-    <path id="bell" d="M-225 4 C-225 -130 -130 -232 0 -232 C130 -232 225 -130 225 4
-                      C225 26 208 34 190 30 C176 62 150 62 134 30 C118 62 92 62 76 30 C60 62 34 62 18 30
-                      C2 62 -22 62 -38 30 C-54 62 -80 62 -96 30 C-112 62 -138 62 -154 30 C-170 62 -196 62 -206 30
-                      C-216 34 -225 26 -225 4 Z"/>
-
-    <!-- Neonlinien der Qualle -->
-    <g id="neon" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <use href="#bell"/>
-      <!-- die vier PlayStation-Symbole: aufrecht (gegen die Neigung der Qualle gedreht) und größer -->
-      <g transform="translate(0 -102) rotate(-32) scale(1.25) translate(0 102)">
-      <path d="M-22 -140 L0 -178 L22 -140 Z"/>
-      <circle cx="62" cy="-102" r="21"/>
-      <path d="M-17 -85 l34 34 M17 -85 l-34 34"/>
-      <rect x="-80" y="-120" width="36" height="36" rx="2"/>
-      </g>
-      <!-- Tentakel, im Schwimmen nach hinten gezogen -->
-      <path d="M-150 56 C-176 110 -118 150 -158 214 C-186 258 -150 292 -196 344"/>
-      <path d="M-76 62 C-98 124 -40 168 -86 236 C-112 280 -78 322 -118 388"/>
-      <path d="M0 64 C-22 132 40 176 -4 250 C-28 296 6 340 -26 412"/>
-      <path d="M76 62 C54 124 112 166 70 232 C46 272 78 310 48 372"/>
-      <path d="M150 56 C130 108 184 142 150 200 C130 238 160 266 140 312"/>
-    </g>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="blur6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+    <clipPath id="domeClip"><path d="M-216 8 C-228 -152 -122 -252 0 -252 C132 -252 228 -152 216 8 C212 62 168 88 0 88 C-168 88 -212 62 -216 8 Z"/></clipPath>
   </defs>
-  <g transform="rotate(32)">
-    <use href="#bell" fill="url(#belly)"/>
-    <use href="#neon" stroke="#19e6d2" stroke-width="30" opacity="0.85" filter="url(#glowBig)"/>
-    <use href="#neon" stroke="#2cf0dc" stroke-width="15" filter="url(#glowSmall)"/>
-    <use href="#neon" stroke="#3ff2e0" stroke-width="12"/>
-    <use href="#neon" stroke="#e3fffb" stroke-width="4.5"/>
+  <g transform="rotate(-7)">
+    <!-- Tentakel -->
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <g stroke="#ff8a1f" stroke-width="72" opacity="0.38" filter="url(#glowBig)"><path d="M-108 134 C-118 200 -168 250 -176 326 C-180 366 -198 394 -210 430"/><path d="M-44 146 C-52 212 -92 270 -112 340 C-122 372 -118 400 -130 420"/><path d="M40 148 C46 212 24 280 34 346 C38 380 22 410 30 442"/><path d="M110 136 C122 200 166 236 150 310 C142 350 164 380 152 412"/></g>
+      <g stroke="url(#tent)" stroke-width="36"><path d="M-108 134 C-118 200 -168 250 -176 326 C-180 366 -198 394 -210 430"/><path d="M-44 146 C-52 212 -92 270 -112 340 C-122 372 -118 400 -130 420"/><path d="M40 148 C46 212 24 280 34 346 C38 380 22 410 30 442"/><path d="M110 136 C122 200 166 236 150 310 C142 350 164 380 152 412"/></g>
+      <g stroke="#e3fffb" stroke-opacity="0.55" stroke-width="8" transform="translate(-7 0)"><path d="M-108 134 C-118 200 -168 250 -176 326 C-180 366 -198 394 -210 430"/><path d="M-44 146 C-52 212 -92 270 -112 340 C-122 372 -118 400 -130 420"/><path d="M40 148 C46 212 24 280 34 346 C38 380 22 410 30 442"/><path d="M110 136 C122 200 166 236 150 310 C142 350 164 380 152 412"/></g>
+    </g>
+    <!-- Randwulst und Kuppel -->
+    <path d="M-172 66 C-122 100 -60 108 0 108 C60 108 122 100 172 66 C178 104 142 132 92 142 C40 150 -40 150 -92 142 C-142 132 -178 104 -172 66 Z" fill="url(#glassRim)"/>
+    <path d="M-172 66 C-122 100 -60 108 0 108 C60 108 122 100 172 66 C178 104 142 132 92 142 C40 150 -40 150 -92 142 C-142 132 -178 104 -172 66 Z" fill="none" stroke="#3ff2e0" stroke-width="4" stroke-opacity="0.8"/>
+    <path d="M-216 8 C-228 -152 -122 -252 0 -252 C132 -252 228 -152 216 8 C212 62 168 88 0 88 C-168 88 -212 62 -216 8 Z" fill="url(#glass)"/>
+    <g clip-path="url(#domeClip)">
+      <ellipse cx="40" cy="60" rx="210" ry="90" fill="#0a6a8a" opacity="0.28" filter="url(#blur6)"/>
+    </g>
+    
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <g stroke="#19e6d2" stroke-width="26.4" opacity="0.7200000000000001" filter="url(#glowBig)"><path d="M-216 8 C-228 -152 -122 -252 0 -252 C132 -252 228 -152 216 8 C212 62 168 88 0 88 C-168 88 -212 62 -216 8 Z"/></g>
+      <g stroke="#3ff2e0" stroke-width="13.2" filter="url(#glowSmall)"><path d="M-216 8 C-228 -152 -122 -252 0 -252 C132 -252 228 -152 216 8 C212 62 168 88 0 88 C-168 88 -212 62 -216 8 Z"/></g>
+      <g stroke="#3ff2e0" stroke-width="11"><path d="M-216 8 C-228 -152 -122 -252 0 -252 C132 -252 228 -152 216 8 C212 62 168 88 0 88 C-168 88 -212 62 -216 8 Z"/></g>
+      <g stroke="#e3fffb" stroke-width="3.96"><path d="M-216 8 C-228 -152 -122 -252 0 -252 C132 -252 228 -152 216 8 C212 62 168 88 0 88 C-168 88 -212 62 -216 8 Z"/></g>
+    </g>
+    <!-- Glanz -->
+    <path d="M-174 -70 C-168 -150 -112 -204 -44 -218" fill="none" stroke="#fff" stroke-opacity="0.85" stroke-width="12" stroke-linecap="round" filter="url(#soft)"/>
+    <circle cx="-92" cy="-136" r="13" fill="#fff" filter="url(#soft)"/>
+    <!-- Symbole -->
+    
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <g stroke="#ff8a1f" stroke-width="28.799999999999997" opacity="0.8" filter="url(#glowBig)"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
+  <path d="M-27 -128 L0 -174 L27 -128 Z"/>
+  <circle cx="74" cy="-84" r="27"/>
+  <path d="M-24 -44 l48 48 M24 -44 l-48 48"/>
+  <rect x="-102" y="-112" width="54" height="54" rx="4"/></g></g>
+      <g stroke="#ffb347" stroke-width="14.399999999999999" filter="url(#glowSmall)"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
+  <path d="M-27 -128 L0 -174 L27 -128 Z"/>
+  <circle cx="74" cy="-84" r="27"/>
+  <path d="M-24 -44 l48 48 M24 -44 l-48 48"/>
+  <rect x="-102" y="-112" width="54" height="54" rx="4"/></g></g>
+      <g stroke="#ffb347" stroke-width="12"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
+  <path d="M-27 -128 L0 -174 L27 -128 Z"/>
+  <circle cx="74" cy="-84" r="27"/>
+  <path d="M-24 -44 l48 48 M24 -44 l-48 48"/>
+  <rect x="-102" y="-112" width="54" height="54" rx="4"/></g></g>
+      <g stroke="#fff1d6" stroke-width="4.32"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
+  <path d="M-27 -128 L0 -174 L27 -128 Z"/>
+  <circle cx="74" cy="-84" r="27"/>
+  <path d="M-24 -44 l48 48 M24 -44 l-48 48"/>
+  <rect x="-102" y="-112" width="54" height="54" rx="4"/></g></g>
+    </g>
   </g>
 </svg>

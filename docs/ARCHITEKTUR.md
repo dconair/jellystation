@@ -22,6 +22,7 @@ src/
   input/                   Gamepad-Hook (D-Pad, Stick, ✕ ○ △ □, L1/R1/L2/R2, Optionen)
 src-tauri/src/             Rust: lib.rs, media_proxy.rs, emulators.rs
 public/demo/               Demo-Video (mp4 + webm) und Untertitel für den Player ohne Server
+public/branding/, branding/    Logo: Qualle als SVG (App-Icon, Start-Animation), Generator make-logo.mjs; src-tauri/icons daraus erzeugt (npx tauri icon)
 ```
 
 ## Eingabe

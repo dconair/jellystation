@@ -1,3 +1,5 @@
+<p align="center"><img src="branding/icon-1024.png" alt="JellyStation-Logo: Neon-Qualle mit PlayStation-Symbolen" width="200"></p>
+
 # JellyStation
 
 Ein Media-Hub im Stil der PS3-XrossMediaBar (XMB) – Tauri 2 + React + TypeScript.
