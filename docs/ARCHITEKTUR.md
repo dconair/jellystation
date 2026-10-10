@@ -11,7 +11,7 @@ src/
   audio/                   Hintergrundmusik und PS3-Klänge (ps3Sounds.ts)
   setup/                   Setup-Wizard (4 Schritte) und Abhängigkeits-Checks
   settings/settings.ts     Persistenz (Tauri-Store bzw. localStorage im Browser)
-  library/                 Spiele-Scan (Ordner → Kategorien), Demo-Daten
+  library/                 Spielebibliothek: Scan-Ergebnis → Kategorien, Zuordnung von Hand, Demo-Daten
   jellyfin/                Jellyfin-Zugriff: Bibliothek, Kontext/Benutzer, Wiedergabeplanung, Berichte
   stremio/                 Stremio-Addons als zweite Quelle: Protokoll, Kataloge, Stream-Auswahl, Addon-Verwaltung
   player/                  Video-Player im PS3-Stil
@@ -78,7 +78,7 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
 ### Web-Bereich (`web.rs`)
 - `web_open({ url, title?, downloadDir })` – öffnet nur http/https in einem eigenen Fenster „web“ (ohne Tauri-Rechte, eigenes Profil), Downloads
   landen in `downloadDir` (= `<Spiele-Ordner>/Downloads`), Event `web-download` `{ name, path, state: started|done|failed }`.
-- `game_import({ from, gamesDir, system })` – verschiebt eine Datei aus `Downloads/` nach `<Spiele-Ordner>/<System>/` (kein Überschreiben, nur gültige Systemnamen).
+- `game_import({ from, gamesDir, system })` – verschiebt eine Datei aus `Downloads/` nach `<Spiele-Ordner>/<System>/` (kein Überschreiben, nur gültige Systemnamen); `system: ""` legt sie direkt in den Spiele-Ordner, wo `games_scan` das System erkennt.
 - `web_close()`. Frontend: `src/web/*`, Lesezeichen in `settings.bookmarks`; keine Seiten vorinstalliert, nichts wird automatisch geladen oder entpackt.
 
 ### BIOS/Firmware (`requirements.rs`)
@@ -106,6 +106,34 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
 
 Shell-Plugin (`@tauri-apps/plugin-shell`): nur für `open()` (Webseiten öffnen; `plugins.shell.open` in tauri.conf.json) und
 `brew install --cask <name>` (Scope in `capabilities/emulators.json`, Pfade `/opt/homebrew/bin/brew` und `/usr/local/bin/brew`).
+
+### Spielebibliothek (`library.rs`)
+Ein einziger Spiele-Ordner genügt: Der Nutzer legt Spiele unsortiert hinein (auch in Unterordner), die App sortiert **nur virtuell**, es wird nie
+etwas verschoben, umbenannt oder entpackt.
+
+- `games_scan({ dir }) -> { root, games: [ScannedGame], images: [relPfad], truncated, unreadable }` – durchsucht `dir` rekursiv (Tiefe 12, höchstens 20 000 Spiele;
+  versteckte Einträge, Papierkörbe und Verknüpfungen auf Ordner werden übersprungen) und erkennt das System jedes Spiels.
+  `ScannedGame`: `path` (absolut), `rel` (relativ zum Spiele-Ordner, stabiler Schlüssel), `name`, `kind` (`file` | `folder` | `bundle`), `ext`, `size`,
+  `system` (`PS1` `PS2` `PS3` `PSP` `GameCube` `Wii` oder `null`), `how` (`content` | `serial` | `format` | `folder` | `size` | `none`), `uncertain`,
+  `guess` (Vorschlag bei `null`), `serial`, `title` (aus `PARAM.SFO`/Disc-Kopf), `reason` (Begründung, für die Beschreibung im Menü).
+- **Reihenfolge der Erkennung** (sicher → vage), das erste Ergebnis gilt:
+  1. *Inhalt* (nur die ersten Sektoren werden gelesen, `covers/embedded.rs`): `PS3_GAME/PARAM.SFO` oder `PS3_DISC.SFB` → PS3, `PSP_GAME/PARAM.SFO` und `EBOOT.PBP` → PSP,
+     `SYSTEM.CNF` mit `BOOT2` → PS2, mit `BOOT` → PS1, Disc-Kopf mit GameCube-/Wii-Kennung (auch in `.rvz`, `.wia`, `.wbfs`, `.ciso`). Entpackte Spieleordner (`PS3_GAME/`, installierte PS3-Spiele,
+     `PSP_GAME/`) sind **ein** Spiel und werden nicht weiter durchsucht.
+  2. *Seriennummer im Dateinamen*, nur wo das Präfix eindeutig ist (PS3: `BLUS`, `BCES`, `NPUB` …; PSP: `ULES`, `UCUS`, `NPUZ` …). PS1 und PS2 teilen sich ihre Präfixe (`SLUS`, `SCES` …), dort entscheidet nur der Inhalt.
+  3. *Dateiformat*: `.cso` → PSP, `.pkg` (Kopf `\x7fPKG`, Typ 1) → PS3, ELF-Maschine PowerPC64 → PS3, `.dol`/`.gcz`/`.gcm` → GameCube. Ein PowerPC- oder MIPS-ELF ist nicht eindeutig (nur Vorschlag).
+  4. *Ordnername* irgendwo über der Datei (`PS3`, `PlayStation 2 Spiele`, `Wii-Spiele` …) – die alte Struktur `<System>/<Spiel>` funktioniert unverändert. Ein Inhalt, der etwas anderes sagt, geht vor.
+  5. *Größe* bei CHD (MAME-Kopf v5): CD-CHD über 800 MB ist keine PS1 → PS2, DVD-CHD über 1,9 GB ist keine PSP → PS2. Eine kleine CD-CHD gilt als PS1, aber `uncertain` (Menü: „vermutet“).
+  Bleibt nichts übrig, ist `system` `null`: Das Spiel erscheint unter „Nicht zugeordnet“.
+- Zusammengehörendes ist **ein** Spiel: `.cue` mit allen `.bin`-Spuren (ein `.bin` neben gleichnamiger `.cue` ebenso), `.m3u` mit den aufgezählten Discs; das System kommt von der ersten Disc.
+  macOS-`.app`-Pakete (`kind: "bundle"`) starten direkt ohne Emulator und erscheinen unter „Programme“.
+- Cache: `library-scan.json` im App-Cache-Ordner merkt sich das Prüfergebnis je Datei (Pfad, Größe, Änderungszeit; anderer Spiele-Ordner → verworfen). Der zweite Start liest also nur noch Ordnerlisten.
+- Frontend: `src/library/scanGames.ts` (`scanGamesDir`, `buildLibraryCategories`, Cover-Zuordnung aus der Bilderliste), `useGameLibrary(baseDir, autoCovers, overrides)`.
+  Kategorien: eine je System („Spiele · PS3“), danach „Programme“ und „Nicht zugeordnet“. Eintrags-ID `games/<rel>`.
+- **Zuordnung von Hand**: ✕ auf einem Spiel unter „Nicht zugeordnet“ öffnet `AssignSystemList` (Vorschlag zuerst), △ auf jedem Spiel ändert das System, „Nicht anzeigen“ blendet aus.
+  Gespeichert wird nur in `settings.gameSystems` (`rel` → System | `"ignore"`); die Kategorien werden daraus neu gebaut, ohne den Ordner erneut zu lesen. Einstellungen → „Spiele-Zuordnung“
+  (`AssignmentsList`) setzt einzelne oder alle Zuordnungen zurück. Der Emulator ergibt sich weiter aus dem Systemnamen (`emulatorForSystem`, `src/emulators/catalog.ts`).
+- Browser (`npm run dev`): Demo-Daten (`mockLibrary.ts`) laufen durch dieselbe Pipeline, dazu eine Beispieldatei „Mystery Disc.iso“ unter „Nicht zugeordnet“.
 
 ### Cover (`covers.rs`)
 - `cover_resolve({ system, path, title, online, retry? }) -> { path, source: "embedded"|"online"|"cache"|null, width, height, serial, error }` –

@@ -194,8 +194,9 @@ fn valid_system(system: &str) -> bool {
 }
 
 /// Verschiebt eine heruntergeladene Datei aus `<Spiele-Ordner>/Downloads` in `<Spiele-Ordner>/<System>/`.
+/// Ein leeres `system` legt sie direkt in den Spiele-Ordner; die Bibliothek erkennt das System dann selbst (library.rs).
 pub fn import_into(from: &str, games_dir: &str, system: &str) -> Result<String, String> {
-    if !valid_system(system) {
+    if !system.is_empty() && !valid_system(system) {
         return Err("Ungültiger Systemname".into());
     }
     let base = fs::canonicalize(expand(games_dir))
@@ -207,7 +208,7 @@ pub fn import_into(from: &str, games_dir: &str, system: &str) -> Result<String, 
         return Err("Nur Dateien aus dem Download-Ordner lassen sich übernehmen".into());
     }
     let name = safe_name(&file_name_of(&src));
-    let dest_dir = base.join(system);
+    let dest_dir = if system.is_empty() { base.clone() } else { base.join(system) };
     fs::create_dir_all(&dest_dir)
         .map_err(|e| format!("Der System-Ordner lässt sich nicht anlegen ({e})"))?;
     let dest = unique_path(&dest_dir, &name);
@@ -285,7 +286,6 @@ mod tests {
         assert!(import_into(base.join("draussen.iso").to_str().unwrap(), b, "PS2").is_err());
         fs::write(base.join("Downloads/B.iso"), b"x").unwrap();
         assert!(import_into(base.join("Downloads/B.iso").to_str().unwrap(), b, "../x").is_err());
-        assert!(import_into(base.join("Downloads/B.iso").to_str().unwrap(), b, "").is_err());
         assert!(import_into(
             base.join("Downloads/B.iso").to_str().unwrap(),
             b,
@@ -298,5 +298,9 @@ mod tests {
             "PS2"
         )
         .is_err());
+        // leeres System: direkt in den Spiele-Ordner (die Bibliothek erkennt das System selbst)
+        let root_move = import_into(base.join("Downloads/B.iso").to_str().unwrap(), b, "").unwrap();
+        assert_eq!(PathBuf::from(&root_move), fs::canonicalize(&base).unwrap().join("B.iso"));
+        assert!(!base.join("Downloads/B.iso").exists());
     }
 }

@@ -143,6 +143,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
         jellyfinAltUrl: draft.altUrl,
         apiKey: draft.apiKey,
         gamesDir: draft.gamesDir,
+        gameSystems: initial?.gameSystems,
         biosDir: draft.biosDir,
         controller: probeName.current,
         emulatorOverrides: initial?.emulators,

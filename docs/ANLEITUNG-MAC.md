@@ -85,8 +85,8 @@ Den Key legst du in Jellyfin unter *Dashboard → API-Schlüssel* an.
 
 ![Schritt 1](images/setup-1-jellyfin.png)
 
-**Schritt 2 – Spiele-Ordner** · **Ordner wählen …** öffnet den echten macOS-Dialog. Pro System ein Unterordner
-(`PS3/`, `PS2/`, …). Liegt der Ordner in *Dokumente*, *Schreibtisch* oder auf einem externen Laufwerk, fragt macOS einmalig
+**Schritt 2 – Spiele-Ordner** · **Ordner wählen …** öffnet den echten macOS-Dialog. Es genügt **ein einziger Ordner**: Lege ISOs und Spieldateien
+einfach hinein, auch unsortiert oder in Unterordnern – die App erkennt das System selbst. Liegt der Ordner in *Dokumente*, *Schreibtisch* oder auf einem externen Laufwerk, fragt macOS einmalig
 nach Zugriff → **OK**.
 
 ![Schritt 2](images/setup-2-spiele.png)
@@ -124,7 +124,7 @@ Die Einstellungen liegen dort im Klartext – **auch der API-Key**.
   wird in der Kopfzeile gemeldet). Ohne Verbindung (oder bei Fehlern, mit Hinweis in der Kopfzeile) siehst du Demo-Titel.
   Abspielen: siehe Abschnitt 5a.
 - **Spiele:** Lege ein Bild **neben das Spiel** – gleicher Dateiname, Endung `png`, `jpg`, `jpeg` oder `webp`
-  (z. B. `Gran Turismo 5.iso` + `Gran Turismo 5.jpg`) – oder in einen Unterordner `covers/`, `media/covers/` oder `images/` des Systems.
+  (z. B. `Gran Turismo 5.iso` + `Gran Turismo 5.jpg`) – oder in einen Unterordner `covers/`, `media/covers/` oder `images/` (neben dem Spiel oder ganz oben im Spiele-Ordner).
   Ohne Bild erzeugt die App ein passendes Platzhalter-Cover im PS3-Hüllen-Stil.
 - Bilder werden erst beim Scrollen in die Nähe geladen; neue Cover erscheinen nach einem Neustart der App.
 
@@ -143,8 +143,8 @@ Die Einstellungen liegen dort im Klartext – **auch der API-Key**.
 | PSP | PPSSPP | Homebrew (`ppsspp-emulator`) |
 | GameCube / Wii | Dolphin | Homebrew (`dolphin`) |
 
-Außerdem legt es die Ordner `~/JellyStation/Games/<System>` und `~/JellyStation/BIOS` an. **Du musst nur noch Spiele hineinlegen**
-(Ordnername = System, z. B. `PS3/Gran Turismo 5.iso`). Spiele, BIOS-Dateien und PS3-Firmware werden nie mitgeliefert oder
+Außerdem legt es die Ordner `~/JellyStation/Games/<System>` und `~/JellyStation/BIOS` an. **Du musst nur noch Spiele hineinlegen** –
+am einfachsten alle in `~/JellyStation/Games` (z. B. `Gran Turismo 5.iso`), die App erkennt das System selbst; die Systemordner sind optional. Spiele, BIOS-Dateien und PS3-Firmware werden nie mitgeliefert oder
 heruntergeladen – das bringst du selbst mit (nur legal besessene Spiele). PS1/PS2 brauchen ein BIOS, RPCS3 die PS3-Firmware
 (einmal in RPCS3 einspielen).
 
@@ -224,8 +224,8 @@ Die App probiert beim Start, nach Netzwechsel und beim Zurückkehren in die App 
 | --- | --- |
 | **Zuletzt** | Startseite: angefangene Filme und Folgen aus Jellyfin (mit Fortschrittsbalken), die nächsten Folgen deiner Serien und zuletzt gespielte Spiele. ✕ spielt direkt weiter. |
 | **Filme / Serien** | Serien öffnen einen Bildschirm wie bei Netflix: Weiterschauen-Knopf, **Staffel-Auswahl** (✕ öffnet die Liste, L1/R1 wechseln direkt), Folgenliste der gewählten Staffel. ✕ auf einer Folge öffnet die **Detailseite** (großes Bild, volle Beschreibung, Abspielen/Fortsetzen/Von vorn, als gesehen markieren). |
-| **Spiele · PS1/PS2/PS3/…** | Pro Systemordner eine Spalte; **Cover** kommen automatisch (siehe unten). |
-| **Web** | Eigene Lesezeichen (✕ öffnet in einem App-Fenster, △ löscht). Downloads landen im Ordner `Downloads` deines Spiele-Ordners; danach fragt die App, in welches System die Datei gehört. Es sind **keine Seiten vorinstalliert** – lade nur, was du besitzt oder legal beziehen darfst. Fremdseiten lassen sich nur mit Maus/Tastatur bedienen. |
+| **Spiele · PS1/PS2/PS3/…** | Pro erkanntem System eine Spalte, egal wie die Dateien im Spiele-Ordner liegen; **Cover** kommen automatisch (siehe unten). Was sich nicht sicher erkennen lässt, steht unter **Nicht zugeordnet**: ✕ öffnet die Zuordnung, △ ändert das System jedes Spiels. |
+| **Web** | Eigene Lesezeichen (✕ öffnet in einem App-Fenster, △ löscht). Downloads landen im Ordner `Downloads` deines Spiele-Ordners; danach fragt die App, ob die Datei in den Spiele-Ordner soll (das System wird dann automatisch erkannt). Es sind **keine Seiten vorinstalliert** – lade nur, was du besitzt oder legal beziehen darfst. Fremdseiten lassen sich nur mit Maus/Tastatur bedienen. |
 | **Einstellungen** | Server (Adresse/Schlüssel ändern), Spiele-Ordner, Emulatoren, BIOS & Firmware, Jellyfin-Benutzer, Wiedergabe, **Anzeige & Farben**, **Cover & Grafiken**, **Animationen**, **Ton & Musik**, Einrichtung, Über. |
 
 **Im Player:** Beim Spulen (←/→ halten, Maus auf der Leiste, Zifferntasten) erscheinen **Vorschaubilder** mit Zeit und Kapitel – von Jellyfin (Trickplay), sonst lokal erzeugt, bei Server-Umwandlung ohne Trickplay nur die Zeit. Nach einigen Sekunden Pause blendet das **Pause-Bild** (Hintergrund, Logo, Beschreibung aus Jellyfin) ein.

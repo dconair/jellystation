@@ -147,6 +147,16 @@ fn from_volume(volume: &mut dyn Volume) -> Embedded {
             };
         }
     }
+    // PS3-Disc ohne lesbares PS3_GAME/PARAM.SFO: die Datei PS3_DISC.SFB im Wurzelverzeichnis verrät das System
+    if volume
+        .read("PS3_DISC.SFB", 64)
+        .is_some_and(|head| head.starts_with(b".SFB"))
+    {
+        return Embedded {
+            platform: Some(Platform::Ps3),
+            ..Embedded::default()
+        };
+    }
     Embedded::default()
 }
 

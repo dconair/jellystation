@@ -54,7 +54,7 @@ export async function onWebDownload(cb: (e: DownloadEvent) => void): Promise<() 
   return listen<DownloadEvent>("web-download", (e) => cb(e.payload));
 }
 
-/** Verschiebt einen Download in <Spiele-Ordner>/<System>/; liefert den neuen Pfad. */
+/** Verschiebt einen Download in <Spiele-Ordner>/<System>/ (leeres System: direkt in den Spiele-Ordner); liefert den neuen Pfad. */
 export async function importGame(from: string, gamesDir: string | undefined, system: string): Promise<string> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<string>("game_import", { from, gamesDir: gamesDir?.trim() || GAMES_BASE_DIR, system });

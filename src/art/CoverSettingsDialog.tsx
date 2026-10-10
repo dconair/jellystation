@@ -21,7 +21,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 const OWN_IMAGES_HELP = [
   "Lege neben das Spiel ein Bild mit demselben Namen, z. B. „Gran Turismo 5.jpg“ oder „Gran Turismo 5.png“ neben „Gran Turismo 5.iso“.",
-  "Auch die Unterordner „covers“, „media/covers“ und „images“ im Systemordner werden gefunden.",
+  "Auch die Unterordner „covers“, „media/covers“ und „images“ (neben dem Spiel oder ganz oben im Spiele-Ordner) werden gefunden.",
   "Eigene Bilder haben immer Vorrang vor automatisch geladenen. Nach dem Ablegen genügt ein Neustart der App.",
 ];
 

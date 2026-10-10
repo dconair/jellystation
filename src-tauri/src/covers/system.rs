@@ -24,6 +24,19 @@ impl Platform {
         }
     }
 
+    /// Ordnername, unter dem das System in der Spielebibliothek erscheint (gleichzeitig der Name, den der
+    /// Emulator-Katalog im Frontend kennt).
+    pub fn folder_name(self) -> &'static str {
+        match self {
+            Platform::Ps1 => "PS1",
+            Platform::Ps2 => "PS2",
+            Platform::Ps3 => "PS3",
+            Platform::Psp => "PSP",
+            Platform::GameCube => "GameCube",
+            Platform::Wii => "Wii",
+        }
+    }
+
     /// Erkennt das System am Namen des Systemordners (`PS3`, `PlayStation 2`, `GameCube` …).
     pub fn from_folder(name: &str) -> Option<Platform> {
         let key: String = name
@@ -93,6 +106,20 @@ mod tests {
         }
         for name in ["", "Switch", "Xbox", "PS5", "Pixel Pilot"] {
             assert_eq!(Platform::from_folder(name), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn ordnernamen_der_bibliothek_werden_wieder_erkannt() {
+        for p in [
+            Platform::Ps1,
+            Platform::Ps2,
+            Platform::Ps3,
+            Platform::Psp,
+            Platform::GameCube,
+            Platform::Wii,
+        ] {
+            assert_eq!(Platform::from_folder(p.folder_name()), Some(p));
         }
     }
 

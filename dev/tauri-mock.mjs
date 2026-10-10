@@ -123,6 +123,31 @@ export async function installTauriMock(page, options = {}) {
       if (f === undefined) throw new Error(`Datei nicht gefunden: ${path}`);
       return Array.from(typeof f === "string" ? Buffer.from(f) : f);
     },
+    // Spielebibliothek (library.rs): vereinfachter Nachbau auf dem virtuellen Dateisystem. Das System kommt aus dem
+    // nächsten Ordnernamen (PS3/, PS2/ …); der Inhalt von Dateien wird nicht gelesen. Eigene Tests können "games_scan" überschreiben.
+    "games_scan": ({ dir }) => {
+      const root = norm(String(dir).replace(/^~/, home));
+      if (!isDir(root)) throw new Error(`Basisordner nicht gefunden: ${root}`);
+      const systems = { ps1: "PS1", psx: "PS1", playstation: "PS1", ps2: "PS2", playstation2: "PS2", ps3: "PS3", playstation3: "PS3", psp: "PSP", gamecube: "GameCube", gc: "GameCube", wii: "Wii" };
+      const games = [];
+      const images = [];
+      const walk = (p, folder) => {
+        for (const e of dirEntries(p)) {
+          if (e.name.startsWith(".")) continue;
+          const full = `${norm(p)}/${e.name}`;
+          const rel = full.slice(root.length + 1);
+          const ext = (e.name.split(".").pop() ?? "").toLowerCase();
+          if (e.isDirectory && ext === "app") games.push({ path: full, rel, name: e.name, kind: "bundle", ext: "app", size: 0, system: null, how: "none", uncertain: false, guess: null, serial: null, title: null, reason: "macOS-Programm" });
+          else if (e.isDirectory) walk(full, systems[e.name.toLowerCase().replace(/[^a-z0-9]/g, "")] ?? folder);
+          else if (["png", "jpg", "jpeg", "webp"].includes(ext)) images.push(rel);
+          else if (["iso", "pkg", "cue", "chd", "bin", "elf", "cso", "pbp", "m3u", "rvz", "wbfs", "gcm", "ciso", "dol", "gcz", "wia"].includes(ext)) {
+            games.push({ path: full, rel, name: e.name, kind: "file", ext, size: 1, system: folder ?? null, how: folder ? "folder" : "none", uncertain: false, guess: null, serial: null, title: null, reason: folder ? `Ordner „${folder}“` : "nicht erkennbar" });
+          }
+        }
+      };
+      walk(root, null);
+      return { root, games, images, truncated: false, unreadable: 0 };
+    },
     "plugin:dialog|open": () => dialogResult,
     // ---- plugin-shell ----
     "plugin:shell|spawn": ({ program, args, options, onEvent }) => {

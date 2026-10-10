@@ -1,29 +1,60 @@
-import { GAMES_BASE_DIR, GAME_EXTENSIONS } from "../config/games";
-import type { XmbCategory, XmbEntry } from "../data/types";
+import { GAMES_BASE_DIR } from "../config/games";
+import type { GameRef, XmbCategory, XmbEntry } from "../data/types";
 import { isTauri } from "../platform";
 
-const GAME_EXT = new Set<string>(GAME_EXTENSIONS);
-
 /**
- * Ergebnis einer Auflistung: Systemordner → Dateinamen darin.
- * Dateien aus den Cover-Unterordnern stehen mit relativem Pfad in derselben Liste
- * (z. B. "covers/Pixel Pilot.png" oder "media/covers/Pixel Pilot.png"), damit sich
- * das Format für bestehende Aufrufer nicht ändert.
+ * Spielebibliothek aus EINEM Ordner: Der Rust-Befehl `games_scan` (src-tauri/src/library.rs) durchsucht ihn rekursiv und
+ * erkennt für jedes Spiel das System (Inhalt, Seriennummer, Dateiformat, Ordnername). Hier wird daraus das Menü: je System
+ * eine Kategorie, dazu „Nicht zugeordnet“ und „Programme“ (macOS-.app). Dateien werden nie verschoben.
  */
-export type SystemListing = Record<string, string[]>;
+
+/** Die Systeme, die ein Spiel haben kann (Namen wie im Emulator-Katalog, siehe src/emulators/catalog.ts). */
+export const GAME_SYSTEMS = ["PS1", "PS2", "PS3", "PSP", "GameCube", "Wii"] as const;
+export type GameSystem = (typeof GAME_SYSTEMS)[number];
+
+/** Wert in `settings.gameSystems`: Spiel nicht anzeigen. */
+export const IGNORE = "ignore";
+
+/** Name der Sammel-Kategorien. */
+export const UNASSIGNED_LABEL = "Nicht zugeordnet";
+export const PROGRAMS_LABEL = "Programme";
+
+export const isGameSystem = (value: string | null | undefined): value is GameSystem =>
+  !!value && (GAME_SYSTEMS as readonly string[]).includes(value);
+
+/** Ein vom Rust-Scan gefundenes Spiel (Felder wie `ScannedGame` in library.rs). */
+export interface ScannedGame {
+  /** Absoluter Pfad mit "/". */
+  path: string;
+  /** Pfad relativ zum Spiele-Ordner. */
+  rel: string;
+  name: string;
+  kind: "file" | "folder" | "bundle";
+  /** Endung in Kleinbuchstaben ohne Punkt, bei Ordnern leer. */
+  ext: string;
+  size: number;
+  system: string | null;
+  how: "content" | "serial" | "format" | "folder" | "size" | "none";
+  uncertain: boolean;
+  guess: string | null;
+  serial: string | null;
+  /** Titel aus dem Spiel selbst (PARAM.SFO, Disc-Kopf). */
+  title: string | null;
+  reason: string;
+}
 
 export interface ScanResult {
   baseDir: string;
-  listing: SystemListing;
+  games: ScannedGame[];
+  /** Alle Bilder im Ordner (relative Pfade) – mögliche Cover. */
+  images: string[];
+  /** Es gab mehr Dateien als erlaubt. */
+  truncated: boolean;
+  /** Ordner, die sich nicht lesen ließen. */
+  unreadable: number;
 }
 
-const extOf = (file: string) => {
-  const dot = file.lastIndexOf(".");
-  return dot > 0 ? file.slice(dot + 1).toLowerCase() : "";
-};
-
-/** Dateiname ohne Endung → Anzeigetitel. */
-export const titleOf = (file: string) => file.slice(0, file.lastIndexOf("."));
+const naturalSort = (a: string, b: string) => a.localeCompare(b, "de", { numeric: true, sensitivity: "base" });
 
 /** Stabiler Farbton (0–359) aus einem Text, damit jede Kachel ihre eigene Farbe behält. */
 const hueOf = (text: string) => {
@@ -32,33 +63,37 @@ const hueOf = (text: string) => {
   return h;
 };
 
+/** Datei- oder Ordnername ohne Endung. */
+const stemOf = (file: string) => {
+  const dot = file.lastIndexOf(".");
+  return dot > 0 ? file.slice(0, dot) : file;
+};
+
+const isHidden = (name: string) => name.startsWith(".");
+
+/** Anzeigetitel: Dateiname ohne Endung; heißt die Datei nur wie eine Seriennummer, gilt der Titel aus dem Spiel. */
+export function titleOfGame(game: Pick<ScannedGame, "name" | "kind" | "title">): string {
+  const base = game.kind === "folder" ? game.name : stemOf(game.name);
+  const generic = /^[A-Z]{4}-?\d{5}$/i.test(base) || /^(PS3|PSP)_GAME$/i.test(base);
+  return (generic && game.title ? game.title : base) || game.name;
+}
+
+/* ------------------------------------------------------------------ Cover */
+
 /** Bildendungen für Cover; die Reihenfolge ist zugleich der Vorrang (PNG vor JPG vor WebP). */
 export const COVER_EXTENSIONS = ["png", "jpg", "jpeg", "webp"] as const;
 
 /**
- * Unterordner eines System-Ordners, in denen Cover liegen dürfen (klein geschrieben, Groß-/Kleinschreibung
+ * Unterordner neben den Spielen, in denen Cover liegen dürfen (klein geschrieben, Groß-/Kleinschreibung
  * des echten Ordners ist egal). Die Reihenfolge ist der Vorrang: Cover direkt neben dem Spiel gehen vor
  * "covers", dann "media/covers", dann "images".
  */
 export const COVER_DIRS = ["covers", "media/covers", "images"] as const;
 
-const isHidden = (name: string) => name.startsWith(".");
-const naturalSort = (a: string, b: string) =>
-  a.localeCompare(b, "de", { numeric: true, sensitivity: "base" });
-
-/** Wählt Spieldateien aus: bekannte Endung, nicht versteckt, kein .bin neben gleichnamiger .cue. */
-export function pickGameFiles(files: string[]): string[] {
-  const cueStems = new Set(
-    files.filter((f) => extOf(f) === "cue").map((f) => titleOf(f).toLowerCase()),
-  );
-  return files
-    // Einträge mit "/" stammen aus Cover-Unterordnern und sind nie Spiele.
-    .filter((f) => !f.includes("/") && !isHidden(f) && GAME_EXT.has(extOf(f)))
-    .filter((f) => !(extOf(f) === "bin" && cueStems.has(titleOf(f).toLowerCase())))
-    .sort(naturalSort);
-}
-
-/* ------------------------------------------------------------------ Cover */
+const extOf = (file: string) => {
+  const dot = file.lastIndexOf(".");
+  return dot > 0 ? file.slice(dot + 1).toLowerCase() : "";
+};
 
 /** Vergleichsform für Dateinamen: Unicode-normalisiert (macOS liefert oft NFD) und ohne Groß-/Kleinschreibung. */
 const normName = (text: string) => text.normalize("NFC").toLowerCase();
@@ -66,7 +101,7 @@ const normName = (text: string) => text.normalize("NFC").toLowerCase();
 const COVER_EXT_RANK = new Map<string, number>(COVER_EXTENSIONS.map((e, i) => [e, i]));
 
 interface CoverCandidate {
-  /** Pfad relativ zum System-Ordner, wie in der Auflistung. */
+  /** Pfad relativ zum Ordner, für den der Index gebaut wurde. */
   path: string;
   /** 0 = neben dem Spiel, sonst Index in COVER_DIRS + 1. */
   dirRank: number;
@@ -76,23 +111,15 @@ interface CoverCandidate {
 }
 
 const compareCandidates = (a: CoverCandidate, b: CoverCandidate) =>
-  a.dirRank - b.dirRank ||
-  a.nameRank - b.nameRank ||
-  a.extRank - b.extRank ||
-  naturalSort(a.path, b.path);
+  a.dirRank - b.dirRank || a.nameRank - b.nameRank || a.extRank - b.extRank || naturalSort(a.path, b.path);
 
 /** Bildname (ohne Endung) → alle passenden Bilddateien; Schlüssel ist der normalisierte Name. */
 export type CoverIndex = Map<string, CoverCandidate[]>;
 
-/** Name ohne Endung; Dateien ohne Punkt bleiben ganz (anders als titleOf, das für Spiele immer eine Endung erwartet). */
-const stemOf = (file: string) => {
-  const dot = file.lastIndexOf(".");
-  return dot > 0 ? file.slice(0, dot) : file;
-};
-
 /**
- * Sammelt alle Bilddateien eines System-Ordners, die als Cover in Frage kommen: direkt im Ordner oder
- * in COVER_DIRS. Versteckte Dateien (".DS_Store", "._Spiel.png" von macOS) und andere Unterordner zählen nicht.
+ * Sammelt alle Bilddateien eines Ordners, die als Cover in Frage kommen: direkt im Ordner oder in COVER_DIRS.
+ * `files` sind Namen relativ zum Ordner ("Spiel.png", "covers/Spiel.png"). Versteckte Dateien (".DS_Store",
+ * "._Spiel.png" von macOS) und andere Unterordner zählen nicht.
  */
 export function buildCoverIndex(files: string[]): CoverIndex {
   const index: CoverIndex = new Map();
@@ -122,54 +149,130 @@ export function findCover(index: CoverIndex, gameTitle: string): string | undefi
   return found.sort(compareCandidates)[0]?.path;
 }
 
-/** Ordnet jeder Spieldatei ihr Cover zu (relativer Pfad); Spiele ohne Cover fehlen im Ergebnis. */
-export function pairCovers(files: string[]): Record<string, string> {
-  const index = buildCoverIndex(files);
-  const pairs: Record<string, string> = {};
-  for (const game of pickGameFiles(files)) {
-    const cover = findCover(index, titleOf(game));
-    if (cover) pairs[game] = cover;
+/**
+ * Cover-Suche für beliebig viele Spiele aus der Bilderliste des Scans. Ein Spiel findet sein Cover neben sich, in
+ * `covers`/`media/covers`/`images` daneben und – erst danach – im selben Sinn im obersten Spiele-Ordner (praktisch,
+ * wenn alle Cover in einem Ordner "covers" liegen, die Spiele aber in Unterordnern).
+ */
+export function makeCoverFinder(images: string[]): (gameRel: string, gameTitle: string) => string | undefined {
+  // Ordner (normalisiert, "" = Wurzel) → Dateinamen darin
+  const byDir = new Map<string, string[]>();
+  for (const rel of images) {
+    const slash = rel.lastIndexOf("/");
+    const dir = slash < 0 ? "" : normName(rel.slice(0, slash));
+    const list = byDir.get(dir);
+    if (list) list.push(rel.slice(slash + 1));
+    else byDir.set(dir, [rel.slice(slash + 1)]);
   }
-  return pairs;
+  const cache = new Map<string, CoverIndex>();
+  const indexFor = (dir: string): CoverIndex => {
+    const key = normName(dir);
+    let index = cache.get(key);
+    if (!index) {
+      const prefix = key === "" ? "" : `${key}/`;
+      const files = [...(byDir.get(key) ?? [])];
+      for (const sub of COVER_DIRS) files.push(...(byDir.get(`${prefix}${sub}`) ?? []).map((n) => `${sub}/${n}`));
+      index = buildCoverIndex(files);
+      cache.set(key, index);
+    }
+    return index;
+  };
+  const join = (dir: string, rel: string) => (dir ? `${dir}/${rel}` : rel);
+  // Die Bilder behalten ihre echte Schreibweise: der Pfad kommt aus der Liste, nicht aus dem normalisierten Schlüssel.
+  const real = new Map<string, string>(images.map((rel) => [normName(rel), rel]));
+  const resolve = (dir: string, found: string | undefined) => {
+    if (!found) return undefined;
+    const full = join(dir, found);
+    return real.get(normName(full)) ?? full;
+  };
+  return (gameRel, gameTitle) => {
+    const slash = gameRel.lastIndexOf("/");
+    const dir = slash < 0 ? "" : gameRel.slice(0, slash);
+    return (
+      resolve(dir, findCover(indexFor(dir), gameTitle)) ??
+      (dir === "" ? undefined : resolve("", findCover(indexFor(""), gameTitle)))
+    );
+  };
 }
 
-/** Wandelt die Auflistung in XMB-Kategorien um – je Systemordner eine Kategorie. */
-export function buildSystemCategories(
-  listing: SystemListing,
-  baseDir: string,
+/* ------------------------------------------------------------------ Kategorien */
+
+const BASE_DIR_FALLBACK = GAMES_BASE_DIR;
+
+function describe(game: ScannedGame, system: string | null, manual: boolean): string {
+  const why = manual ? "Von dir zugeordnet" : game.reason;
+  if (system) return `${game.rel} · ${why}`;
+  return game.guess ? `${why}. Vorschlag: ${game.guess}. Bestätigen zum Zuordnen.` : `${why}. Bestätigen zum Zuordnen.`;
+}
+
+/**
+ * Wandelt das Scan-Ergebnis in XMB-Kategorien um: je System eine Kategorie, dahinter „Programme“ (macOS-.app) und
+ * „Nicht zugeordnet“. `overrides` sind die Zuordnungen von Hand (Pfad relativ zum Spiele-Ordner → System oder "ignore").
+ */
+export function buildLibraryCategories(
+  scan: ScanResult,
+  overrides: Readonly<Record<string, string>> | undefined,
   mock: boolean,
 ): XmbCategory[] {
-  const categories = Object.keys(listing)
-    .sort(naturalSort)
-    .map((system): XmbCategory | null => {
-      const files = pickGameFiles(listing[system]);
-      if (files.length === 0) return null;
-      // Demo-Daten haben keine Dateien: immer generierte Cover, nie ein Zugriff auf die Platte.
-      const covers = mock ? new Map() : buildCoverIndex(listing[system]);
-      const entries: XmbEntry[] = files.map((file) => {
-        const cover = findCover(covers, titleOf(file));
-        return {
-          id: `games/${system}/${file}`,
-          title: titleOf(file),
-          subtitle: `${system} · .${extOf(file)}`,
-          description: mock ? "Demo-Eintrag – Vorschau ohne echte Datei." : file,
-          hue: hueOf(titleOf(file)),
-          game: { system, path: `${baseDir}/${system}/${file}`, mock },
-          art: cover ? { kind: "file", path: `${baseDir}/${system}/${cover}` } : { kind: "generated" },
-          artShape: "landscape",
-        };
-      });
+  // Demo-Daten haben keine Dateien: immer generierte Cover, nie ein Zugriff auf die Platte.
+  const coverOf = mock ? () => undefined : makeCoverFinder(scan.images);
+  const groups = new Map<string, XmbEntry[]>();
+  const add = (group: string, entry: XmbEntry) => {
+    const list = groups.get(group);
+    if (list) list.push(entry);
+    else groups.set(group, [entry]);
+  };
+
+  for (const game of scan.games) {
+    const override = overrides?.[game.rel];
+    if (override === IGNORE) continue;
+    const manual = isGameSystem(override);
+    const system = manual ? override : game.system;
+    const native = game.kind === "bundle";
+    const unassigned = !native && !system;
+    const title = titleOfGame(game);
+    const cover = coverOf(game.rel, stemOf(game.name));
+    const ref: GameRef = {
+      system: native || unassigned ? "" : (system ?? ""),
+      path: game.path,
+      mock,
+      rel: game.rel,
+      ...(unassigned ? { unassigned: true, ...(game.guess ? { guess: game.guess } : {}) } : {}),
+      ...(!manual && !native && game.uncertain && system ? { uncertain: true } : {}),
+      ...(manual ? { manual: true } : {}),
+    };
+    const kindText = game.kind === "folder" ? "Ordner" : native ? "Programm" : `.${game.ext}`;
+    const label = native ? PROGRAMS_LABEL : unassigned ? UNASSIGNED_LABEL : system;
+    const subtitle = unassigned
+      ? `${UNASSIGNED_LABEL} · ${kindText}`
+      : `${native ? PROGRAMS_LABEL : system} · ${kindText}${ref.uncertain ? " · vermutet" : ""}`;
+    add(label as string, {
+      id: `games/${game.rel}`,
+      title,
+      subtitle,
+      description: native ? `${game.rel} · startet direkt, ohne Emulator` : describe(game, system, manual),
+      hue: hueOf(title),
+      game: ref,
+      art: cover ? { kind: "file", path: `${scan.baseDir}/${cover}` } : { kind: "generated" },
+      artShape: "landscape",
+    });
+  }
+
+  const rank = (name: string) => (name === UNASSIGNED_LABEL ? 2 : name === PROGRAMS_LABEL ? 1 : 0);
+  const categories = [...groups.keys()]
+    .sort((a, b) => rank(a) - rank(b) || naturalSort(a, b))
+    .map((name): XmbCategory => {
+      const entries = (groups.get(name) ?? []).sort((a, b) => naturalSort(a.title, b.title));
       return {
-        id: `games-${system.toLowerCase()}`,
-        label: `Spiele · ${system}`,
+        id: `games-${name === UNASSIGNED_LABEL ? "unassigned" : name === PROGRAMS_LABEL ? "programs" : name.toLowerCase()}`,
+        label: `Spiele · ${name}`,
         icon: "games",
         entries,
       };
     });
-  const found = categories.filter((c): c is XmbCategory => c !== null);
-  if (found.length > 0) return found;
+  if (categories.length > 0) return categories;
 
-  // Ordner vorhanden, aber leer: Hinweis statt leerer Spalte.
+  // Ordner vorhanden, aber ohne Spiele: Hinweis statt leerer Spalte.
   return [
     {
       id: "games-empty",
@@ -179,7 +282,8 @@ export function buildSystemCategories(
         {
           id: "games-empty-hint",
           title: "Keine Spiele gefunden",
-          subtitle: `Lege Dateien in ${baseDir}/<System>/ ab`,
+          subtitle: `Lege Spiele einfach in ${scan.baseDir || BASE_DIR_FALLBACK} ab`,
+          description: "ISO, CHD, CUE/BIN, Spieleordner … – auch in Unterordnern. JellyStation erkennt das System selbst.",
           hue: 215,
         },
       ],
@@ -187,73 +291,44 @@ export function buildSystemCategories(
   ];
 }
 
-/** Löst "~" im konfigurierten Basisordner auf. */
-async function resolveBaseDir(configured: string): Promise<string> {
-  if (!configured.startsWith("~")) return configured.replace(/\/+$/, "");
-  const { homeDir } = await import("@tauri-apps/api/path");
-  const home = (await homeDir()).replace(/[\\/]+$/, "");
-  return (home + configured.slice(1)).replace(/\/+$/, "");
-}
-
 /**
- * Listet die Cover-Unterordner eines System-Ordners (eine Ebene, plus "media/covers") und liefert die Dateien
- * darin als relative Pfade. Nicht lesbare oder fehlende Ordner werden still übergangen – Cover sind optional.
- */
-async function listCoverFolders(
-  readDir: typeof import("@tauri-apps/plugin-fs").readDir,
-  sysPath: string,
-  inner: { name: string; isDirectory: boolean }[],
-): Promise<string[]> {
-  const out: string[] = [];
-  const add = async (rel: string) => {
-    try {
-      for (const e of await readDir(`${sysPath}/${rel}`)) {
-        if (!e.isDirectory && !isHidden(e.name)) out.push(`${rel}/${e.name}`);
-      }
-    } catch {
-      /* Ordner nicht lesbar: ignorieren */
-    }
-  };
-  const dirs = inner.filter((e) => e.isDirectory && !isHidden(e.name));
-  for (const d of dirs) {
-    const lower = normName(d.name);
-    if (lower === "covers" || lower === "images") await add(d.name);
-    else if (lower === "media") {
-      try {
-        for (const m of await readDir(`${sysPath}/${d.name}`)) {
-          if (m.isDirectory && normName(m.name) === "covers") await add(`${d.name}/${m.name}`);
-        }
-      } catch {
-        /* ignorieren */
-      }
-    }
-  }
-  return out;
-}
-
-/**
- * Liest den Basisordner mit der Tauri-FS-API: Jeder Unterordner ist ein System,
- * dessen Dateien sind die Spiele (Bilder daneben und in Cover-Unterordnern sind deren Cover). Wirft, wenn der Basisordner nicht existiert
- * oder nicht lesbar ist – der Aufrufer fällt dann auf die Demo-Daten zurück.
+ * Liest den Spiele-Ordner mit dem Rust-Befehl `games_scan`. Wirft, wenn der Ordner nicht existiert oder nicht lesbar ist
+ * (oder die App nur im Browser läuft) – der Aufrufer fällt dann auf die Demo-Daten zurück.
  */
 export async function scanGamesDir(configuredDir: string = GAMES_BASE_DIR): Promise<ScanResult> {
   if (!isTauri()) throw new Error("Dateisystemzugriff nur in der Tauri-App verfügbar");
+  const { invoke } = await import("@tauri-apps/api/core");
+  try {
+    const raw = await invoke<{
+      root: string;
+      games: ScannedGame[];
+      images: string[];
+      truncated: boolean;
+      unreadable: number;
+    }>("games_scan", { dir: configuredDir || GAMES_BASE_DIR });
+    return { baseDir: raw.root, games: raw.games, images: raw.images, truncated: raw.truncated, unreadable: raw.unreadable };
+  } catch (err) {
+    throw err instanceof Error ? err : new Error(String(err));
+  }
+}
 
-  const { exists, readDir } = await import("@tauri-apps/plugin-fs");
-  const baseDir = await resolveBaseDir(configuredDir);
-  if (!(await exists(baseDir))) throw new Error(`Basisordner nicht gefunden: ${baseDir}`);
-
-  const listing: SystemListing = {};
-  for (const sys of await readDir(baseDir)) {
-    if (!sys.isDirectory || isHidden(sys.name)) continue;
-    try {
-      const sysPath = `${baseDir}/${sys.name}`;
-      const inner = await readDir(sysPath);
-      // .app-Bundles sind unter macOS Ordner, zählen aber als Spiel.
-      listing[sys.name] = [...inner.map((e) => e.name), ...(await listCoverFolders(readDir, sysPath, inner))];
-    } catch (err) {
-      console.warn(`System-Ordner "${sys.name}" nicht lesbar`, err);
+/** Kurzfassung für Setup und Prüfungen: Anzahl Spiele je System, dazu „Nicht zugeordnet“ und „Programme“. */
+export function countBySystem(
+  scan: Pick<ScanResult, "games">,
+  overrides?: Readonly<Record<string, string>>,
+): { systems: Record<string, number>; unassigned: number; programs: number } {
+  const systems: Record<string, number> = {};
+  let unassigned = 0;
+  let programs = 0;
+  for (const game of scan.games) {
+    const override = overrides?.[game.rel];
+    if (override === IGNORE) continue;
+    if (game.kind === "bundle") programs++;
+    else {
+      const system = isGameSystem(override) ? override : game.system;
+      if (system) systems[system] = (systems[system] ?? 0) + 1;
+      else unassigned++;
     }
   }
-  return { baseDir, listing };
+  return { systems, unassigned, programs };
 }

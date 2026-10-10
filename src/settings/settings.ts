@@ -34,6 +34,11 @@ export interface Settings {
   stremio?: StremioSettings;
   /** Absoluter Pfad des Spiele-Basisordners; leer = Standardordner/Demo-Modus. */
   gamesDir: string;
+  /**
+   * Von Hand zugeordnete Spiele: Pfad relativ zum Spiele-Ordner → System ("PS3" …) oder "ignore" (ausblenden).
+   * Was die App selbst erkennt, steht hier nicht; die Dateien werden nie verschoben.
+   */
+  gameSystems?: Record<string, string>;
   /** Zeitpunkt des Setup-Abschlusses (ISO). */
   completedAt: string;
 }
@@ -110,6 +115,7 @@ function validate(raw: unknown): Settings | null {
     ...(sanitizeBookmarks(r.bookmarks) ? { bookmarks: sanitizeBookmarks(r.bookmarks) } : {}),
     ...(sanitizeStremio(r.stremio) ? { stremio: sanitizeStremio(r.stremio) } : {}),
     ...(r.covers && typeof r.covers === "object" ? { covers: { auto: r.covers.auto !== false } } : {}),
+    ...(isStringRecord(r.gameSystems) && Object.keys(r.gameSystems).length > 0 ? { gameSystems: r.gameSystems } : {}),
     gamesDir: typeof r.gamesDir === "string" ? r.gamesDir : "",
     completedAt: r.completedAt,
   };

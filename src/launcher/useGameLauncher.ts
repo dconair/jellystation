@@ -233,7 +233,7 @@ class LaunchController {
       title: `Kein Emulator für „${system}“`,
       lines: [
         `Für „${system}“ ist noch kein Emulator hinterlegt (unterstützt: ${supportedFolderNames().join(", ")}).`,
-        "Der Ordnername im Spiele-Ordner bestimmt den Emulator (z. B. „PS3“ für RPCS3). Gehört das Spiel zu einem unterstützten System, benenne den Ordner entsprechend um.",
+        "Die App erkennt das System der Spiele selbst. Gehört dieses Spiel zu einem unterstützten System, ordne es im Menü mit △ dem richtigen System zu.",
       ],
     });
   }
