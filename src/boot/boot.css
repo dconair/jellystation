@@ -1,0 +1,117 @@
+/*
+ * Start-Animation (BootAnimation). Der Zeitplan steckt in CSS-Animationen über die Gesamtdauer von 10 s (siehe BOOT_MS),
+ * abgestimmt auf den Startklang: leise ab 0 s, Höhepunkt bei ca. 4,5 s, Ausklang bis 10 s.
+ *   0–1,2 s Schwarz · 1,2–4,5 s Band blendet auf und das Licht wächst · 4,4–4,9 s Blitz, Qualle erscheint
+ *   · bis 7,2 s Halten · 7,2–8,8 s Qualle blendet aus · danach Überblenden ins Menü.
+ */
+.boot-anim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #000;
+  overflow: hidden;
+  cursor: none;
+}
+.boot-anim.is-leaving {
+  animation: boot-out var(--boot-fade, 0.4s) ease-in forwards;
+}
+
+.boot-anim__waves {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: boot-waves 10s linear forwards;
+}
+
+/* Lichtschein, der zum Höhepunkt anschwillt und im Blitz aufleuchtet. */
+.boot-anim__bloom {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 90vmin;
+  height: 90vmin;
+  margin: -45vmin 0 0 -45vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(170, 235, 255, 0.5) 22%, rgba(60, 200, 230, 0.16) 45%, transparent 68%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: boot-bloom 10s linear forwards;
+}
+/* Waagerechter Lichtstreifen im Moment des Blitzes. */
+.boot-anim__streak {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 46%;
+  height: 0.12rem;
+  margin-top: -0.06rem;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 30%, #fff 50%, rgba(255, 255, 255, 0.95) 70%, transparent);
+  box-shadow: 0 0 1.4rem 0.3rem rgba(180, 240, 255, 0.55);
+  opacity: 0;
+  transform: scaleX(0);
+  animation: boot-streak 10s linear forwards;
+}
+
+.boot-anim__logo {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 52vmin;
+  height: 52vmin;
+  margin: -26vmin 0 0 -26vmin;
+  opacity: 0;
+  animation: boot-logo 10s linear forwards, boot-bob 5s ease-in-out infinite;
+}
+.boot-anim__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  filter: drop-shadow(0 0 1.2rem rgba(60, 240, 225, 0.55));
+}
+
+@keyframes boot-waves {
+  0%, 12% { opacity: 0; animation-timing-function: ease-in; }
+  45% { opacity: 0.55; animation-timing-function: ease-out; }
+  70%, 100% { opacity: 1; }
+}
+@keyframes boot-bloom {
+  0%, 18% { opacity: 0; transform: scale(0.35); animation-timing-function: ease-in; }
+  43% { opacity: 0.4; transform: scale(0.75); animation-timing-function: ease-out; }
+  45% { opacity: 1; transform: scale(1.25); animation-timing-function: ease-out; }
+  58% { opacity: 0.3; transform: scale(1); }
+  86%, 100% { opacity: 0.12; transform: scale(1); }
+}
+@keyframes boot-streak {
+  0%, 41% { opacity: 0; transform: scaleX(0); animation-timing-function: ease-out; }
+  45% { opacity: 1; transform: scaleX(1); animation-timing-function: ease-in; }
+  62%, 100% { opacity: 0; transform: scaleX(1.1); }
+}
+@keyframes boot-logo {
+  0%, 44% { opacity: 0; transform: scale(0.88); filter: blur(0.8rem); animation-timing-function: ease-out; }
+  52% { opacity: 1; transform: scale(1); filter: blur(0); }
+  72% { opacity: 1; transform: scale(1.02); filter: blur(0); animation-timing-function: ease-in; }
+  88%, 100% { opacity: 0; transform: scale(1.06); filter: blur(0.4rem); }
+}
+/* Die Qualle schwebt leicht; eigene Animation, damit sie unabhängig vom Ein- und Ausblenden läuft. */
+@keyframes boot-bob {
+  0%, 100% { translate: 0 0.5rem; }
+  50% { translate: 0 -0.5rem; }
+}
+@keyframes boot-out {
+  to { opacity: 0; }
+}
+
+html[data-anim="reduced"] .boot-anim__bloom,
+html[data-anim="reduced"] .boot-anim__streak {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-anim__bloom,
+  .boot-anim__streak {
+    display: none;
+  }
+  .boot-anim__logo {
+    animation: boot-logo 10s linear forwards;
+  }
+}

@@ -47,7 +47,7 @@ export function createScene(
   const paintBackdrop = () => {
     const night = pal.night;
     const haze = 0.05 * (1 - 0.4 * night);
-    const glow = 0.2 * (1 - 0.35 * night);
+    const glow = 0.2 * (pal.vivid ? 1.7 : 1) * (1 - 0.35 * night);
     // rem und --stage-shift wie in index.css/xmb.css: Die Menü-Bühne sitzt bei höheren Fenstern mittig.
     const at = options.menuGlow ? "26rem calc(var(--stage-shift, 0px) + 26rem)" : "50% 46%";
     const size = options.menuGlow ? "42rem 30rem" : "52rem 34rem";

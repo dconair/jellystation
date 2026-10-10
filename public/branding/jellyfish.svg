@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-530 -424 960 960" width="960" height="960">
+  <title>JellyStation – Qualle mit PlayStation-Symbolen (ohne Kachel), für die Start-Animation</title>
+  <defs>
+    <linearGradient id="belly" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#19e6d2" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#19e6d2" stop-opacity="0.05"/>
+    </linearGradient>
+    <filter id="glowBig" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="17"/></filter>
+    <filter id="glowSmall" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+    <!-- Glockenumriss und Neonlinien wie in branding/icon.svg (Schwimmrichtung nach oben) -->
+    <path id="bell" d="M-225 4 C-225 -130 -130 -232 0 -232 C130 -232 225 -130 225 4
+                      C225 26 208 34 190 30 C176 62 150 62 134 30 C118 62 92 62 76 30 C60 62 34 62 18 30
+                      C2 62 -22 62 -38 30 C-54 62 -80 62 -96 30 C-112 62 -138 62 -154 30 C-170 62 -196 62 -206 30
+                      C-216 34 -225 26 -225 4 Z"/>
+
+    <!-- Neonlinien der Qualle -->
+    <g id="neon" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <use href="#bell"/>
+      <!-- die vier PlayStation-Symbole: aufrecht (gegen die Neigung der Qualle gedreht) und größer -->
+      <g transform="translate(0 -102) rotate(-32) scale(1.25) translate(0 102)">
+      <path d="M-22 -140 L0 -178 L22 -140 Z"/>
+      <circle cx="62" cy="-102" r="21"/>
+      <path d="M-17 -85 l34 34 M17 -85 l-34 34"/>
+      <rect x="-80" y="-120" width="36" height="36" rx="2"/>
+      </g>
+      <!-- Tentakel, im Schwimmen nach hinten gezogen -->
+      <path d="M-150 56 C-176 110 -118 150 -158 214 C-186 258 -150 292 -196 344"/>
+      <path d="M-76 62 C-98 124 -40 168 -86 236 C-112 280 -78 322 -118 388"/>
+      <path d="M0 64 C-22 132 40 176 -4 250 C-28 296 6 340 -26 412"/>
+      <path d="M76 62 C54 124 112 166 70 232 C46 272 78 310 48 372"/>
+      <path d="M150 56 C130 108 184 142 150 200 C130 238 160 266 140 312"/>
+    </g>
+  </defs>
+  <g transform="rotate(32)">
+    <use href="#bell" fill="url(#belly)"/>
+    <use href="#neon" stroke="#19e6d2" stroke-width="30" opacity="0.85" filter="url(#glowBig)"/>
+    <use href="#neon" stroke="#2cf0dc" stroke-width="15" filter="url(#glowSmall)"/>
+    <use href="#neon" stroke="#3ff2e0" stroke-width="12"/>
+    <use href="#neon" stroke="#e3fffb" stroke-width="4.5"/>
+  </g>
+</svg>

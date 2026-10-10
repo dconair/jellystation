@@ -13,10 +13,12 @@ export interface SettingsDialogProps {
   onClose: () => void;
   /** false = sichtbar, aber ohne Eingabe. */
   active?: boolean;
+  /** Spielt die Start-Animation zur Ansicht ab (Zeile „Start-Animation ansehen“). */
+  onPreviewBoot?: () => void;
 }
 
 type NumKey = "brightness" | "customHue" | "waveSpeed" | "motionSpeed" | "sfxVolume" | "musicVolume";
-type BoolKey = "dayNight" | "waves" | "shapes" | "dust" | "musicEnabled";
+type BoolKey = "dayNight" | "waves" | "shapes" | "dust" | "musicEnabled" | "bootAnimation";
 
 type Row =
   | { id: string; kind: "number"; key: NumKey; label: string; detail: string; format: (v: number) => string }
@@ -25,6 +27,8 @@ type Row =
   | { id: string; kind: "animations"; label: string; detail: string }
   | { id: string; kind: "mood"; label: string; detail: string }
   | { id: string; kind: "style"; label: string; detail: string }
+  | { id: string; kind: "soundPack"; label: string; detail: string }
+  | { id: string; kind: "preview"; label: string; detail: string }
   | { id: string; kind: "reset"; label: string; detail: string };
 
 const percent = (v: number) => `${Math.round(v * 100)} %`;
@@ -39,22 +43,25 @@ const TITLES: Record<SettingsSection, { title: string; subtitle: string }> = {
 const ROWS: Record<SettingsSection, Row[]> = {
   display: [
     { id: "brightness", kind: "number", key: "brightness", label: "Helligkeit", detail: "Gilt für die ganze App, auch für Filme", format: percent },
-    { id: "style", kind: "style", label: "Hintergrund-Design", detail: "PS3-Wellen, Nordlicht, Sternenhimmel, Tiefsee, Neon-Gitter oder nur ein Farbverlauf" },
+    { id: "style", kind: "style", label: "Hintergrund-Design", detail: "PS3-Original (seidiges Tuch), die bisherigen JellyStation-Wellen, Nordlicht, Sternenhimmel, Tiefsee, Neon-Gitter oder nur ein Farbverlauf" },
     { id: "theme", kind: "theme", label: "Farbthema", detail: "Hintergrundfarbe – „Automatisch“ wechselt wie die PS3 mit dem Monat" },
     { id: "customHue", kind: "number", key: "customHue", label: "Eigener Farbton", detail: "Nur bei „Eigener Farbton“", format: (v) => `${Math.round(v)}°` },
     { id: "dayNight", kind: "bool", key: "dayNight", label: "Tag/Nacht-Verlauf", detail: "Abends wird der Hintergrund dunkler" },
-    { id: "waves", kind: "bool", key: "waves", label: "Wellen", detail: "Seidige Bänder im Hintergrund" },
+    { id: "waves", kind: "bool", key: "waves", label: "Wellen", detail: "Seidige Bänder im Hintergrund (nur bei „JellyStation-Wellen“)" },
     { id: "shapes", kind: "bool", key: "shapes", label: "PlayStation-Symbole", detail: "Langsam fliegende Formen" },
     { id: "dust", kind: "bool", key: "dust", label: "Lichtpartikel", detail: "Feiner Glanzstaub" },
     { id: "waveSpeed", kind: "number", key: "waveSpeed", label: "Wellen-Tempo", detail: "Wie schnell sich die Wellen bewegen", format: speed },
     { id: "reset", kind: "reset", label: "Alles zurücksetzen", detail: "Setzt Anzeige, Animationen und Ton auf die Standardwerte" },
   ],
   motion: [
+    { id: "bootAnimation", kind: "bool", key: "bootAnimation", label: "Start-Animation", detail: "Kurzer Vorspann mit Klang beim Öffnen der App – jede Taste überspringt ihn" },
+    { id: "bootPreview", kind: "preview", label: "Start-Animation ansehen", detail: "Spielt den Vorspann einmal ab" },
     { id: "animations", kind: "animations", label: "Animationen", detail: "Voll: wie gewohnt · Reduziert: kürzer, ruhiger Hintergrund · Aus: alles springt direkt" },
     { id: "motionSpeed", kind: "number", key: "motionSpeed", label: "Tempo der Menü-Bewegung", detail: "Schneller wirkt direkter, langsamer weicher", format: speed },
     { id: "waveSpeed", kind: "number", key: "waveSpeed", label: "Wellen-Tempo", detail: "Wie schnell sich die Wellen im Hintergrund bewegen", format: speed },
   ],
   sound: [
+    { id: "soundPack", kind: "soundPack", label: "Klangpaket", detail: "PS3-Original: Klänge der PS3-Systemsoftware für Zurück, Bestätigen, Fehler, Start und Erfolg · Synthetisch: die eigenen Töne der App" },
     { id: "sfxVolume", kind: "number", key: "sfxVolume", label: "Lautstärke der Menü-Töne", detail: "Klicken, Wechseln, Bestätigen", format: percent },
     { id: "musicEnabled", kind: "bool", key: "musicEnabled", label: "Hintergrundmusik", detail: "Leise, atmosphärische Klänge im Menü – pausiert bei Filmen und Spielen" },
     { id: "musicMood", kind: "mood", label: "Stimmung", detail: "Sanft, Tiefsee, Nachtlicht oder Morgenlicht" },
@@ -68,7 +75,7 @@ const ANIM_LABEL: Record<AnimationMode, string> = { full: "Voll", reduced: "Redu
 const round = (n: number, step: number) => Math.round(n / step) * step;
 
 /** Einstellungen mit Reglern, Schaltern und Auswahl; jede Änderung wirkt sofort und wird gespeichert (uiPrefs). */
-export function SettingsDialog({ section, onClose, active = true }: SettingsDialogProps) {
+export function SettingsDialog({ section, onClose, active = true, onPreviewBoot }: SettingsDialogProps) {
   const prefs = useUiPrefs();
   const previewTimer = useRef<number | null>(null);
 
@@ -77,7 +84,7 @@ export function SettingsDialog({ section, onClose, active = true }: SettingsDial
       ROWS[section].filter(
         (r) =>
           !(r.id === "customHue" && prefs.themeId !== "custom") &&
-          // Wellen und Formen gibt es nur beim klassischen PS3-Design.
+          // Wellen und Formen gibt es nur beim Design „JellyStation-Wellen“ (id "ps3").
           !((r.id === "waves" || r.id === "shapes") && prefs.backgroundStyle !== "ps3"),
       ),
     [section, prefs.themeId, prefs.backgroundStyle],
@@ -91,6 +98,7 @@ export function SettingsDialog({ section, onClose, active = true }: SettingsDial
         else if (r.kind === "bool") trailing = prefs[r.key] ? "An" : "Aus";
         else if (r.kind === "theme") trailing = `◀  ${THEMES.find((t) => t.id === prefs.themeId)?.label ?? ""}  ▶`;
         else if (r.kind === "animations") trailing = `◀  ${ANIM_LABEL[prefs.animations]}  ▶`;
+        else if (r.kind === "soundPack") trailing = `◀  ${prefs.soundPack === "ps3" ? "PS3-Original" : "Synthetisch"}  ▶`;
         else if (r.kind === "style") trailing = `◀  ${BACKGROUND_STYLES.find((s) => s.id === prefs.backgroundStyle)?.label ?? ""}  ▶`;
         else if (r.kind === "mood") trailing = `◀  ${MOODS.find((m) => m.id === prefs.musicMood)?.label ?? ""}  ▶`;
         const detail = r.kind === "mood" ? (MOODS.find((m) => m.id === prefs.musicMood)?.description ?? r.detail) : r.detail;
@@ -121,6 +129,9 @@ export function SettingsDialog({ section, onClose, active = true }: SettingsDial
     } else if (row.kind === "style") {
       const at = BACKGROUND_STYLES.findIndex((s) => s.id === prefs.backgroundStyle);
       setUiPrefs({ backgroundStyle: BACKGROUND_STYLES[(at + dir + BACKGROUND_STYLES.length) % BACKGROUND_STYLES.length].id });
+    } else if (row.kind === "soundPack") {
+      setUiPrefs({ soundPack: prefs.soundPack === "ps3" ? "synth" : "ps3" });
+      previewSound();
     } else if (row.kind === "mood") {
       const at = MOODS.findIndex((m) => m.id === prefs.musicMood);
       setUiPrefs({ musicMood: MOODS[(at + dir + MOODS.length) % MOODS.length].id });
@@ -134,6 +145,7 @@ export function SettingsDialog({ section, onClose, active = true }: SettingsDial
     const row = rows.find((r) => r.id === id);
     if (!row) return;
     if (row.kind === "reset") resetUiPrefs();
+    else if (row.kind === "preview") onPreviewBoot?.();
     else adjust(id, 1);
   };
 
@@ -143,6 +155,7 @@ export function SettingsDialog({ section, onClose, active = true }: SettingsDial
     if (!row) return;
     if (row.kind === "number" || row.kind === "bool") setUiPrefs({ [row.key]: DEFAULT_UI_PREFS[row.key] } as Partial<UiPrefs>);
     else if (row.kind === "theme") setUiPrefs({ themeId: DEFAULT_UI_PREFS.themeId });
+    else if (row.kind === "soundPack") setUiPrefs({ soundPack: DEFAULT_UI_PREFS.soundPack });
     else if (row.kind === "mood") setUiPrefs({ musicMood: DEFAULT_UI_PREFS.musicMood });
     else if (row.kind === "style") setUiPrefs({ backgroundStyle: DEFAULT_UI_PREFS.backgroundStyle });
     else if (row.kind === "animations") setUiPrefs({ animations: DEFAULT_UI_PREFS.animations });
