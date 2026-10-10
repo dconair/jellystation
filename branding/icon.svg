@@ -81,32 +81,32 @@
     <circle cx="-72" cy="-176" r="5" fill="#fff" opacity="0.8"/>
     <!-- Symbole: eingraviert (Schatten) und orange leuchtend -->
     <g transform="translate(4 6)" opacity="0.5" stroke="#04384f" stroke-width="13" filter="url(#soft)"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
-  <path d="M-27 -156 L0 -202 L27 -156 Z" transform="translate(0 26)"/>
-  <circle cx="90" cy="-80" r="25"/>
-  <path d="M-22 -14 l44 44 M22 -14 l-44 44" transform="translate(0 -8)"/>
-  <rect x="-113" y="-103" width="46" height="46" rx="4"/></g></g>
+  <path d="M0 -187 L26.85 -140.5 L-26.85 -140.5 Z"/>
+  <circle cx="88" cy="-72" r="25"/>
+  <path d="M-21 -5 l42 42 M21 -5 l-42 42"/>
+  <rect x="-110" y="-94" width="44" height="44" rx="4"/></g></g>
     
     <g fill="none" stroke-linecap="round" stroke-linejoin="round">
       <g stroke="#ff8a1f" stroke-width="28.799999999999997" opacity="0.8" filter="url(#glowBig)"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
-  <path d="M-27 -156 L0 -202 L27 -156 Z" transform="translate(0 26)"/>
-  <circle cx="90" cy="-80" r="25"/>
-  <path d="M-22 -14 l44 44 M22 -14 l-44 44" transform="translate(0 -8)"/>
-  <rect x="-113" y="-103" width="46" height="46" rx="4"/></g></g>
+  <path d="M0 -187 L26.85 -140.5 L-26.85 -140.5 Z"/>
+  <circle cx="88" cy="-72" r="25"/>
+  <path d="M-21 -5 l42 42 M21 -5 l-42 42"/>
+  <rect x="-110" y="-94" width="44" height="44" rx="4"/></g></g>
       <g stroke="#ffb347" stroke-width="14.399999999999999" filter="url(#glowSmall)"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
-  <path d="M-27 -156 L0 -202 L27 -156 Z" transform="translate(0 26)"/>
-  <circle cx="90" cy="-80" r="25"/>
-  <path d="M-22 -14 l44 44 M22 -14 l-44 44" transform="translate(0 -8)"/>
-  <rect x="-113" y="-103" width="46" height="46" rx="4"/></g></g>
+  <path d="M0 -187 L26.85 -140.5 L-26.85 -140.5 Z"/>
+  <circle cx="88" cy="-72" r="25"/>
+  <path d="M-21 -5 l42 42 M21 -5 l-42 42"/>
+  <rect x="-110" y="-94" width="44" height="44" rx="4"/></g></g>
       <g stroke="#ffb347" stroke-width="12"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
-  <path d="M-27 -156 L0 -202 L27 -156 Z" transform="translate(0 26)"/>
-  <circle cx="90" cy="-80" r="25"/>
-  <path d="M-22 -14 l44 44 M22 -14 l-44 44" transform="translate(0 -8)"/>
-  <rect x="-113" y="-103" width="46" height="46" rx="4"/></g></g>
+  <path d="M0 -187 L26.85 -140.5 L-26.85 -140.5 Z"/>
+  <circle cx="88" cy="-72" r="25"/>
+  <path d="M-21 -5 l42 42 M21 -5 l-42 42"/>
+  <rect x="-110" y="-94" width="44" height="44" rx="4"/></g></g>
       <g stroke="#fff1d6" stroke-width="4.32"><g fill="none" stroke-linecap="round" stroke-linejoin="round" >
-  <path d="M-27 -156 L0 -202 L27 -156 Z" transform="translate(0 26)"/>
-  <circle cx="90" cy="-80" r="25"/>
-  <path d="M-22 -14 l44 44 M22 -14 l-44 44" transform="translate(0 -8)"/>
-  <rect x="-113" y="-103" width="46" height="46" rx="4"/></g></g>
+  <path d="M0 -187 L26.85 -140.5 L-26.85 -140.5 Z"/>
+  <circle cx="88" cy="-72" r="25"/>
+  <path d="M-21 -5 l42 42 M21 -5 l-42 42"/>
+  <rect x="-110" y="-94" width="44" height="44" rx="4"/></g></g>
     </g>
   </g>
 </svg>

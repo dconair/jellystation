@@ -13,12 +13,19 @@ const TENT = [
   "M40 148 C46 212 24 280 34 346 C38 380 22 410 30 442",
   "M110 136 C122 200 166 236 150 310 C142 350 164 380 152 412",
 ];
-// vier PlayStation-Symbole als Raute wie an den Controller-Tasten
+// vier PlayStation-Symbole als exakte Raute wie an den Controller-Tasten:
+// alle Mittelpunkte liegen im gleichen Abstand R um (0, CY), die Symbole sind optisch gleich groß.
+const CY = -72, R = 88;
+const f = (n) => +n.toFixed(2);
+const tri = (cx, cy, r) => { // gleichseitig; optischer Schwerpunkt (nicht die Bounding-Box) liegt auf (cx, cy)
+  const d = (a) => `${f(cx + r * Math.cos(a))} ${f(cy + r * Math.sin(a))}`;
+  return `<path d="M${d(-Math.PI / 2)} L${d(Math.PI / 6)} L${d((5 * Math.PI) / 6)} Z"/>`;
+};
 const SYM = `
-  <path d="M-27 -156 L0 -202 L27 -156 Z" transform="translate(0 26)"/>
-  <circle cx="90" cy="-80" r="25"/>
-  <path d="M-22 -14 l44 44 M22 -14 l-44 44" transform="translate(0 -8)"/>
-  <rect x="-113" y="-103" width="46" height="46" rx="4"/>`;
+  ${tri(0, CY - R + 4, 31)}
+  <circle cx="${R}" cy="${CY}" r="25"/>
+  <path d="M${-21} ${CY + R - 21} l42 42 M${21} ${CY + R - 21} l-42 42"/>
+  <rect x="${-R - 22}" y="${CY - 22}" width="44" height="44" rx="4"/>`;
 const symG = (extra = "") => `<g fill="none" stroke-linecap="round" stroke-linejoin="round" ${extra}>${SYM}</g>`;
 const tents = TENT.map((d) => `<path d="${d}"/>`).join("");
 
