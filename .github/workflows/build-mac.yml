@@ -1,12 +1,20 @@
 # Baut JellyStation für macOS (Apple Silicon und Intel) und hängt die Installationsdateien (.dmg) an eine GitHub-Release.
 #
-# Auslösen:  git tag v0.1.0 && git push origin v0.1.0     (oder in GitHub: Actions → „Mac-Build“ → Run workflow)
+# Auslösen:  git tag v0.1.0 && git push origin v0.1.0     (oder in GitHub: Actions → „Mac-Build“ → Run workflow;
+#   dort optional den Tag einer vorhandenen Release eintragen, sonst entsteht eine Testbuild-Release)
+# Zusätzlich zur versionierten DMG wird eine DMG mit festem Namen hochgeladen (JellyStation-Mac-AppleSilicon.dmg /
+#   JellyStation-Mac-Intel.dmg). Darauf zeigen die Download-Links im README (…/releases/latest/download/<Name>).
 # Die App ist NICHT signiert/notarisiert: Beim ersten Öffnen Rechtsklick → „Öffnen“ (oder im Terminal:
 #   xattr -dr com.apple.quarantine /Applications/JellyStation.app ).
 name: Mac-Build
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag einer vorhandenen Release (leer = neue Testbuild-Release)"
+        required: false
+        default: ""
   push:
     tags: ["v*"]
 
@@ -22,9 +30,11 @@ jobs:
           - os: macos-latest   # Apple Silicon
             args: --target aarch64-apple-darwin
             target: aarch64-apple-darwin
+            name: AppleSilicon
           - os: macos-15-intel # Intel
             args: --target x86_64-apple-darwin
             target: x86_64-apple-darwin
+            name: Intel
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +53,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag || format('build-{0}', github.run_number) }}
           releaseName: JellyStation ${{ github.ref_type == 'tag' && github.ref_name || format('(Testbuild {0})', github.run_number) }}
           releaseBody: |
             Nicht signierte Mac-App. Beim ersten Öffnen: Rechtsklick → „Öffnen“.
@@ -51,3 +61,11 @@ jobs:
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
+      # DMG ein zweites Mal mit festem, versionslosem Namen anhängen (für die Links im README)
+      - name: DMG mit festem Namen hochladen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag || format('build-{0}', github.run_number) }}
+        run: |
+          cp src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg "JellyStation-Mac-${{ matrix.name }}.dmg"
+          gh release upload "$TAG" "JellyStation-Mac-${{ matrix.name }}.dmg" --clobber
