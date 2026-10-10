@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Teststub: wie mv; mit STUB_MV_FAIL_NEW=1 scheitert das Verschieben eines "…jellystation-new…"-Ordners,
+# mit STUB_MV_FAIL_OLD=1 das Beiseitelegen der alten App (Ziel "…jellystation-old…").
+if [ "${STUB_MV_FAIL_NEW:-0}" = 1 ]; then
+  for a in "$@"; do
+    case "$a" in *.jellystation-new.*) echo "mv: Operation not permitted (Stub)" >&2; exit 1 ;; esac
+  done
+fi
+if [ "${STUB_MV_FAIL_OLD:-0}" = 1 ]; then
+  for a in "$@"; do
+    case "$a" in *.jellystation-old.*) echo "mv: Operation not permitted (Stub)" >&2; exit 1 ;; esac
+  done
+fi
+if [ -n "${STUB_MV_SLEEP_NEW:-}" ]; then
+  for a in "$@"; do
+    case "$a" in *.jellystation-new.*) echo "mv-sleep" >> "${STUB_STATE:?}/calls.log"; sleep "$STUB_MV_SLEEP_NEW"; break ;; esac
+  done
+fi
+exec /bin/mv "$@"

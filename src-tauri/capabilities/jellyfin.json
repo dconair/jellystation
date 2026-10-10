@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "jellyfin",
+  "description": "HTTP-Anfragen an den vom Nutzer konfigurierten Jellyfin-Server. Die Adresse ist erst zur Laufzeit bekannt (oft eine LAN-IP), daher sind beliebige http(s)-Ziele erlaubt.",
+  "windows": ["main"],
+  "permissions": [
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "http://*" },
+        { "url": "http://*:*" },
+        { "url": "https://*" },
+        { "url": "https://*:*" }
+      ]
+    }
+  ]
+}

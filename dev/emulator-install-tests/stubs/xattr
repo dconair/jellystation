@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Teststub: protokolliert den Aufruf (STUB_XATTR_FAIL=1 lässt ihn scheitern)
+echo "xattr $*" >> "${STUB_STATE:?}/calls.log"
+[ "${STUB_XATTR_FAIL:-0}" != 1 ] || { echo "xattr: No such file" >&2; exit 1; }
+exit 0

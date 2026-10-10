@@ -1,0 +1,742 @@
+.xmb {
+  --xmb-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* nur noch für den Bestätigungs-Puls */
+  --xmb-text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.55);
+  /* Bei höheren Fenstern als 16:9 (z. B. 4:3) wird die Menü-Komposition mittig nach unten geschoben. */
+  --stage-shift: max(0px, calc((100vh - 54rem) / 2));
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+
+.xmb-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.xmb-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 28% 40%, transparent 38%, rgba(0, 0, 0, 0.42) 100%);
+}
+
+/* ---------- Kopfzeile ---------- */
+
+.xmb-header {
+  position: absolute;
+  top: 1.8rem;
+  right: 3.5rem;
+  height: 2.8rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  line-height: 1;
+  text-shadow: var(--xmb-text-shadow);
+}
+
+.xmb-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.xmb-clock__date {
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  opacity: 0.62;
+}
+
+.xmb-clock__time {
+  font-size: 1.7rem;
+  letter-spacing: 0.05em;
+}
+
+.xmb-pad {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 18rem;
+  font-size: 1rem;
+  white-space: nowrap;
+  opacity: 0.75;
+  animation: xmb-fade-in 0.6s ease both;
+}
+
+.xmb-pad::before {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #7dffb2;
+  box-shadow: 0 0 0.6rem #7dffb2;
+}
+
+/* Kleine, ruhige Statusmarken ("Vorschau-Modus", "Ton aus") */
+.xmb-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 1.8rem;
+  padding: 0 0.9rem;
+  border-radius: 1rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  animation: xmb-fade-in 0.6s ease both;
+}
+
+.xmb-stage {
+  position: absolute;
+  inset: 0;
+  transform: translateY(var(--stage-shift));
+}
+
+/*
+ * Bewegung: Ort, Größe, Deckkraft, Leuchten und Schweben aller Kategorien und Einträge setzt die MotionEngine
+ * (MotionEngine.ts) pro Bild aus EINER Position je Achse. Deshalb stehen hier bewusst keine CSS-Übergänge für
+ * transform, opacity oder filter: Sie würden unabhängig von der Bewegung laufen und als Geisterbilder hängen bleiben.
+ * Das Leuchten sind Ebenen mit statischem Schatten, deren Deckkraft bewegt wird (animierte Filter sind teuer).
+ */
+
+/* ---------- Horizontale Achse: Kategorien ---------- */
+
+.xmb-category {
+  position: absolute;
+  z-index: 2; /* Einträge, die beim Fokuswechsel an der Leiste vorbeiziehen, laufen hinter den Icons */
+  left: 0;
+  top: 0;
+  width: 8rem;
+  height: 6rem;
+  margin: -3rem 0 0 -4rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  outline: none; /* nach einem Klick soll kein Browser-Fokusrahmen im Menü auftauchen */
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0; /* bis die MotionEngine den Knoten vor dem ersten Paint positioniert hat */
+  will-change: transform, opacity;
+}
+
+/* Schweben: eigene Ebene, die im Ruhezustand ohne Neuzeichnen bewegt wird (Größe/Streckung liegen darunter). */
+.xmb-category__bob {
+  display: block;
+  will-change: transform;
+}
+
+.xmb-category__scale {
+  position: relative;
+  display: block;
+  width: 3.4rem;
+  height: 3.4rem;
+}
+
+.xmb-category .xmb-icon-svg {
+  display: block;
+  width: 3.4rem;
+  height: 3.4rem;
+  filter: drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.25));
+}
+
+/* Leuchten der aktiven Kategorie: Kopie hinter dem Icon, statischer Schatten, nur die Deckkraft ändert sich. */
+.xmb-category__glow {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.xmb-category__glow .xmb-icon-svg {
+  filter: drop-shadow(0 0 0.35rem rgba(255, 255, 255, 0.55)) drop-shadow(0 0 1rem rgba(255, 255, 255, 0.45));
+}
+
+.xmb-category__label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: 3.5rem;
+  font-size: 1.25rem;
+  font-weight: 300;
+  letter-spacing: 0.07em;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-shadow: var(--xmb-text-shadow);
+  opacity: 0;
+  transform: translate(-50%, -0.7rem);
+}
+
+/* ---------- Vertikale Achse: Einträge ---------- */
+
+/*
+ * Eine Spalte ist ein Punkt auf der Spaltenachse (x der Kategorie); die MotionEngine verschiebt sie mit der
+ * Kategorie-Leiste und blendet sie als Kreuzblende ein und aus.
+ */
+.xmb-column {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.xmb-column[data-live="1"] {
+  will-change: transform, opacity;
+}
+
+/*
+ * Jeder Eintrag sitzt mit der Mitte seiner Kachel auf der Spaltenachse (x = 0 im Eintrag-Koordinatensystem
+ * minus halbe Kachelbreite). Das gilt für schmale Icon-Kacheln genauso wie für breite Cover-Kacheln.
+ */
+.xmb-item {
+  --tile-w: 3.6rem;
+  --tile-h: 3.6rem;
+  --tile-gap: 1.3rem;
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: var(--tile-h);
+  margin: calc(var(--tile-h) / -2) 0 0 calc(var(--tile-w) / -2);
+  pointer-events: auto;
+  cursor: pointer;
+  white-space: nowrap;
+  opacity: 0; /* bis die MotionEngine den Knoten vor dem ersten Paint positioniert hat */
+}
+
+/*
+ * Eigene Ebenen (will-change) gibt es nur in sichtbaren Spalten (data-live setzt die MotionEngine): Hunderte
+ * Ebenen für unsichtbare Listen würden jeden Bildaufbau (Commit) verteuern.
+ */
+.xmb-column[data-live="1"] .xmb-item {
+  will-change: transform, opacity;
+}
+
+.xmb-item.has-art {
+  --tile-w: 8.8rem;
+  --tile-h: 4.95rem; /* 16:9 */
+  --tile-gap: 1.5rem;
+}
+
+/* Icon-Eintrag in einer Spalte mit Covern: Text beginnt auf derselben Linie wie bei den Covern. */
+.xmb-item.in-art-col {
+  --text-nudge: calc((8.8rem - var(--tile-w)) / 2 + 1.5rem - var(--tile-gap));
+}
+
+.xmb-item.in-art-col .xmb-item__text {
+  margin-left: var(--text-nudge);
+  transform-origin: calc(var(--tile-w) / -2 - var(--tile-gap) - var(--text-nudge)) 50%;
+}
+
+.xmb-item__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--tile-gap);
+  height: 100%;
+}
+
+/*
+ * Kachel/Cover schwebt (eigene Ebene, nur Verschiebung) und streckt sich mit der Bewegung; Kachel und Text werden
+ * um dieselbe Mitte (die der Kachel) skaliert. Der Text bleibt beim Schweben stehen.
+ */
+.xmb-item__float {
+  position: relative;
+  display: block;
+  flex: none;
+}
+
+.xmb-column[data-live="1"] .xmb-item__float {
+  will-change: transform;
+}
+
+.xmb-item__scale {
+  position: relative;
+  display: block;
+}
+
+/* Leuchten des fokussierten Eintrags: statischer Schatten hinter der Kachel, Deckkraft = Fokus. */
+.xmb-item__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.85rem;
+  opacity: 0;
+  visibility: hidden; /* sichtbar nur beim Fokus (die MotionEngine schaltet) */
+  pointer-events: none;
+  box-shadow: 0 0 1.8rem hsl(var(--hue) 90% 72% / 0.55);
+}
+
+.xmb-column[data-live="1"] .xmb-item__glow {
+  will-change: opacity;
+}
+
+.xmb-item.has-art .xmb-item__glow {
+  border-radius: 0.5rem;
+  box-shadow:
+    0 0 1.6rem rgba(255, 255, 255, 0.4),
+    0 0 3.4rem hsl(var(--hue) 90% 70% / 0.35);
+}
+
+/* Abdunklung unfokussierter Kacheln: Deckkraft = 1 − Fokus (ersetzt den früheren, animierten brightness-Filter). */
+.xmb-item__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  pointer-events: none;
+  background: rgba(6, 10, 26, 0.12);
+}
+
+.xmb-item.has-art .xmb-item__shade {
+  background: rgba(6, 10, 26, 0.16);
+}
+
+/* Gemeinsamer Glanz für Kacheln und Cover: Lichtkante oben, diagonaler Schimmer, feiner Rand. */
+.xmb-item__tile::after,
+.xmb-item__cover::after,
+.xmb-detail__art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.08) 34%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* Cover einer beliebigen Bildform: füllt die Kachel, wird sauber beschnitten. */
+.xmb-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Icon-Kachel (Einträge ohne Cover): milchiges Glas in der Farbe des Eintrags */
+.xmb-item__tile {
+  position: relative;
+  width: var(--tile-w);
+  height: var(--tile-h);
+  display: grid;
+  place-items: center;
+  border-radius: 0.85rem;
+  color: #fff;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, hsl(var(--hue) 75% 58% / 0.78), hsl(var(--hue) 75% 24% / 0.78));
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.32);
+}
+
+.xmb-item__tile .xmb-icon-svg {
+  position: relative;
+  width: 2.1rem;
+  height: 2.1rem;
+  filter: drop-shadow(0 0 0.4rem rgba(255, 255, 255, 0.55));
+}
+
+/* Cover-Kachel (Querformat): kleine Ecken, dezenter Rahmen, Schatten; Abdunklung und Leuchten sind eigene Ebenen */
+.xmb-item__cover {
+  position: relative;
+  display: block;
+  width: var(--tile-w);
+  height: var(--tile-h);
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: rgba(10, 16, 40, 0.5);
+  box-shadow: 0 0.45rem 1.2rem rgba(0, 0, 0, 0.42);
+}
+
+.xmb-item__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 26rem;
+  text-shadow: var(--xmb-text-shadow);
+  /* Skalierung (Fokus) um die Mitte der Kachel, die links neben dem Text liegt */
+  transform-origin: calc(var(--tile-w) / -2 - var(--tile-gap)) 50%;
+}
+
+/* Das Polster hält den Textschatten sichtbar, obwohl die Zeile abgeschnitten wird. */
+.xmb-item__title,
+.xmb-item__subtitle {
+  display: block;
+  margin: 0 -0.8rem;
+  padding: 0.15rem 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xmb-item__title {
+  font-size: 1.4rem;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.035em;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+/* Die Schriftstärke (300 → 400) läuft stetig mit dem Fokus; die MotionEngine setzt sie pro Bild. */
+.xmb-item.is-focused .xmb-item__title {
+  color: #fff;
+}
+
+.xmb-item__subtitle {
+  font-size: 1.05rem;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  opacity: 0.68;
+}
+
+.xmb-item__badge {
+  align-self: flex-start;
+  margin-top: 0.15rem;
+  padding: 0.1rem 0.7rem;
+  border-radius: 1rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  background: rgba(125, 255, 178, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(125, 255, 178, 0.35);
+  color: #b4ffd2;
+  text-shadow: none;
+}
+
+/* ---------- Detailkarte ---------- */
+
+.xmb-detail {
+  position: absolute;
+  top: calc(17.5rem + var(--stage-shift));
+  right: 3.5rem;
+  width: 24rem;
+  text-shadow: var(--xmb-text-shadow);
+  /* Genau eine Karte: Deckkraft und Versatz setzt die MotionEngine (aus → tauschen → ein). */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+
+.xmb-detail__art {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.3rem;
+  border-radius: 0.7rem;
+  background: rgba(10, 16, 40, 0.5);
+  box-shadow:
+    0 0.8rem 2.2rem rgba(0, 0, 0, 0.45),
+    0 0 2.6rem rgba(255, 255, 255, 0.12);
+}
+
+.xmb-detail.is-landscape .xmb-detail__art {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.xmb-detail.is-poster .xmb-detail__art {
+  width: 11.4rem;
+  aspect-ratio: 2 / 3;
+}
+
+/* Ohne Cover: eine große Icon-Kachel im Stil der Listen-Kacheln */
+.xmb-detail.is-icon .xmb-detail__art {
+  display: grid;
+  place-items: center;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 1.3rem;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, hsl(var(--hue) 75% 58% / 0.78), hsl(var(--hue) 75% 24% / 0.78));
+  box-shadow:
+    0 0.7rem 2rem rgba(0, 0, 0, 0.38),
+    0 0 2.4rem hsl(var(--hue) 90% 72% / 0.45);
+}
+
+.xmb-detail__glyph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.xmb-detail__glyph .xmb-icon-svg {
+  width: 4.6rem;
+  height: 4.6rem;
+  filter: drop-shadow(0 0 0.6rem rgba(255, 255, 255, 0.6));
+}
+
+.xmb-detail__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  /* Dateipfade und andere lange Wörter ohne Leerzeichen umbrechen statt aus der Karte zu ragen (word-break: Rückfall für ältere WebKit-Versionen) */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.xmb-detail__meta,
+.xmb-detail__text {
+  margin: 0;
+  font-weight: 300;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Begrenzt, damit die Karte (Cover + Titel + Untertitel + Beschreibung) nie in die Hinweisleiste ragt. */
+.xmb-detail__meta {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  opacity: 0.62;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.xmb-detail__text {
+  margin-top: 0.7rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+/* Hochkant-Fenster (schmaler als 6:5): dort wird die Schrift zu klein, die Karte entfällt. 5:4 (1280×1024) zeigt sie noch. */
+@media (max-aspect-ratio: 6 / 5) {
+  .xmb-detail {
+    display: none;
+  }
+}
+
+/* ---------- Hinweisleiste & Toast ---------- */
+
+.xmb-hints {
+  position: absolute;
+  right: 3.5rem;
+  bottom: 1.8rem;
+  display: flex;
+  align-items: center;
+  gap: 2.2rem;
+  font-size: 1.05rem;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: var(--xmb-text-shadow);
+}
+
+.xmb-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  white-space: nowrap;
+}
+
+.xmb-hint .ps-symbol {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.xmb-hint--cross .ps-symbol {
+  filter: drop-shadow(0 0 0.35rem var(--ps-cross));
+}
+
+.xmb-hint--circle .ps-symbol {
+  filter: drop-shadow(0 0 0.35rem var(--ps-circle));
+}
+
+.xmb-hint__label {
+  opacity: 0.9;
+}
+
+.xmb-hint kbd {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.3rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: center;
+  opacity: 0.5;
+}
+
+.xmb-hint--key .xmb-hint__label {
+  opacity: 0.6;
+}
+
+/* Meldungen erscheinen wie bei der PS3 oben rechts unter der Uhr. */
+.xmb-toast {
+  position: absolute;
+  top: 5.6rem;
+  right: 3.5rem;
+  max-width: 34rem;
+  padding: 0.75rem 1.6rem;
+  border-radius: 0.7rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  background: linear-gradient(160deg, rgba(40, 58, 120, 0.72), rgba(12, 18, 52, 0.78));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+    0 0.6rem 1.8rem rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(0.6rem);
+  animation: xmb-toast 2.2s ease both;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Animationen ---------- */
+
+@keyframes xmb-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes xmb-toast {
+  0% {
+    opacity: 0;
+    transform: translateX(1.6rem);
+  }
+  10%,
+  85% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0.6rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xmb *,
+  .xmb *::before,
+  .xmb *::after {
+    animation: none !important;
+    transition-duration: 0.01s !important;
+    transition-delay: 0s !important;
+  }
+}
+
+/* ---------- Bestätigungs-Puls ---------- */
+
+.xmb-item.is-activated .xmb-item__tile,
+.xmb-item.is-activated .xmb-item__cover {
+  animation: xmb-pulse 0.5s var(--xmb-ease);
+}
+
+@keyframes xmb-pulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.12);
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+
+/* ---------- Weiterschauen: Fortschrittsbalken und Gesehen-Haken ---------- */
+
+.xmb-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  height: 0.28rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.xmb-progress--detail {
+  height: 0.4rem;
+}
+
+.xmb-progress__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.75), #fff);
+  box-shadow: 0 0 0.5rem rgba(255, 255, 255, 0.7);
+  transform-origin: 0 50%;
+}
+
+.xmb-played {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(20, 28, 60, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 0.6rem rgba(0, 0, 0, 0.5);
+}
+
+.xmb-played svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.xmb-detail__resume {
+  margin: 0.45rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: #cfe0ff;
+  text-shadow: var(--xmb-text-shadow);
+}

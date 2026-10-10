@@ -1,0 +1,56 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /*
+   * Die Original-XMB nutzt "SCE-PS3 Rodin" (proprietär, nicht verteilbar). Source Sans 3 (OFL)
+   * ist die nächste freie Verwandte; eine eigene Schrift lässt sich hier einfach vorn eintragen.
+   */
+  --font-ui: "Source Sans 3 Variable", "Source Sans 3", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
+  /* Farben der PlayStation-Tasten */
+  --ps-cross: #7fa6ff;
+  --ps-circle: #ff6f78;
+  --ps-triangle: #5ccf9b;
+  --ps-square: #f08cc8;
+}
+
+/*
+ * 1rem skaliert mit dem Fenster: bei 1080 px Höhe (16:9) = 20 px.
+ * Bei breiteren Fenstern bestimmt die Höhe, bei schmaleren die Breite.
+ */
+html {
+  font-size: calc(min(100vh, 56.25vw) / 54);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #050816;
+  color: #fff;
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+.boot {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 40%, #0d1638, #050816);
+}
+
+/* Einstellungen → Animationen: aus = Übergänge und Animationen der Oberfläche entfallen (Menü und Hintergrund steuern ihre Bewegung selbst). */
+:root[data-anim="off"] *,
+:root[data-anim="off"] *::before,
+:root[data-anim="off"] *::after {
+  transition-duration: 0.001ms !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+}

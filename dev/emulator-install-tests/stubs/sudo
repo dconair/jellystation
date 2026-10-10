@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Teststub: sudo darf nie aufgerufen werden.
+echo "SUDO AUFGERUFEN: $*" >> "${STUB_STATE:?}/calls.log"
+echo "sudo: in Tests nicht erlaubt" >&2
+exit 1

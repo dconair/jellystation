@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Teststub für hdiutil: "attach … -mountpoint M datei" entpackt die Datei (ein ZIP, das .dmg heißt) nach M,
+# "detach M" räumt M wieder leer. Mounts werden in $STUB_STATE/mounted verwaltet.
+# Schalter: STUB_HDIUTIL_FAIL=attach|detach  (detach scheitert nur ohne -force)
+state="${STUB_STATE:?}"; mkdir -p "$state/mounted"
+case "${1:-}" in
+  attach)
+    shift
+    mp=""; img=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -mountpoint) mp="$2"; shift ;;
+        -*) ;;
+        *) img="$1" ;;
+      esac
+      shift
+    done
+    echo "hdiutil attach ${img##*/} $mp" >> "$state/calls.log"
+    [ "${STUB_HDIUTIL_FAIL:-}" != attach ] || { echo "hdiutil: attach failed - image not recognized" >&2; exit 1; }
+    [ -d "$mp" ] || { echo "hdiutil: mountpoint fehlt" >&2; exit 1; }
+    unzip -q -o "$img" -d "$mp" || { echo "hdiutil: attach failed" >&2; exit 1; }
+    echo "$mp" > "$state/mounted/$(printf '%s' "$mp" | cksum | cut -d' ' -f1)"
+    ;;
+  detach)
+    shift
+    mp="$1"; force=0
+    for a in "$@"; do [ "$a" != -force ] || force=1; done
+    echo "hdiutil detach $mp force=$force" >> "$state/calls.log"
+    if [ "${STUB_HDIUTIL_FAIL:-}" = detach ] && [ "$force" = 0 ]; then echo "hdiutil: couldn't unmount - Resource busy" >&2; exit 16; fi
+    f="$state/mounted/$(printf '%s' "$mp" | cksum | cut -d' ' -f1)"
+    [ -f "$f" ] || { echo "hdiutil: nicht eingehängt: $mp" >&2; exit 1; }
+    rm -f "$f"
+    find "$mp" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null
+    ;;
+  *) echo "hdiutil-Stub: unbekannt: $*" >&2; exit 1 ;;
+esac
+exit 0

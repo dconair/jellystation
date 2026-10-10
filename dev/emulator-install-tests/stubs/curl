@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Teststub: protokolliert die Argumente und ruft das echte curl auf.
+echo "curl $*" >> "${STUB_STATE:?}/curl.log"
+exec /usr/bin/curl "$@"

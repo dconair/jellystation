@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+		Wird von Tauri in das App-Bundle gemischt und bei Entwicklungsbuilds (cargo run / tauri dev) in die Programmdatei
+		eingebettet. Nur macOS wertet diese Datei aus.
+	-->
+
+	<!--
+		Der Jellyfin-Server steht meist unverschlüsselt (http://) im Heimnetz. Ohne diese Ausnahme blockiert die App Transport
+		Security des WebViews solche Adressen. Der Medien-Proxy (127.0.0.1) und lokale Adressen sind davon ohnehin ausgenommen,
+		für alles andere (Adresse im Netz, Docker-Hostname, Tailscale usw.) braucht es NSAllowsArbitraryLoads.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+
+	<!-- macOS 15 und neuer fragen beim ersten Zugriff auf Geräte im lokalen Netz; ohne Text erscheint die Frage ohne Erklärung. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>JellyStation verbindet sich mit deinem Jellyfin-Server im lokalen Netzwerk.</string>
+
+	<!-- Die Emulator-Suche schaut auch in „Downloads“ und auf den Schreibtisch; macOS fragt dabei einmal nach. -->
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>JellyStation sucht in „Downloads“ nach Emulatoren, die du dort abgelegt hast.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>JellyStation sucht auf dem Schreibtisch nach Emulatoren, die du dort abgelegt hast.</string>
+</dict>
+</plist>

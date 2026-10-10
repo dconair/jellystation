@@ -1,0 +1,152 @@
+/*
+ * Start-Overlay (LaunchOverlay): PS3-artiger Vollbild-Übergang beim Spielstart.
+ *
+ * Der Rahmen kommt von OverlayFrame (ui/popup); hier steht nur, was das Overlay von einem Dialog unterscheidet:
+ * ein fast undurchsichtiger Verlauf statt der halbtransparenten Abdunklung, das Cover mit Glanz und Spiegelung,
+ * leichte Schrift. Bewegung ist reine Transform-/Deckkraft-Animation (GPU) und bei „Bewegung reduzieren“ aus.
+ * Alles in rem – skaliert mit dem Fenster (siehe html in index.css).
+ */
+
+.pop-overlay.launch-frame {
+  /* Undurchsichtig: Vom Menü dahinter soll nichts durchschimmern (Geisterschrift am Rand wirkte unruhig). */
+  background:
+    radial-gradient(ellipse 62% 52% at 50% 44%, rgba(58, 96, 196, 0.5) 0%, rgba(20, 38, 100, 0.22) 46%, rgba(2, 4, 14, 0) 76%),
+    linear-gradient(180deg, #050a22 0%, #02040f 100%);
+}
+
+.launch {
+  --hue: 220;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(60rem, 92%);
+  text-align: center;
+  animation: launch-in 0.7s cubic-bezier(0.3, 1.08, 0.4, 1) both;
+}
+
+/* Zwei feine Lichtlinien, die langsam durchs Bild gleiten (Anklang an die Wellen der XMB). */
+.launch__waves {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.launch__waves i {
+  position: absolute;
+  left: -30%;
+  width: 160%;
+  height: 0.16rem;
+  background: linear-gradient(90deg, transparent 0%, rgba(160, 200, 255, 0.5) 50%, transparent 100%);
+  box-shadow: 0 0 1.2rem 0.1rem rgba(130, 180, 255, 0.35);
+  opacity: 0.55;
+  animation: launch-wave 7s ease-in-out infinite alternate;
+}
+.launch__waves i:nth-child(1) {
+  top: 13%;
+}
+.launch__waves i:nth-child(2) {
+  top: 90%;
+  opacity: 0.35;
+  animation-duration: 9s;
+  animation-direction: alternate-reverse;
+}
+
+.launch__cover {
+  position: relative;
+  width: 36rem;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(200, 220, 255, 0.32);
+  box-shadow:
+    0 1.6rem 4.5rem rgba(0, 0, 0, 0.55),
+    0 0 5rem rgba(var(--pop-glow, 120, 170, 255), 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  /* Spiegelung nur im unteren Viertel des Covers (die Maske gilt für das ungespiegelte Bild: unten = nahe am Rand) */
+  -webkit-box-reflect: below 0.5rem linear-gradient(to bottom, transparent 78%, rgba(255, 255, 255, 0.2) 100%);
+  animation: launch-breathe 3.4s ease-in-out infinite alternate;
+}
+
+.launch--poster .launch__cover {
+  width: auto;
+  height: 26rem;
+  aspect-ratio: 2 / 3;
+}
+
+/* Glanzlicht quer über dem Cover */
+.launch__gloss {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.06) 30%, transparent 46%);
+}
+
+.launch__title {
+  max-width: 100%;
+  margin: 5.4rem 0 0;
+  padding: 0.15rem 0;
+  overflow: hidden;
+  font-size: 3rem;
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 1rem rgba(0, 0, 0, 0.6);
+}
+
+.launch__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 1.35rem;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
+.launch__status {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin-top: 2.6rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.05em;
+  opacity: 0.88;
+}
+
+@keyframes launch-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.6rem) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes launch-breathe {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.018);
+  }
+}
+
+@keyframes launch-wave {
+  from {
+    transform: translateX(-8%);
+  }
+  to {
+    transform: translateX(8%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch,
+  .launch__cover,
+  .launch__waves i {
+    animation: none;
+  }
+}
