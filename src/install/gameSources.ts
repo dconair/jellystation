@@ -7,7 +7,6 @@
  *  - Textdatei mit einer Adresse je Zeile (`Adresse` oder `Name | Adresse | System`, `#` beginnt einen Kommentar),
  *  - JSON: Liste von Adressen oder von `{ name, url, system?, size? }` (auch in `games`/`items`/`files`).
  */
-import { GAME_EXTENSIONS } from "../config/games";
 import { isTauri } from "../platform";
 
 export interface GameSource {
@@ -15,7 +14,7 @@ export interface GameSource {
   name: string;
   /** Adresse der Datei oder der Liste (http/https). */
   url: string;
-  /** Systemordner, in den geladen wird (z. B. "PS2"); fehlt er, fragt die App bei jeder Datei. */
+  /** Unterordner im Spiele-Ordner (z. B. "PS2"), nur als Hinweis; fehlt er, lädt die App direkt in den Spiele-Ordner (das System wird dort automatisch erkannt). */
   system?: string;
   /** Weitere Server, von denen diese Quelle laden darf (vom Nutzer bestätigt). Der Server der Quelle gilt immer. */
   trustedHosts?: string[];
@@ -28,8 +27,15 @@ export interface RemoteGame {
   size?: number;
 }
 
-/** Archive zählen zusätzlich zu den Spiel-Endungen, weil viele Seiten gepackt anbieten. */
-const LISTED_EXTENSIONS: ReadonlySet<string> = new Set([...GAME_EXTENSIONS.filter((e) => e !== "app"), "zip", "7z", "rar", "gz", "xz", "tar", "pup"]);
+/**
+ * Endungen, die in einer Liste als Spiel-Datei gelten (Abbilder der unterstützten Emulatoren). Archive zählen
+ * dazu, weil viele Seiten gepackt anbieten – die App entpackt Spiele nicht. Welche Dateien der Spiele-Ordner danach
+ * als Spiel erkennt, entscheidet `games_scan` (src-tauri/src/library.rs).
+ */
+const LISTED_EXTENSIONS: ReadonlySet<string> = new Set([
+  "iso", "cue", "chd", "bin", "elf", "pkg", "cso", "pbp", "m3u", "rvz", "wbfs", "gcm", "ciso", "dol", "gcz", "wia",
+  "zip", "7z", "rar", "gz", "xz", "tar",
+]);
 
 const MAX_ITEMS = 500;
 const MAX_LISTING_BYTES = 4 * 1024 * 1024;

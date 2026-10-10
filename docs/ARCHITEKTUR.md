@@ -155,7 +155,7 @@ Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`).
   `emulators.json`, Windows eigene Tabelle – ungeprüft gegen echte Releases, Dateinamen werden zur Laufzeit gelesen), `emulatorInstall.ts`, `biosCheck.ts` (Größe, Dateikopf
   „SCEUF“ der PS3-Firmware, bekannte PS1-MD5; unbekannte Prüfsumme ist kein Fehler), `gameSources.ts` (Quellen: Datei, Verzeichnisseite, Adressliste, JSON; Server außerhalb der Quelle
   müssen bestätigt werden), `downloadQueue.ts` (Warteschlange, lebt so lange wie die App), `InstallDialog.tsx`, `GameSourcesDialog.tsx`. Einstellung: `settings.gameSources`.
-  Spiele landen in `<Spiele-Ordner>/<System>`. PS3-Firmware lädt die App nur von Adressen auf playstation.com/.net und sony.com, die der Nutzer einfügt.
+  Spiele landen im Spiele-Ordner (`settings.gamesDir`), bei Bedarf in einem Unterordner-Hinweis der Quelle; das System erkennt `library.rs` danach selbst. PS3-Firmware lädt die App nur von Adressen auf playstation.com/.net und sony.com, die der Nutzer einfügt.
 - Prüfung der reinen Logik ohne Fenster und Netz: `node dev/check-install-logic.mjs`; Rust-Tests: `cargo test --lib -- downloads hashing` (lokaler Mock-Server).
 
 ### Cover (`covers.rs`)

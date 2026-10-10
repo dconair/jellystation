@@ -23,12 +23,11 @@ type Layer =
   | { kind: "add" }
   | { kind: "addSystem"; name: string; url: string }
   | { kind: "games"; source: GameSource; games: RemoteGame[] }
-  | { kind: "pickSystem"; source: GameSource; game: RemoteGame }
   | { kind: "item"; id: string }
   | { kind: "message"; tone: "info" | "error" | "success"; title: string; lines: string[] }
   | { kind: "confirm"; title: string; message: string[]; confirmLabel: string; danger?: boolean; onConfirm: () => void };
 
-const ASK_EACH_TIME = "__ask__";
+const AUTO = "__auto__";
 
 const QUEUE_STATUS: Record<QueueItem["state"], PopupStatus | undefined> = {
   queued: "busy",
@@ -40,7 +39,7 @@ const QUEUE_STATUS: Record<QueueItem["state"], PopupStatus | undefined> = {
 };
 
 const queueDetail = (q: QueueItem): string => {
-  const where = `→ ${q.system}`;
+  const where = `→ ${q.system || "Spiele-Ordner"}`;
   switch (q.state) {
     case "queued":
       return `Wartet · ${where}`;
@@ -115,14 +114,17 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
     }
   };
 
-  const startDownload = (source: GameSource, game: RemoteGame, system: string) => {
+  /** `system` ist nur ein Unterordner-Hinweis; ohne ihn landet die Datei direkt im Spiele-Ordner (das System wird dort automatisch erkannt). */
+  const startDownload = (source: GameSource, game: RemoteGame, system: string | undefined) => {
     const hosts = allowedHostsOf(source);
     if (!hosts.includes(hostOf(game.url))) {
       message("error", "Server nicht freigegeben", [`„${hostOf(game.url)}“ gehört nicht zu dieser Quelle. Öffne die Quelle erneut und bestätige den Server, falls du ihm vertraust.`]);
       return;
     }
-    enqueue({ name: game.name, url: game.url, system, destDir: `${gamesRoot}/${system}`, allowedHosts: hosts });
-    message("success", "Zur Download-Liste hinzugefügt", [`${game.name} wird nach ${system} geladen. Den Fortschritt siehst du in der Liste „Downloads“, auch wenn du dieses Fenster schließt.`]);
+    enqueue({ name: game.name, url: game.url, system: system ?? "", destDir: system ? `${gamesRoot}/${system}` : gamesRoot, allowedHosts: hosts });
+    message("success", "Zur Download-Liste hinzugefügt", [
+      `${game.name} wird in ${system ? `den Ordner „${system}“ im Spiele-Ordner` : "den Spiele-Ordner"} geladen${system ? "" : "; das System erkennt die App danach selbst"}. Den Fortschritt siehst du in der Liste „Downloads“, auch wenn du dieses Fenster schließt.`,
+    ]);
   };
 
   const downloads = queue;
@@ -140,7 +142,7 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
     }
   }
   mainItems.push({ id: "h-src", label: "Meine Quellen", header: true });
-  for (const s of sources) mainItems.push({ id: `src:${s.id}`, label: s.name, detail: `${hostOf(s.url)}${s.system ? ` · ${s.system}` : " · System je Datei wählen"}` });
+  for (const s of sources) mainItems.push({ id: `src:${s.id}`, label: s.name, detail: `${hostOf(s.url)}${s.system ? ` · Unterordner ${s.system}` : " · direkt in den Spiele-Ordner"}` });
   mainItems.push({ id: "add", label: "Quelle hinzufügen …", detail: "Eigene Webseite, NAS oder Datei mit Adressen" });
 
   let overlay: React.ReactNode = null;
@@ -150,7 +152,7 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
     const gameItems: PopupItem[] = games.map((g, i) => ({
       id: `g:${i}`,
       label: g.name,
-      detail: allowed.has(hostOf(g.url)) ? (g.system ?? source.system ?? "System wählen beim Laden") : `Anderer Server (${hostOf(g.url)}) – nicht freigegeben`,
+      detail: allowed.has(hostOf(g.url)) ? (g.system ?? source.system ?? "Spiele-Ordner") : `Anderer Server (${hostOf(g.url)}) – nicht freigegeben`,
       disabled: !allowed.has(hostOf(g.url)),
       trailing: g.size ? formatMB(g.size) : undefined,
     }));
@@ -166,33 +168,24 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
         onSelect={(id) => {
           const game = games[Number(id.slice(2))];
           if (!game) return;
-          const system = game.system ?? source.system;
-          if (system) startDownload(source, game, system);
-          else push({ kind: "pickSystem", source, game });
+          startDownload(source, game, game.system ?? source.system);
         }}
         onBack={pop}
       />
     );
-  } else if (top?.kind === "pickSystem" || top?.kind === "addSystem") {
-    const askEach = top.kind === "addSystem";
-    const names = supportedFolderNames();
+  } else if (top?.kind === "addSystem") {
+    const { name, url } = top;
     overlay = (
       <PopupList
-        key={top.kind}
-        title={askEach ? "In welches System laden?" : `Wohin mit ${top.game.name}?`}
-        subtitle={askEach ? "Die Spiele landen im Unterordner dieses Systems" : "Systemordner im Spiele-Ordner"}
-        width="narrow"
-        items={[...names.map((n) => ({ id: n, label: n })), ...(askEach ? [{ id: ASK_EACH_TIME, label: "Bei jeder Datei fragen" }] : [])]}
+        key="addSystem"
+        title="Wohin sollen die Spiele?"
+        subtitle="Das System erkennt die App danach selbst – ein Unterordner ist nur ein zusätzlicher Hinweis"
+        width="normal"
+        items={[{ id: AUTO, label: "Direkt in den Spiele-Ordner", detail: "Empfohlen" }, ...supportedFolderNames().map((n) => ({ id: n, label: `Unterordner „${n}“` , detail: undefined }))]}
         onSelect={(id) => {
-          if (top.kind === "addSystem") {
-            const source: GameSource = { id: `src-${Date.now().toString(36)}`, name: top.name, url: top.url, ...(id === ASK_EACH_TIME ? {} : { system: id }) };
-            saveSources([...sources, source]);
-            setLayers([]);
-          } else {
-            const { source, game } = top;
-            pop();
-            startDownload(source, game, id);
-          }
+          const source: GameSource = { id: `src-${Date.now().toString(36)}`, name, url, ...(id === AUTO ? {} : { system: id }) };
+          saveSources([...sources, source]);
+          setLayers([]);
         }}
         onBack={pop}
       />

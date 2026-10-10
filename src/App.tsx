@@ -19,6 +19,7 @@ import { UiEffects } from "./prefs/UiEffects";
 import { ConfirmDialog, MessageDialog, PopupList } from "./ui/popup";
 import { supportedFolderNames } from "./emulators/catalog";
 import { InstallDialog } from "./install/InstallDialog";
+import { onItemDone } from "./install/downloadQueue";
 import { BookmarkDialog } from "./web/BookmarkDialog";
 import { hostOf, importGame, onWebDownload, openWeb } from "./web/webApi";
 import { APP_COMMIT_SUBJECT, APP_VERSION_LABEL } from "./version";
@@ -347,6 +348,10 @@ function Main({
     },
     [settings, openOverlay],
   );
+
+  // Ein Spiele-Download aus „Einrichtung & Downloads“ ist fertig: Spiele-Ordner neu einlesen.
+  const rescanGames = library.rescan;
+  useEffect(() => onItemDone(() => rescanGames()), [rescanGames]);
 
   // Downloads aus dem Web-Fenster: danach fragen, in welches System die Datei gehört.
   useEffect(() => {

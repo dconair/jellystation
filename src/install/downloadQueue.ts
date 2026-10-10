@@ -12,7 +12,7 @@ export interface QueueItem {
   id: string;
   name: string;
   url: string;
-  /** Systemordner, z. B. "PS2" (nur zur Anzeige). */
+  /** Unterordner im Spiele-Ordner, z. B. "PS2"; leer = direkt im Spiele-Ordner (nur zur Anzeige). */
   system: string;
   destDir: string;
   allowedHosts: string[];
