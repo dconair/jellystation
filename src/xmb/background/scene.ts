@@ -2,6 +2,8 @@ import { createDust } from "./dust";
 import { createFloaters } from "./floaters";
 import { type Palette, glowColor } from "./palette";
 import { createRibbons } from "./ribbons";
+import { STYLES } from "./styles";
+import type { Drawer } from "./styles";
 
 export interface SceneOptions {
   /** true = Lichtschein sitzt hinter der Menü-Bühne (links oben), sonst mittig (z. B. Setup). */
@@ -14,6 +16,8 @@ export interface Scene {
   setPalette(pal: Palette): void;
   /** Welche Ebenen gezeichnet werden (Einstellungen → Anzeige). */
   setLayers(layers: { ribbons: boolean; dust: boolean; floaters: boolean }): void;
+  /** Hintergrund-Design ("ps3", "aurora", "stars", "bubbles", "grid", "plain"). */
+  setStyle(id: string): void;
   /** `wt` = Zeit der Wellen (kann langsamer/schneller laufen als `t`). */
   draw(t: number, wt?: number): void;
 }
@@ -37,6 +41,8 @@ export function createScene(
   let dust: (t: number) => void = () => {};
   let floaters: (t: number) => void = () => {};
   let layers = { ribbons: true, dust: true, floaters: true };
+  let style = "ps3";
+  let styleDraw: Drawer | null = null;
 
   const paintBackdrop = () => {
     const night = pal.night;
@@ -64,6 +70,7 @@ export function createScene(
     ribbons = createRibbons(ctx, w, h, Math.max(1, ui * 1.5), pal);
     dust = createDust(ctx, w, h, ui, pal);
     floaters = createFloaters(ctx, w, h, ui);
+    styleDraw = STYLES[style] ? STYLES[style](ctx, w, h, ui, pal) : null;
   };
 
   const resize = () => {
@@ -89,6 +96,11 @@ export function createScene(
     setLayers(next) {
       layers = next;
     },
+    setStyle(id) {
+      if (id === style) return;
+      style = id;
+      rebuild();
+    },
     draw(t, wt = t) {
       if (!w || !h) return;
       ctx.globalAlpha = 1;
@@ -96,11 +108,13 @@ export function createScene(
       // Auf dem transparenten Canvas wirkt Alpha-Überlagerung wie additives Licht auf dem Verlauf –
       // und rastert deutlich billiger als "lighter".
       ctx.globalCompositeOperation = "source-over";
-      if (layers.ribbons) ribbons(wt);
+      const classic = style === "ps3";
+      if (classic && layers.ribbons) ribbons(wt);
+      else if (styleDraw) styleDraw(t);
       ctx.globalCompositeOperation = "lighter";
       if (layers.dust) dust(t);
       ctx.globalCompositeOperation = "source-over";
-      if (layers.floaters) floaters(t);
+      if (classic && layers.floaters) floaters(t);
     },
   };
 }

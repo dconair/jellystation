@@ -12,6 +12,17 @@ import type { MoodId } from "../audio/moods";
 
 export type AnimationMode = "full" | "reduced" | "off";
 
+/** Hintergrund-Designs (siehe src/xmb/background/styles.ts); "ps3" sind die klassischen Wellen mit Formen und Partikeln. */
+export const BACKGROUND_STYLES = [
+  { id: "ps3", label: "PS3-Wellen" },
+  { id: "aurora", label: "Nordlicht" },
+  { id: "stars", label: "Sternenhimmel" },
+  { id: "bubbles", label: "Tiefsee" },
+  { id: "grid", label: "Neon-Gitter" },
+  { id: "plain", label: "Nur Farbverlauf" },
+] as const;
+export type BackgroundStyle = (typeof BACKGROUND_STYLES)[number]["id"];
+
 export interface UiPrefs {
   /** Bildschirmhelligkeit der App, 0.6–1.25 (1 = unverändert). */
   brightness: number;
@@ -21,7 +32,9 @@ export interface UiPrefs {
   customHue: number;
   /** Hintergrund wird nachts dunkler (Tageszeit wie auf der PS3). */
   dayNight: boolean;
-  /** Hintergrund-Elemente. */
+  /** Hintergrund-Design. */
+  backgroundStyle: BackgroundStyle;
+  /** Hintergrund-Elemente (nur beim PS3-Design: Wellen und Formen). */
   waves: boolean;
   shapes: boolean;
   dust: boolean;
@@ -42,6 +55,7 @@ export interface UiPrefs {
 export const DEFAULT_UI_PREFS: UiPrefs = {
   brightness: 1,
   themeId: "auto",
+  backgroundStyle: "ps3",
   customHue: 215,
   dayNight: true,
   waves: true,
@@ -99,6 +113,7 @@ export function sanitizeUiPrefs(raw: unknown): UiPrefs {
   return {
     brightness: num(r.brightness, d.brightness, LIMITS.brightness.min, LIMITS.brightness.max),
     themeId: theme,
+    backgroundStyle: BACKGROUND_STYLES.some((s) => s.id === r.backgroundStyle) ? (r.backgroundStyle as BackgroundStyle) : d.backgroundStyle,
     customHue: Math.round(num(r.customHue, d.customHue, LIMITS.customHue.min, LIMITS.customHue.max)),
     dayNight: bool(r.dayNight, d.dayNight),
     waves: bool(r.waves, d.waves),

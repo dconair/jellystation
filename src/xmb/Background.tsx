@@ -43,6 +43,7 @@ export function Background({ paused = false }: { paused?: boolean }) {
     const scene = createScene(canvas, ctx, currentPalette(), { menuGlow });
     const applyLayers = () => {
       const p = getUiPrefs();
+      scene.setStyle(p.backgroundStyle);
       scene.setLayers({ ribbons: p.waves, dust: p.dust, floaters: p.shapes && p.animations !== "reduced" });
     };
     applyLayers();

@@ -14,6 +14,8 @@ export function useAmbientMusic({ suspended }: { suspended: boolean }): void {
   const engine = useRef<AmbientMusic | null>(null);
   const hidden = useRef(typeof document !== "undefined" && document.hidden);
   const muted = useRef(isMuted());
+  // Erst nach der ersten Eingabe darf Ton starten (Autoplay-Regeln); vorher entsteht gar kein AudioContext.
+  const armed = useRef(false);
   const wanted = useRef({ suspended, musicEnabled });
   wanted.current = { suspended, musicEnabled };
 
@@ -22,19 +24,22 @@ export function useAmbientMusic({ suspended }: { suspended: boolean }): void {
     if (!e) return;
     const off = !wanted.current.musicEnabled || wanted.current.suspended || muted.current || hidden.current;
     e.setSuspended(off);
-    if (!off) e.start();
+    if (!off && armed.current) e.start();
   };
 
   useEffect(() => {
     const e = createAmbientMusic();
     engine.current = e;
-    const unlock = () => recompute();
+    const unlock = () => {
+      armed.current = true;
+      recompute();
+    };
     const events = ["keydown", "pointerdown", "touchstart", "gamepadconnected"] as const;
     for (const ev of events) window.addEventListener(ev, unlock, { capture: true, passive: true });
     // Controller-Tasten lösen kein Fensterereignis aus: kurz nachsehen, bis etwas gedrückt wurde.
     const pad = window.setInterval(() => {
       const pads = navigator.getGamepads?.() ?? [];
-      if (Array.from(pads).some((p) => p?.buttons.some((b) => b.pressed))) recompute();
+      if (Array.from(pads).some((p) => p?.buttons.some((b) => b.pressed))) unlock();
     }, 400);
     const onVis = () => {
       hidden.current = document.hidden;
