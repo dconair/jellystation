@@ -7,6 +7,8 @@ export interface Palette {
   hue: number;
   /** 0 = Tag, 1 = tiefe Nacht. */
   night: number;
+  /** Kräftiger Verlauf (Design „PS3-Original“). */
+  vivid: boolean;
   top: string;
   mid: string;
   bottom: string;
@@ -18,6 +20,8 @@ export interface Palette {
 const Y_TOP = 0.1;
 const Y_MID = 0.04;
 const Y_BOTTOM = 0.008;
+/** Kräftigere Stufen für das Design „PS3-Original“ (weißer Text bleibt mit Kontrast > 4,5 lesbar). */
+const VIVID = { top: 0.17, mid: 0.075, bottom: 0.012 };
 /** Nachts ist der Verlauf auf diesen Anteil abgedunkelt. */
 const NIGHT_FACTOR = 0.55;
 
@@ -58,6 +62,8 @@ export interface PaletteOptions {
   hue?: number | null;
   /** false = kein Abdunkeln nach Tageszeit. */
   dayNight?: boolean;
+  /** true = hellerer, kräftigerer Verlauf wie auf der PS3. */
+  vivid?: boolean;
 }
 
 export function paletteFor(date: Date, opts: PaletteOptions = {}): Palette {
@@ -67,12 +73,13 @@ export function paletteFor(date: Date, opts: PaletteOptions = {}): Palette {
   const night = opts.dayNight === false ? 0 : nightAt(new Date(2000, 0, 1, 0, step * 10));
   const k = 1 - (1 - NIGHT_FACTOR) * night;
   return {
-    key: `${hue}:${opts.dayNight === false ? "d" : step}`,
+    key: `${hue}:${opts.dayNight === false ? "d" : step}${opts.vivid ? "v" : ""}`,
     hue,
     night,
-    top: css(hue, 0.72, Y_TOP * k),
-    mid: css(hue, 0.68, Y_MID * k),
-    bottom: css(hue, 0.62, Y_BOTTOM * k),
+    vivid: !!opts.vivid,
+    top: css(hue, opts.vivid ? 0.85 : 0.72, (opts.vivid ? VIVID.top : Y_TOP) * k),
+    mid: css(hue, opts.vivid ? 0.8 : 0.68, (opts.vivid ? VIVID.mid : Y_MID) * k),
+    bottom: css(hue, opts.vivid ? 0.7 : 0.62, (opts.vivid ? VIVID.bottom : Y_BOTTOM) * k),
   };
 }
 

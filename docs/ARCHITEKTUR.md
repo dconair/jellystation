@@ -34,10 +34,10 @@ Das Hauptmenü (`<Xmb inputEnabled={…}>`) ignoriert jede Eingabe, solange ein 
 ## Start-Animation, Hintergründe, Klänge
 
 - **Start-Animation** (`src/boot/BootAnimation.tsx`): läuft einmal pro App-Start über dem Hauptmenü (10 s, passend zum Startklang `coldboot`),
-  zeigt den Hintergrund aus den Einstellungen (Tuch blendet auf, dann der Schriftzug) und blendet ins Menü über. Jede Taste, jeder Klick und jede
+  zeigt den Hintergrund aus den Einstellungen (das Band blendet zum Anschwellen des Klangs auf, auf dem Höhepunkt bei ca. 4,5 s folgt ein Lichtblitz und die JellyStation-Qualle `public/branding/jellyfish.svg` taucht auf, danach klingt alles aus) und blendet ins Menü über. Jede Taste, jeder Klick und jede
   Controller-Taste überspringt (nach 0,6 s). `settings.ui.bootAnimation` (Standard An) schaltet sie ab; bei „Animationen: Aus“ entfällt sie. Einstellungen →
   Animationen hat zusätzlich „Start-Animation ansehen“.
-- **Hintergrund-Designs** (`src/xmb/background/`): `xmb` = „PS3-Original“ (seidiges Tuch, Standard für neue Installationen), `ps3` = die bisherigen
+- **Hintergrund-Designs** (`src/xmb/background/`): `xmb` = „PS3-Original“ (verdrehtes Band aus feinen Fäden mit Funkeln und kräftigerem Farbverlauf, Standard für neue Installationen), `ps3` = die bisherigen
   „JellyStation-Wellen“ (bleiben wählbar, gespeicherte Einstellungen ändern sich nicht), dazu Nordlicht, Sternenhimmel, Tiefsee, Neon-Gitter, Farbverlauf.
   Farbe: Monatsfarbe (Standard), feste Farbthemen oder eigener Farbton – gilt für jedes Design.
 - **PS3-Klänge** (`src/audio/ps3Sounds.ts`, Dateien in `public/sounds/ps3/`, Einstellung `soundPack`: `ps3` | `synth`): Zuordnung in `sound.ts`
