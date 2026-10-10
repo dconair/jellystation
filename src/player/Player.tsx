@@ -7,7 +7,7 @@ import { ConfirmDialog, MessageDialog } from "../ui/popup";
 import type { PadAction } from "../input/useGamepad";
 import { useOverlayInput } from "../ui/popup";
 import type { KeyMap } from "../ui/popup";
-import { playSfx, playSound } from "../xmb/sound";
+import { playSfx } from "../xmb/sound";
 import { toggleFullscreen } from "../xmb/fullscreen";
 import { isDemoEntry } from "./demoPlan";
 import { PlayerEngine } from "./engine";
@@ -327,7 +327,7 @@ export function Player({ entry, jellyfin = null, startSec = 0, playlist, onClose
       case "triangle":
       case "options":
         if (st.phase === "ready" && !st.ended) {
-          playSound("option");
+          playSfx("confirm");
           setMenu(true);
         }
         return;

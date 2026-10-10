@@ -35,7 +35,6 @@ import { getUiPrefs, initUiPrefs, THEMES, useUiPrefs } from "./prefs/uiPrefs";
 import { coversAuto, loadSettings, saveSettings } from "./settings/settings";
 import type { Settings } from "./settings/settings";
 import { SetupWizard } from "./setup/SetupWizard";
-import { playSound } from "./xmb/sound";
 import { Xmb } from "./xmb/Xmb";
 
 /**
@@ -589,10 +588,7 @@ function Main({
         inputEnabled={!overlay && !launcherOverlay && !booting}
         startCategoryId={startCategory}
         onSecondary={(entry) => {
-          if (entry.id.startsWith("bm/")) {
-            playSound("option");
-            openOverlay({ kind: "bookmarkDelete", id: entry.id.slice(3) });
-          }
+          if (entry.id.startsWith("bm/")) openOverlay({ kind: "bookmarkDelete", id: entry.id.slice(3) });
         }}
       />
       {layer}

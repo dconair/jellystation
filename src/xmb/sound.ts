@@ -510,7 +510,7 @@ import.meta.hot?.dispose(() => {
 });
 
 /** Welche Menü-Töne im Klangpaket "ps3" durch Originalklänge ersetzt werden; alles andere bleibt synthetisch. */
-const SFX_AS_PS3: Partial<Record<Sfx, PsSound>> = { back: "cancel", confirm: "ok", error: "ng" };
+const SFX_AS_PS3: Partial<Record<Sfx, PsSound>> = { move: "option", back: "cancel", confirm: "ok", error: "ng" };
 
 /** Spielt einen PS3-Klang ab; false, wenn er (noch) nicht geladen ist. */
 function playPs3(id: PsSound, volume: number): AudioBufferSourceNode | null {
@@ -530,12 +530,11 @@ function playPs3(id: PsSound, volume: number): AudioBufferSourceNode | null {
   return src;
 }
 
-/** Klänge, die keine Entsprechung in `Sfx` haben: △-Optionen, Erfolgsmeldung (Trophäe), Spielstart. Beachtet Stumm und Klangpaket. */
-export function playSound(id: "option" | "trophy" | "gameboot") {
+/** Klänge, die keine Entsprechung in `Sfx` haben: Erfolgsmeldung (Trophäe) und Spielstart. Beachtet Stumm und Klangpaket; ohne Originalklang bleibt es still. */
+export function playSound(id: "trophy" | "gameboot") {
   const { sfxVolume, soundPack } = getUiPrefs();
-  if (muted || sfxVolume <= 0) return;
-  // Ohne Originalklang bleibt für △-Optionen der normale Bestätigungston; Trophäe und Spielstart sind dann still.
-  if ((soundPack !== "ps3" || !playPs3(id, sfxVolume)) && id === "option") playSfx("confirm");
+  if (muted || sfxVolume <= 0 || soundPack !== "ps3") return;
+  playPs3(id, sfxVolume);
 }
 
 /**
