@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
+import { DEFAULT_SERVER_URL } from "../config/server";
 import { biosDirOf } from "../emulators/requirements";
 import { useEmulators } from "../emulators/useEmulators";
 import { useRequirements } from "../emulators/useRequirements";
@@ -71,7 +72,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
   const single = onlyStep !== undefined;
   const [step, setStep] = useState(onlyStep ?? 0);
   const [draft, setDraft] = useState<Draft>({
-    url: initial?.jellyfin.url ?? "",
+    url: initial?.jellyfin.url || DEFAULT_SERVER_URL,
     altUrl: initial?.jellyfin.altUrl ?? "",
     apiKey: initial?.jellyfin.apiKey ?? "",
     gamesDir: initial?.gamesDir ?? "",
