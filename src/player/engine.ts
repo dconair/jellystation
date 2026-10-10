@@ -8,6 +8,7 @@ import { hlsMode } from "../jellyfin/profile";
 import { PlaybackReporter } from "../jellyfin/reporter";
 import { fetchPreviewMeta, pickTrickplay, trickplaySheetUrl } from "../jellyfin/trickplay";
 import type { PreviewChapter } from "../jellyfin/trickplay";
+import { makeStremioPlan } from "../stremio/plan";
 import { isDemoEntry, makeDemoPlan } from "./demoPlan";
 import { METHOD_LABEL } from "./format";
 import { attachHls } from "./hlsLoader";
@@ -367,7 +368,7 @@ export class PlayerEngine {
     try {
       let plan: PlaybackPlan;
       if (this.demo) {
-        plan = makeDemoPlan(entry, this.pendingStart);
+        plan = entry.stremio ? makeStremioPlan(entry, this.pendingStart) : makeDemoPlan(entry, this.pendingStart);
       } else {
         const ref = entry.jellyfin;
         if (!ref) throw new JfError("Kein Jellyfin-Titel", "protocol");

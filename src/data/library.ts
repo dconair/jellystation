@@ -133,6 +133,10 @@ export const categories: XmbCategory[] = [
         action: "choose-jellyfin-user",
       },
       {
+        ...entry("st-stremio", "Stremio-Addons", "Streaming auf Abruf", 20, "Trage Stremio-Addons ein, deren Kataloge und Streams du nutzen willst. Die Titel erscheinen in den Spalten „Stream Filme“ und „Stream Serien“. Addons bringst du selbst mit."),
+        action: "open-stremio",
+      },
+      {
         ...entry("st-transcode", "Wiedergabe", "Direkt, wenn möglich", 175, "Wählt, ob der Player Dateien direkt abspielt oder der Jellyfin-Server alles umwandelt (HLS). „Immer umwandeln“ hilft bei Formaten, die dein Mac nicht abspielen kann."),
         action: "toggle-transcode",
       },

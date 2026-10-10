@@ -13,6 +13,7 @@ src/
   settings/settings.ts     Persistenz (Tauri-Store bzw. localStorage im Browser)
   library/                 Spiele-Scan (Ordner → Kategorien), Demo-Daten
   jellyfin/                Jellyfin-Zugriff: Bibliothek, Kontext/Benutzer, Wiedergabeplanung, Berichte
+  stremio/                 Stremio-Addons als zweite Quelle: Protokoll, Kataloge, Stream-Auswahl, Addon-Verwaltung
   player/                  Video-Player im PS3-Stil
   emulators/               Emulator-Katalog, Erkennung, Dialoge
   launcher/                Spielstart (Rust-Befehl game_launch) + Start-Overlay
@@ -136,6 +137,25 @@ Shell-Plugin (`@tauri-apps/plugin-shell`): nur für `open()` (Webseiten öffnen;
   Mit API-Key funktionieren die älteren Endpunkte `/Users/{userId}/PlayingItems/…` zuverlässig; die neueren `/Sessions/Playing*`
   sind Rückfall.
 - Positionen: Jellyfin-Ticks (1 s = 10 000 000). Bibliotheks-Einträge tragen `entry.jellyfin` (`JellyfinRef`).
+
+## Stremio (`src/stremio/`)
+
+Zweite Quelle neben Jellyfin: „Streaming auf Abruf“ über das offene Addon-Protokoll (https://github.com/Stremio/stremio-addon-sdk).
+Die App bringt **keine** Addons mit und empfiehlt keine; der Nutzer trägt Adressen selbst ein (Einstellungen → „Stremio-Addons“,
+`settings.stremio.addons: [{ id, url, name }]`, `stremio://` und fehlendes `/manifest.json` werden ergänzt, Prüfung per Manifest-Abruf vor dem Speichern).
+
+- `api.ts` – Abrufe `manifest.json`, `catalog/<typ>/<id>.json`, `meta/<typ>/<id>.json`, `stream/<typ>/<id>.json` (in Tauri über das HTTP-Plugin, im Browser
+  über `fetch`, 12 s Frist). `supports()` wertet `resources`/`types`/`idPrefixes` des Manifests aus. `parseStreams()` behält nur Streams mit direkter
+  http(s)-Adresse und ohne `proxyHeaders`; Torrent (`infoHash`), `ytId`, `externalUrl` zählt die Oberfläche als „ausgeblendet“ (keine Torrent-Engine).
+- `manifests.ts` – Manifest-Cache pro Adresse (der Abruf läuft unabhängig vom Abbruch einzelner Aufrufer).
+- `library.ts`, `useStremioLibrary.ts` – erste Katalogseite (höchstens 100 Titel) je Addon für Filme und Serien, jeweils der erste Katalog ohne Pflicht-Zusatzangabe
+  (Suche/Genre). Ergebnis: Spalten „Stream Filme“ und „Stream Serien“ hinter den Serien (nur mit eingetragenen Addons). Einträge tragen `entry.stremio` (`StremioRef`).
+- `StremioPicker.tsx` – Film: Streams aller Addons mit passendem Typ/ID abfragen → Liste → Player. Serie: Meta laden → Staffeln → Folgen → Streams.
+  ○ geht je eine Stufe zurück. `resolve.ts` fragt die Addons gleichzeitig ab; ein stummes Addon hält die anderen nicht auf.
+- `plan.ts` – `makeStremioPlan()`: Wiedergabeplan für eine direkte Adresse (Direktwiedergabe, `.m3u8` als HLS, keine Berichte/Umwandlung/Spuren). Die Engine nutzt ihn für Einträge mit
+  `entry.stremio.streamUrl` im selben Zweig wie die Demo (`isDemoEntry` = kein Jellyfin-Titel).
+- Noch nicht dabei: Suche, gespeicherte Position („Weiterschauen“), Untertitel aus Addons, „Nächste Folge“.
+- Test: `dev/mock-stremio/server.mjs` (Mock-Addon) und `dev/e2e/stremio.mjs` (Playwright, Aufruf im Skriptkopf).
 
 ## Oberfläche
 
