@@ -1,0 +1,44 @@
+# Legt die GitHub-Release für eine Version an bzw. schließt sie ab (Cloud-Umgebungen können keine Tags pushen).
+#
+# Ablauf: Actions → „Release“ → Run workflow
+#   1. Schritt „erstellen“: legt Tag + Release (kein Pre-Release, „latest“) aus dem aktuellen main an.
+#   2. Danach „Mac-Build“ und „Windows-Build“ mit demselben Tag starten, sie hängen die Installer an.
+#   3. Schritt „abschliessen“: setzt die Release wieder auf „kein Pre-Release“ und „latest“
+#      (der Mac-Build legt Releases sonst als Pre-Release an) und trägt die Release-Notizen ein.
+# Die Release-Notizen stehen in docs/RELEASE-NOTES.md.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag der Release (z. B. v0.2.0)"
+        required: true
+      schritt:
+        description: "erstellen (Release anlegen) oder abschliessen (Release als latest markieren)"
+        required: true
+        default: "erstellen"
+        type: choice
+        options: ["erstellen", "abschliessen"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release anlegen
+        if: inputs.schritt == 'erstellen'
+        run: |
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "JellyStation ${TAG#v}" \
+            --notes-file docs/RELEASE-NOTES.md --latest
+      - name: Release abschließen
+        if: inputs.schritt == 'abschliessen'
+        run: |
+          gh release edit "$TAG" --prerelease=false --draft=false --latest --notes-file docs/RELEASE-NOTES.md
+          gh release view "$TAG" --json assets --jq '.assets[].name'
