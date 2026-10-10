@@ -255,7 +255,7 @@ main() {
   info "Der erste Start kompiliert den Rust-Teil und dauert einige Minuten – das ist normal."
   info "Ordner: $target"
   if [ -d "$HOME/JellyStation/Games" ]; then
-    info "Spiele kommen in $HOME/JellyStation/Games/<System>/ (z. B. .../PS2/) – die Ordner sind angelegt."
+    info "Spiele kommen einfach in $HOME/JellyStation/Games/ (auch unsortiert) – das System wird automatisch erkannt."
     info "BIOS und Firmware gehören nicht zum Lieferumfang: Hinweise je Emulator stehen in $HOME/JellyStation/BIOS/."
   fi
 }

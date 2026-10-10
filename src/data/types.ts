@@ -20,7 +20,7 @@ export interface XmbEntry {
 }
 
 /** Interne Aktionen, die ein Eintrag statt eines Inhalts auslöst. */
-export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user" | "toggle-transcode" | "open-requirements" | "open-display-settings" | "open-motion-settings" | "open-sound-settings" | "open-server-settings" | "open-games-dir" | "open-about" | "add-bookmark" | "open-covers" | "open-stremio";
+export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user" | "toggle-transcode" | "open-requirements" | "open-display-settings" | "open-motion-settings" | "open-sound-settings" | "open-server-settings" | "open-games-dir" | "open-game-assignments" | "open-about" | "add-bookmark" | "open-covers" | "open-stremio";
 
 /** Verweis auf ein Jellyfin-Objekt (Film, Serie oder Folge). */
 export interface JellyfinRef {
@@ -81,10 +81,20 @@ export interface XmbCategory {
 
 /** Verweis auf eine lokale Spieldatei. */
 export interface GameRef {
-  /** Name des System-Ordners, z. B. "PS3". */
+  /** Erkanntes System, z. B. "PS3"; bei nicht zugeordneten Spielen und macOS-Programmen leer. */
   system: string;
-  /** Absoluter Pfad zur Spieldatei. */
+  /** Absoluter Pfad zur Spieldatei bzw. zum Spieleordner. */
   path: string;
   /** true bei Demo-Daten – es wird nichts wirklich gestartet. */
   mock: boolean;
+  /** Pfad relativ zum Spiele-Ordner – Schlüssel für Zuordnungen von Hand (settings.gameSystems). */
+  rel?: string;
+  /** true = das System ließ sich nicht erkennen: Bestätigen öffnet die Zuordnung statt den Start. */
+  unassigned?: boolean;
+  /** Vorschlag für ein nicht zugeordnetes Spiel. */
+  guess?: string;
+  /** true = nur eine Vermutung (z. B. kleine CD-CHD → PS1). */
+  uncertain?: boolean;
+  /** true = vom Nutzer von Hand zugeordnet. */
+  manual?: boolean;
 }

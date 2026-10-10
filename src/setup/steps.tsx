@@ -11,7 +11,7 @@ import { discoverServers } from "../jellyfin/discover";
 import type { FoundServer } from "../jellyfin/discover";
 import { normalizeServerUrl } from "../jellyfin/testConnection";
 import type { ConnectionResult } from "../jellyfin/testConnection";
-import { pickGameFiles, scanGamesDir } from "../library/scanGames";
+import { countBySystem, scanGamesDir } from "../library/scanGames";
 import { isTauri } from "../platform";
 import { CHECKS } from "./checks";
 import type { CheckResult } from "./checks";
@@ -185,7 +185,7 @@ export function GamesStep({ draft, onChange }: GamesStepProps) {
         directory: true,
         multiple: false,
         recursive: true, // gibt den Ordner samt Unterordnern für das Auslesen frei
-        title: "Basisordner mit deinen Spielen wählen",
+        title: "Ordner mit deinen Spielen wählen",
         defaultPath: draft.gamesDir || undefined,
       });
       if (typeof picked === "string") {
@@ -205,14 +205,15 @@ export function GamesStep({ draft, onChange }: GamesStepProps) {
       return;
     }
     let cancelled = false;
+    setPreview("Wird gelesen …");
     scanGamesDir(draft.gamesDir)
-      .then(({ listing }) => {
+      .then((scan) => {
         if (cancelled) return;
-        const found = Object.entries(listing)
-          .map(([sys, files]) => [sys, pickGameFiles(files).length] as const)
-          .filter(([, n]) => n > 0)
-          .map(([sys, n]) => `${sys} (${n})`);
-        setPreview(found.length ? `Gefunden: ${found.join(", ")}` : "Noch keine Spiele in Unterordnern gefunden");
+        const { systems, unassigned, programs } = countBySystem(scan);
+        const found = Object.entries(systems).map(([sys, n]) => `${sys} (${n})`);
+        if (programs) found.push(`Programme (${programs})`);
+        if (unassigned) found.push(`nicht zugeordnet (${unassigned})`);
+        setPreview(found.length ? `Erkannt: ${found.join(", ")}` : "Noch keine Spiele im Ordner gefunden");
       })
       .catch((err) => !cancelled && setPreview(err instanceof Error ? err.message : String(err)));
     return () => {
@@ -224,13 +225,14 @@ export function GamesStep({ draft, onChange }: GamesStepProps) {
     <>
       <h2>Spiele &amp; Emulatoren</h2>
       <p className="setup-lead">
-        Wähle den Ordner, in dem pro System ein Unterordner liegt. Jeder Unterordner wird zu einer
-        eigenen Kategorie im Menü.
+        Wähle einen einzigen Ordner und lege alle Spiele einfach hinein – ISOs, CHD, CUE/BIN, Spieleordner, auch
+        unsortiert oder in Unterordnern. JellyStation erkennt das System selbst, sortiert die Spiele im Menü und
+        ordnet den passenden Emulator zu. Deine Dateien bleiben unverändert dort liegen, wo sie sind.
       </p>
 
       <div className="setup-form">
         <div className="setup-field">
-          <span>Basisordner</span>
+          <span>Spiele-Ordner</span>
           <div className="setup-input-row">
             <input
               type="text"
@@ -258,14 +260,18 @@ export function GamesStep({ draft, onChange }: GamesStepProps) {
         {preview && <p className="setup-preview">{preview}</p>}
       </div>
 
-      <pre className="setup-tree" aria-label="Beispiel für die Ordnerstruktur">{`Spiele/
-├─ PS3/   Gran Turismo 5.iso · Demon's Souls.pkg
-├─ PS2/   …
-└─ PS1/   …`}</pre>
+      <pre className="setup-tree" aria-label="Beispiel für den Spiele-Ordner">{`Spiele/
+├─ Gran Turismo 5.iso
+├─ Final Fantasy X.iso
+├─ Crash Bandicoot.cue + .bin
+├─ Mario Kart Wii.rvz
+└─ irgendein Unterordner/Demon's Souls/PS3_GAME/…`}</pre>
       <p className="setup-note">
         Unterstützt werden {EMULATORS.map((e) => `${e.name} (${e.consoles})`).join(" · ")}. Sie werden automatisch
-        gefunden und lassen sich später unter Einstellungen → Emulatoren installieren. Der Ordnername bestimmt den
-        Emulator: {supportedFolderNames().join(", ")}.
+        gefunden und lassen sich später unter Einstellungen → Emulatoren installieren. Das System wird am Inhalt der
+        Datei erkannt (z. B. PS3_GAME/PARAM.SFO, SYSTEM.CNF, Disc-Kopf), sonst an Seriennummer, Dateiformat oder
+        Ordnername ({supportedFolderNames().join(", ")}). Was sich nicht erkennen lässt, erscheint im Menü unter
+        „Nicht zugeordnet“ und lässt sich dort von Hand einem System zuweisen.
       </p>
     </>
   );

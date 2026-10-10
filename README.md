@@ -58,8 +58,14 @@ dieselben Fokus-Animationen und Soundeffekte aus. Der Gamepad-Hook liegt in `src
 ## Spielebibliothek
 
 - Basisordner: wird im Setup gewählt (gespeichert in den Einstellungen); `GAMES_BASE_DIR` in `src/config/games.ts` ist nur der Standardwert.
-- Struktur: `<Basisordner>/<System>/<Spiel>.<iso|app|pkg|cue|chd|bin|elf>` – jeder Systemordner wird zu einer
-  Kategorie „Spiele · <System>“, der Dateiname ohne Endung ist der Titel.
+- Ein einziger Ordner genügt: ISOs, CHD, CUE/BIN, Spieleordner und Programme (`.app`) kommen unsortiert hinein, auch in
+  beliebige Unterordner. Der Rust-Befehl `games_scan` (`src-tauri/src/library.rs`) durchsucht ihn rekursiv und erkennt das System –
+  am Inhalt (z. B. `PS3_GAME/PARAM.SFO`, `SYSTEM.CNF`, GameCube-/Wii-Disc-Kopf), sonst an Seriennummer im Dateinamen,
+  Dateiformat (`.cso`, `.pkg`, `.rvz` …) oder einem Ordnernamen wie `PS3/`. Jedes System wird zur Kategorie „Spiele · <System>“ mit dem
+  passenden Emulator; der Dateiname ohne Endung ist der Titel. Dateien werden **nie verschoben**.
+- „Spiele · Nicht zugeordnet“ sammelt, was sich nicht sicher erkennen lässt. ✕ öffnet die Zuordnung (mit Vorschlag), △ ändert
+  jederzeit das System eines Spiels, auch ausblenden geht. Die Zuordnungen stehen in den Einstellungen (`gameSystems`) und lassen
+  sich unter Einstellungen → Spiele-Zuordnung zurücksetzen.
 - Cover: gleichnamiges Bild neben dem Spiel (`Spiel.iso` + `Spiel.jpg`/`png`/`webp`) oder in `covers/`, `media/covers/`, `images/`;
   ohne Bild entsteht ein Platzhalter-Cover. Filme/Serien holen ihre Plakate aus Jellyfin.
 - Existiert der Ordner nicht (oder läuft die App im Browser), erscheinen Demo-Daten

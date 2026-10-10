@@ -119,7 +119,8 @@ export const categories: XmbCategory[] = [
     icon: "settings",
     entries: [
       { ...entry("st1", "Server", "Verbindung verwalten", 225, "Jellyfin-Adresse und API-Schlüssel ändern und die Verbindung testen."), action: "open-server-settings" },
-      { ...entry("st-games", "Spiele-Ordner", "Nicht gewählt", 90, "Den Ordner mit deinen Spielen wählen (pro System ein Unterordner)."), action: "open-games-dir" },
+      { ...entry("st-games", "Spiele-Ordner", "Nicht gewählt", 90, "Der eine Ordner, in den du alle Spiele legst (ISO, CHD, Spieleordner …) – JellyStation erkennt das System selbst."), action: "open-games-dir" },
+      { ...entry("st-assign", "Spiele-Zuordnung", "Von dir geänderte Systeme", 110, "Zeigt Spiele, die du von Hand einem System zugeordnet oder ausgeblendet hast, und setzt sie zurück."), action: "open-game-assignments" },
       {
         ...entry("st-emu", "Emulatoren", "Installieren, finden, Pfad wählen", 20, "Zeigt, welche Emulatoren gefunden wurden, und hilft beim Installieren."),
         action: "open-emulators",

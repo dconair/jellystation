@@ -27,6 +27,7 @@ import { useJellyfinLibrary } from "./jellyfin/useJellyfinLibrary";
 import { useGameLauncher } from "./launcher/useGameLauncher";
 import { CoverSettingsDialog } from "./art/CoverSettingsDialog";
 import { useGameLibrary } from "./library/useGameLibrary";
+import { AUTO, AssignmentsList, AssignSystemList } from "./library/AssignOverlays";
 import { useRecentJellyfin } from "./jellyfin/useRecent";
 import { loadRecentGames, rememberGame } from "./library/recentGames";
 import { useAmbientMusic } from "./audio/useAmbientMusic";
@@ -128,6 +129,8 @@ type Overlay =
   | { kind: "series"; series: XmbEntry }
   | { kind: "settings"; section: SettingsSection }
   | { kind: "covers" }
+  | { kind: "assign"; entry: XmbEntry }
+  | { kind: "assignments" }
   | { kind: "stremio"; entry: XmbEntry }
   | { kind: "stremioAddons" }
   | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[] };
@@ -136,6 +139,9 @@ const jfConfigOf = (jellyfin: Settings["jellyfin"] | undefined) =>
   jellyfin && jellyfin.url.trim() && jellyfin.apiKey.trim() ? jellyfin : null;
 
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : "Unerwarteter Fehler");
+
+/** Auswahl „In den Spiele-Ordner legen“ im Dialog nach einem Download (leeres System = direkt in den Ordner). */
+const AUTO_PLACE = "__auto";
 
 /** Die Start-Animation läuft nur einmal pro App-Start (nicht erneut nach dem Setup-Assistenten). */
 let bootHandled = false;
@@ -149,7 +155,7 @@ function Main({
   onChangeSettings: (next: Settings) => void;
   onRunSetup: (onlyStep?: number) => void;
 }) {
-  const library = useGameLibrary(settings?.gamesDir, coversAuto(settings));
+  const library = useGameLibrary(settings?.gamesDir, coversAuto(settings), settings?.gameSystems);
   // Hauptadresse oder (unterwegs, z. B. Tailscale) zweite Adresse – je nachdem, was gerade antwortet.
   const reachableJf = useReachableServer(settings?.jellyfin ?? null);
   const jellyfin = useJellyfinLibrary(reachableJf ?? undefined);
@@ -201,6 +207,8 @@ function Main({
   const displaySummary = `${THEMES.find((t) => t.id === ui.themeId)?.label ?? "Automatisch"} · Helligkeit ${Math.round(ui.brightness * 100)} %`;
   const motionSummary = ui.animations === "full" ? "Voll" : ui.animations === "reduced" ? "Reduziert" : "Aus";
   const soundSummary = ui.musicEnabled ? `Musik: ${MOODS.find((m) => m.id === ui.musicMood)?.label ?? ""} · Töne ${Math.round(ui.sfxVolume * 100)} %` : `Musik aus · Töne ${Math.round(ui.sfxVolume * 100)} %`;
+  const assignmentCount = Object.keys(settings?.gameSystems ?? {}).length;
+  const assignmentSummary = assignmentCount ? `${assignmentCount} von dir geändert` : "Alles automatisch erkannt";
   const emulatorSummary = useMemo(() => summarizeEmulators(emulators.statuses), [emulators.statuses]);
   const filesSummary = useMemo(() => {
     const m = missingLabels(requirements.statuses);
@@ -254,6 +262,8 @@ function Main({
                       ? { ...e, subtitle: motionSummary }
                     : e.action === "open-sound-settings"
                       ? { ...e, subtitle: soundSummary }
+                    : e.action === "open-game-assignments"
+                      ? { ...e, subtitle: assignmentSummary }
                     : e.action === "open-covers"
                       ? { ...e, subtitle: coversAuto(settings) ? "Automatisch laden: An" : "Automatisch laden: Aus" }
                     : e.action === "open-requirements"
@@ -289,7 +299,7 @@ function Main({
     // Stremio-Spalten (nur mit eingetragenen Addons) und danach die Spiele-Systeme (PS1, PS2, PS3 …) direkt hinter den Serien.
     const at = withRecent.findIndex((c) => c.id === "series") + 1;
     return [...withRecent.slice(0, at), ...stremioCategories, ...library.categories, ...withRecent.slice(at)];
-  }, [stremioCategories, recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
+  }, [stremioCategories, recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, assignmentSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
 
   /** Titel abspielen; ab einer gespeicherten Position fragt vorher ein Dialog nach Fortsetzen/Von vorn. */
   const play = useCallback(
@@ -362,6 +372,7 @@ function Main({
       else if (entry.action === "open-motion-settings") openOverlay({ kind: "settings", section: "motion" });
       else if (entry.action === "open-sound-settings") openOverlay({ kind: "settings", section: "sound" });
       else if (entry.action === "open-covers") openOverlay({ kind: "covers" });
+      else if (entry.action === "open-game-assignments") openOverlay({ kind: "assignments" });
       else if (entry.action === "open-stremio") openOverlay({ kind: "stremioAddons" });
       else if (entry.action === "choose-jellyfin-user") void openUsers();
       else if (entry.action === "toggle-transcode") {
@@ -377,6 +388,7 @@ function Main({
         else openOverlay({ kind: "webNotice", id });
       } else if (entry.id.startsWith("jf-empty/") || entry.id.startsWith("st-empty/") || entry.id === "recent-empty") return; // Platzhalter einer leeren Spalte
       else if (entry.stremio) openOverlay({ kind: "stremio", entry });
+      else if (entry.game?.unassigned) openOverlay({ kind: "assign", entry });
       else if (entry.game) {
         setRecentGameIds(rememberGame(entry.id));
         void launch(entry, notify);
@@ -392,6 +404,7 @@ function Main({
   const notice =
     [
       library.source === "mock" ? "Vorschau-Modus · Demo-Spiele" : null,
+      library.scanNotice || null,
       jellyfin.status === "error" ? `Jellyfin: ${jellyfin.error}` : null,
       jellyfin.status === "ok" && !hasJellyfinItems ? "Jellyfin: keine Filme oder Serien gefunden" : null,
       jellyfin.truncated ? `Jellyfin: ${jellyfin.truncated}` : null,
@@ -503,15 +516,17 @@ function Main({
     layer = (
       <PopupList
         title={`„${overlay.name}“ geladen`}
-        subtitle={archive ? "Archiv: muss vor dem Spielen entpackt werden" : "In welches System gehört die Datei?"}
+        subtitle={archive ? "Archiv: muss vor dem Spielen entpackt werden" : "Wohin soll die Datei? Das System erkennt JellyStation selbst."}
         width="narrow"
         items={[
-          ...supportedFolderNames().map((s) => ({ id: s, label: s, detail: `→ ${s}/` })),
-          { id: "", label: "Im Ordner „Downloads“ lassen" },
+          { id: AUTO_PLACE, label: "In den Spiele-Ordner legen", detail: "Das System wird automatisch erkannt" },
+          ...supportedFolderNames().map((s) => ({ id: s, label: `In den Ordner „${s}“`, detail: `→ ${s}/` })),
+          { id: "", label: "Im Ordner „Downloads“ lassen", detail: "Wird trotzdem gefunden" },
         ]}
         onBack={close}
-        onSelect={(system) => {
-          if (!system) return close();
+        onSelect={(choice) => {
+          if (!choice) return close();
+          const system = choice === AUTO_PLACE ? "" : choice;
           importGame(overlay.path, settings?.gamesDir, system).then(
             (dest) => {
               library.rescan();
@@ -553,6 +568,50 @@ function Main({
     );
   } else if (overlay?.kind === "settings") {
     layer = <SettingsDialog section={overlay.section} onClose={close} onPreviewBoot={() => setBooting(true)} />;
+  } else if (overlay?.kind === "assign" || overlay?.kind === "assignments") {
+    const overrides = settings?.gameSystems ?? {};
+    // Eine Änderung der Zuordnung speichert nur den Eintrag in den Einstellungen; die Datei bleibt, wo sie ist.
+    const setOverrides = (next: Record<string, string>) => {
+      if (!settings) return;
+      onChangeSettings({ ...settings, gameSystems: Object.keys(next).length ? next : undefined });
+    };
+    if (overlay.kind === "assign") {
+      const rel = overlay.entry.game?.rel;
+      layer = settings && rel ? (
+        <AssignSystemList
+          entry={overlay.entry}
+          override={overrides[rel]}
+          onBack={close}
+          onPick={(value) => {
+            const next = { ...overrides };
+            if (value === AUTO) delete next[rel];
+            else next[rel] = value;
+            setOverrides(next);
+            close();
+          }}
+        />
+      ) : (
+        <MessageDialog
+          title="Zuordnung nicht möglich"
+          lines={["Die Zuordnung wird in den Einstellungen gespeichert. Schließe zuerst den Einrichtungsassistenten ab."]}
+          kind="info"
+          onClose={close}
+        />
+      );
+    } else {
+      layer = (
+        <AssignmentsList
+          overrides={overrides}
+          onBack={close}
+          onReset={(rel) => {
+            const next = { ...overrides };
+            delete next[rel];
+            setOverrides(next);
+          }}
+          onResetAll={() => setOverrides({})}
+        />
+      );
+    }
   } else if (overlay?.kind === "covers") {
     layer = (
       <CoverSettingsDialog
@@ -639,6 +698,8 @@ function Main({
         startCategoryId={startCategory}
         onSecondary={(entry) => {
           if (entry.id.startsWith("bm/")) openOverlay({ kind: "bookmarkDelete", id: entry.id.slice(3) });
+          // △ auf einem Spiel: System ändern (Programme starten ohne Emulator und haben keins)
+          else if (entry.game?.rel && (entry.game.system || entry.game.unassigned)) openOverlay({ kind: "assign", entry });
         }}
       />
       {layer}

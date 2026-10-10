@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { coversSupported, startCoverJob, withCover, withoutCover } from "../art/coverService";
 import type { CoverJob, CoverJobSummary, CoverRequest, CoverResult } from "../art/coverService";
 import type { XmbCategory, XmbEntry } from "../data/types";
-import { MOCK_BASE_DIR, MOCK_LISTING } from "./mockLibrary";
-import { buildSystemCategories, scanGamesDir } from "./scanGames";
+import { mockScan } from "./mockLibrary";
+import { buildLibraryCategories, scanGamesDir } from "./scanGames";
+import type { ScanResult } from "./scanGames";
 
 /** Stand der Cover-Suche im Hintergrund. */
 export interface CoverProgress {
@@ -18,6 +19,8 @@ export interface GameLibrary {
   source: "loading" | "disk" | "mock";
   categories: XmbCategory[];
   covers: CoverProgress;
+  /** Hinweis zum letzten Scan (z. B. zu viele Dateien); leer = alles gelesen. */
+  scanNotice: string;
   /**
    * Sucht jetzt für alle Spiele ohne Bild – auch solche, die schon als „nicht gefunden“ gemerkt sind, und auch
    * dann, wenn automatisches Laden ausgeschaltet ist (der Nutzer hat es ausdrücklich verlangt).
@@ -33,8 +36,12 @@ export interface GameLibrary {
 
 const IDLE: CoverProgress = { running: false, done: 0, total: 0, found: 0 };
 
-/** Spiele ohne Bild: weder eigenes Bild neben dem Spiel noch schon geholtes Cover. Demo-Spiele zählen nie. */
-const needsCover = (entry: XmbEntry) => Boolean(entry.game && !entry.game.mock && entry.art?.kind === "generated");
+/**
+ * Spiele ohne Bild: weder eigenes Bild neben dem Spiel noch schon geholtes Cover. Demo-Spiele, Programme und
+ * nicht zugeordnete Spiele (kein System, also keine Suche) zählen nie.
+ */
+const needsCover = (entry: XmbEntry) =>
+  Boolean(entry.game && !entry.game.mock && entry.game.system && !entry.game.unassigned && entry.art?.kind === "generated");
 
 function requestsFor(categories: XmbCategory[]): CoverRequest[] {
   const out: CoverRequest[] = [];
@@ -74,13 +81,15 @@ function mapEntry(categories: XmbCategory[], id: string, change: (entry: XmbEntr
 }
 
 /**
- * Scannt beim Start einmal den Basisordner; fällt andernfalls auf Demo-Daten zurück.
+ * Scannt beim Start einmal den Basisordner (rekursiv, das System erkennt die App selbst – siehe scanGames.ts);
+ * fällt andernfalls auf Demo-Daten zurück. `overrides` (settings.gameSystems) sind die Zuordnungen von Hand; sie
+ * ändern nur die Kategorien, ohne neu zu scannen.
  *
  * Die Kategorien erscheinen sofort mit Platzhaltern. Fehlende Cover werden danach im Hintergrund nachgeladen
  * (zuerst aus dem Spiel selbst, mit `autoCovers` auch aus dem Netz, höchstens zwei Spiele gleichzeitig). Die
  * Einträge behalten ihre IDs; nur `art` und `artShape` ändern sich, die Kachel blendet das Bild ein.
  */
-export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary {
+export function useGameLibrary(baseDir?: string, autoCovers = true, overrides?: Record<string, string>): GameLibrary {
   const [library, setLibrary] = useState<{ source: GameLibrary["source"]; categories: XmbCategory[]; scan: number }>({
     source: "loading",
     categories: [],
@@ -94,6 +103,13 @@ export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary
   const job = useRef<CoverJob | null>(null);
   /** Einträge, deren Bild vom Cover-Dienst stammt (nicht vom Nutzer). */
   const autoIds = useRef(new Set<string>());
+  /** Gefundene Cover je Eintrag – bleiben erhalten, wenn eine Zuordnung die Kategorien neu aufbaut. */
+  const foundCovers = useRef(new Map<string, CoverResult>());
+  /** Letztes Scan-Ergebnis (nur der Inhalt; Kategorien werden daraus gebaut). */
+  const scanData = useRef<{ result: ScanResult; mock: boolean } | null>(null);
+  const overridesRef = useRef(overrides);
+  overridesRef.current = overrides;
+  const [scanNotice, setScanNotice] = useState("");
 
   const stopJob = useCallback(() => {
     job.current?.cancel();
@@ -102,6 +118,7 @@ export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary
 
   const applyFound = useCallback((request: CoverRequest, result: CoverResult) => {
     autoIds.current.add(request.id);
+    foundCovers.current.set(request.id, result);
     setLibrary((cur) => ({ ...cur, categories: mapEntry(cur.categories, request.id, (e) => withCover(e, result)) }));
   }, []);
 
@@ -109,23 +126,35 @@ export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary
     let cancelled = false;
     stopJob();
     autoIds.current.clear();
+    foundCovers.current.clear();
     setProgress(IDLE);
     (async () => {
       try {
         const scan = await scanGamesDir(baseDir || undefined);
         if (!cancelled) {
+          scanData.current = { result: scan, mock: false };
+          setScanNotice(
+            scan.truncated
+              ? "Spiele: Der Ordner enthält mehr Dateien, als gelesen werden – der Rest fehlt"
+              : scan.unreadable > 0
+                ? `Spiele: ${scan.unreadable} Ordner ließen sich nicht lesen`
+                : "",
+          );
           setLibrary((cur) => ({
             source: "disk",
-            categories: buildSystemCategories(scan.listing, scan.baseDir, false),
+            categories: buildLibraryCategories(scan, overridesRef.current, false),
             scan: cur.scan + 1,
           }));
         }
       } catch (err) {
         console.info("Spielebibliothek: Mockup-Modus –", err instanceof Error ? err.message : err);
         if (!cancelled) {
+          const scan = mockScan();
+          scanData.current = { result: scan, mock: true };
+          setScanNotice("");
           setLibrary((cur) => ({
             source: "mock",
-            categories: buildSystemCategories(MOCK_LISTING, MOCK_BASE_DIR, true),
+            categories: buildLibraryCategories(scan, overridesRef.current, true),
             scan: cur.scan + 1,
           }));
         }
@@ -136,6 +165,21 @@ export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary
       stopJob();
     };
   }, [baseDir, stopJob, scanNonce]);
+
+  // Zuordnung von Hand geändert: Kategorien aus dem letzten Scan neu aufbauen (ohne erneutes Lesen des Ordners).
+  const firstOverrides = useRef(true);
+  useEffect(() => {
+    if (firstOverrides.current) {
+      firstOverrides.current = false;
+      return;
+    }
+    const data = scanData.current;
+    if (!data) return;
+    let categories = buildLibraryCategories(data.result, overrides, data.mock);
+    for (const [id, result] of foundCovers.current) categories = mapEntry(categories, id, (e) => withCover(e, result));
+    // scan hochzählen: Spiele, die gerade ein System bekommen haben, suchen danach ihr Cover
+    setLibrary((cur) => ({ ...cur, categories, scan: cur.scan + 1 }));
+  }, [overrides]);
 
   // Cover im Hintergrund: nach jedem Scan und wenn „automatisch laden“ umgeschaltet wird.
   useEffect(() => {
@@ -203,8 +247,9 @@ export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary
       return { ...cur, categories };
     });
     ids.clear();
+    foundCovers.current.clear();
     setProgress(IDLE);
   }, [stopJob]);
 
-  return { source: library.source, categories: library.categories, covers: progress, searchCovers, cancelCovers, dropAutoCovers, rescan };
+  return { source: library.source, categories: library.categories, covers: progress, scanNotice, searchCovers, cancelCovers, dropAutoCovers, rescan };
 }

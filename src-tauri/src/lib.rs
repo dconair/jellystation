@@ -1,6 +1,7 @@
 pub mod covers;
 pub mod discovery;
 pub mod emulators;
+pub mod library;
 pub mod media_proxy;
 pub mod requirements;
 pub mod web;
@@ -55,6 +56,7 @@ pub fn run() {
             covers::cover_resolve,
             covers::cover_cache_stats,
             covers::cover_cache_clear,
+            library::games_scan,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten der Tauri-Anwendung");

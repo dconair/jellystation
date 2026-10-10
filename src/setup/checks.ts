@@ -1,9 +1,9 @@
 import { biosDirOf, blockingMissing, checkRequirements, missingLabels } from "../emulators/requirements";
 import { detectEmulators } from "../emulators/detect";
-import { emulatorForSystem, isAppBundle, supportedFolderNames } from "../emulators/catalog";
+import { emulatorForSystem, supportedFolderNames } from "../emulators/catalog";
 import type { EmulatorDef } from "../emulators/catalog";
 import { testJellyfinAddresses } from "../jellyfin/testConnection";
-import { pickGameFiles, scanGamesDir } from "../library/scanGames";
+import { countBySystem, scanGamesDir } from "../library/scanGames";
 import { isTauri } from "../platform";
 
 export type CheckStatus = "pending" | "running" | "ok" | "warn" | "fail";
@@ -21,6 +21,8 @@ export interface CheckInput {
   jellyfinAltUrl?: string;
   apiKey: string;
   gamesDir: string;
+  /** Zuordnungen von Hand (settings.gameSystems), damit die Zählung mit dem Menü übereinstimmt. */
+  gameSystems?: Record<string, string>;
   /** BIOS-/Firmware-Ordner; leer = Standard. */
   biosDir?: string;
   controller: string | null;
@@ -36,9 +38,9 @@ interface CheckDef {
 
 /** Ergebnisse früherer Checks, die spätere wiederverwenden. */
 interface Shared {
-  /** Systemordner → Anzahl Spieldateien. */
+  /** System → Anzahl erkannter Spiele. */
   systems?: Record<string, number>;
-  /** Systemordner, in denen nur .app-Spiele liegen: Sie starten direkt und brauchen keinen Emulator. */
+  /** Systeme, die ohne Emulator starten (früher Ordner mit nur .app-Spielen; heute sammelt die Bibliothek sie unter „Programme“). */
   nativeOnly?: Set<string>;
 }
 
@@ -57,27 +59,30 @@ export const CHECKS: CheckDef[] = [
   {
     id: "games-dir",
     label: "Spiele-Ordner & Struktur",
-    run: async ({ gamesDir }, shared) => {
+    run: async ({ gamesDir, gameSystems }, shared) => {
       if (!isTauri()) return { status: "warn", detail: BROWSER_NOTE };
       try {
-        const { baseDir, listing } = await scanGamesDir(gamesDir || undefined);
-        const systems: Record<string, number> = {};
-        const nativeOnly = new Set<string>();
-        for (const [sys, files] of Object.entries(listing)) {
-          const games = pickGameFiles(files);
-          if (games.length > 0) systems[sys] = games.length;
-          if (games.length > 0 && games.every((f) => isAppBundle(f))) nativeOnly.add(sys);
-        }
+        const scan = await scanGamesDir(gamesDir || undefined);
+        const { systems, unassigned, programs } = countBySystem(scan, gameSystems);
         shared.systems = systems;
-        shared.nativeOnly = nativeOnly;
+        shared.nativeOnly = new Set<string>();
         const names = Object.entries(systems).map(([s, n]) => `${s} (${n})`);
-        if (names.length === 0) {
+        const total = Object.values(systems).reduce((a, b) => a + b, 0) + unassigned + programs;
+        if (total === 0) {
           return {
             status: "warn",
-            detail: `${baseDir} ist leer – lege Spiele in Unterordnern wie PS3/ ab`,
+            detail: `${scan.baseDir} ist leer – lege deine Spiele einfach hinein (ISO, CHD, Spieleordner …), das System wird erkannt`,
           };
         }
-        return { status: "ok", detail: `${names.length} System(e): ${names.join(", ")}` };
+        const parts = [...names];
+        if (programs > 0) parts.push(`Programme (${programs})`);
+        if (unassigned > 0) {
+          return {
+            status: "warn",
+            detail: `${parts.length ? `${parts.join(", ")} · ` : ""}${unassigned} nicht zugeordnet – im Menü unter „Nicht zugeordnet“ von Hand einem System zuweisen`,
+          };
+        }
+        return { status: "ok", detail: `${total} Spiel(e) erkannt: ${parts.join(", ")}` };
       } catch (err) {
         return { status: "fail", detail: err instanceof Error ? err.message : String(err) };
       }
@@ -92,7 +97,7 @@ export const CHECKS: CheckDef[] = [
       const found = statuses.filter((s) => s.valid);
       const missing = statuses.filter((s) => !s.valid);
 
-      // Nötig sind die Emulatoren der Systemordner, in denen wirklich Spiele liegen.
+      // Nötig sind die Emulatoren der Systeme, zu denen wirklich Spiele gehören.
       const needed = new Map<string, { def: EmulatorDef; folders: string[] }>();
       for (const folder of Object.keys(shared.systems ?? {})) {
         if (shared.nativeOnly?.has(folder)) continue;
@@ -129,7 +134,7 @@ export const CHECKS: CheckDef[] = [
     run: async ({ biosDir }, shared) => {
       if (!isTauri()) return { status: "warn", detail: BROWSER_NOTE };
       const statuses = await checkRequirements(biosDirOf(biosDir));
-      // Nötig sind die Dateien der Emulatoren der Systeme, in denen Spiele liegen; ohne Spiele gilt alles als Hinweis.
+      // Nötig sind die Dateien der Emulatoren der Systeme, zu denen Spiele gehören; ohne Spiele gilt alles als Hinweis.
       const needed = new Set<string>();
       for (const folder of Object.keys(shared.systems ?? {})) {
         if (shared.nativeOnly?.has(folder)) continue;

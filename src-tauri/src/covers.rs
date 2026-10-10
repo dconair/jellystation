@@ -18,16 +18,17 @@
 //!
 //! Alles Wesentliche hängt nicht an Tauri ([`Covers`]); die Befehle am Ende sind dünne Hüllen.
 
-mod embedded;
+// embedded, iso und system nutzt auch die Spielebibliothek (library.rs), um Systeme am Inhalt zu erkennen.
+pub(crate) mod embedded;
 mod image;
-mod iso;
+pub(crate) mod iso;
 mod matching;
-mod system;
+pub(crate) mod system;
 
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
-mod testsupport;
+pub(crate) mod testsupport;
 
 use std::collections::HashMap;
 use std::fs;
