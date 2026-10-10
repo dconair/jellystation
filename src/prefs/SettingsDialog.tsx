@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { PopupList } from "../ui/popup";
 import type { PopupItem } from "../ui/popup";
+import { MOODS } from "../audio/moods";
 import { playSfx } from "../xmb/sound";
 import { DEFAULT_UI_PREFS, LIMITS, THEMES, resetUiPrefs, setUiPrefs, useUiPrefs } from "./uiPrefs";
 import type { AnimationMode, UiPrefs } from "./uiPrefs";
@@ -14,14 +15,15 @@ export interface SettingsDialogProps {
   active?: boolean;
 }
 
-type NumKey = "brightness" | "customHue" | "waveSpeed" | "motionSpeed" | "sfxVolume";
-type BoolKey = "dayNight" | "waves" | "shapes" | "dust";
+type NumKey = "brightness" | "customHue" | "waveSpeed" | "motionSpeed" | "sfxVolume" | "musicVolume";
+type BoolKey = "dayNight" | "waves" | "shapes" | "dust" | "musicEnabled";
 
 type Row =
   | { id: string; kind: "number"; key: NumKey; label: string; detail: string; format: (v: number) => string }
   | { id: string; kind: "bool"; key: BoolKey; label: string; detail: string }
   | { id: string; kind: "theme"; label: string; detail: string }
   | { id: string; kind: "animations"; label: string; detail: string }
+  | { id: string; kind: "mood"; label: string; detail: string }
   | { id: string; kind: "reset"; label: string; detail: string };
 
 const percent = (v: number) => `${Math.round(v * 100)} %`;
@@ -30,7 +32,7 @@ const speed = (v: number) => `${v.toFixed(2).replace(/\.?0+$/, "").replace(".", 
 const TITLES: Record<SettingsSection, { title: string; subtitle: string }> = {
   display: { title: "Anzeige & Farben", subtitle: "Wirkt sofort – ←/→ ändert den Wert" },
   motion: { title: "Animationen", subtitle: "Bewegung im Menü und im Hintergrund" },
-  sound: { title: "Ton", subtitle: "Menü-Töne (Taste M schaltet alles stumm)" },
+  sound: { title: "Ton & Musik", subtitle: "Menü-Töne und Hintergrundmusik (Taste M schaltet alles stumm)" },
 };
 
 const ROWS: Record<SettingsSection, Row[]> = {
@@ -52,6 +54,9 @@ const ROWS: Record<SettingsSection, Row[]> = {
   ],
   sound: [
     { id: "sfxVolume", kind: "number", key: "sfxVolume", label: "Lautstärke der Menü-Töne", detail: "Klicken, Wechseln, Bestätigen", format: percent },
+    { id: "musicEnabled", kind: "bool", key: "musicEnabled", label: "Hintergrundmusik", detail: "Leise, atmosphärische Klänge im Menü – pausiert bei Filmen und Spielen" },
+    { id: "musicMood", kind: "mood", label: "Stimmung", detail: "Sanft, Tiefsee, Nachtlicht oder Morgenlicht" },
+    { id: "musicVolume", kind: "number", key: "musicVolume", label: "Lautstärke der Musik", detail: "Die Musik bleibt immer leise im Hintergrund", format: percent },
   ],
 };
 
@@ -78,7 +83,9 @@ export function SettingsDialog({ section, onClose, active = true }: SettingsDial
         else if (r.kind === "bool") trailing = prefs[r.key] ? "An" : "Aus";
         else if (r.kind === "theme") trailing = `◀  ${THEMES.find((t) => t.id === prefs.themeId)?.label ?? ""}  ▶`;
         else if (r.kind === "animations") trailing = `◀  ${ANIM_LABEL[prefs.animations]}  ▶`;
-        return { id: r.id, label: r.label, detail: r.detail, trailing: trailing || undefined };
+        else if (r.kind === "mood") trailing = `◀  ${MOODS.find((m) => m.id === prefs.musicMood)?.label ?? ""}  ▶`;
+        const detail = r.kind === "mood" ? (MOODS.find((m) => m.id === prefs.musicMood)?.description ?? r.detail) : r.detail;
+        return { id: r.id, label: r.label, detail, trailing: trailing || undefined };
       }),
     [rows, prefs],
   );
@@ -102,6 +109,9 @@ export function SettingsDialog({ section, onClose, active = true }: SettingsDial
       const at = THEMES.findIndex((t) => t.id === prefs.themeId);
       const next = THEMES[(at + dir + THEMES.length) % THEMES.length];
       setUiPrefs({ themeId: next.id });
+    } else if (row.kind === "mood") {
+      const at = MOODS.findIndex((m) => m.id === prefs.musicMood);
+      setUiPrefs({ musicMood: MOODS[(at + dir + MOODS.length) % MOODS.length].id });
     } else if (row.kind === "animations") {
       const at = ANIM_ORDER.indexOf(prefs.animations);
       setUiPrefs({ animations: ANIM_ORDER[(at + dir + ANIM_ORDER.length) % ANIM_ORDER.length] });
@@ -121,6 +131,7 @@ export function SettingsDialog({ section, onClose, active = true }: SettingsDial
     if (!row) return;
     if (row.kind === "number" || row.kind === "bool") setUiPrefs({ [row.key]: DEFAULT_UI_PREFS[row.key] } as Partial<UiPrefs>);
     else if (row.kind === "theme") setUiPrefs({ themeId: DEFAULT_UI_PREFS.themeId });
+    else if (row.kind === "mood") setUiPrefs({ musicMood: DEFAULT_UI_PREFS.musicMood });
     else if (row.kind === "animations") setUiPrefs({ animations: DEFAULT_UI_PREFS.animations });
   };
 

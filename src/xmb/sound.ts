@@ -520,8 +520,18 @@ export function playSfx(name: Sfx) {
 
 export const isMuted = () => muted;
 
+const mutedListeners = new Set<(muted: boolean) => void>();
+/** Meldet Änderungen der Stummschaltung (Taste M); gibt die Abmeldung zurück. */
+export function onMutedChange(cb: (muted: boolean) => void): () => void {
+  mutedListeners.add(cb);
+  return () => {
+    mutedListeners.delete(cb);
+  };
+}
+
 export function setMuted(value: boolean) {
   muted = value;
+  mutedListeners.forEach((cb) => cb(value));
   try {
     localStorage.setItem(MUTE_KEY, value ? "1" : "0");
   } catch {
