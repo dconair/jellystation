@@ -35,6 +35,9 @@ import { coversAuto, loadSettings, saveSettings } from "./settings/settings";
 import type { Settings } from "./settings/settings";
 import { SetupWizard } from "./setup/SetupWizard";
 import { Xmb } from "./xmb/Xmb";
+import { StremioAddonsDialog } from "./stremio/StremioAddonsDialog";
+import { StremioPicker } from "./stremio/StremioPicker";
+import { useStremioLibrary } from "./stremio/useStremioLibrary";
 
 /**
  * Start-Gatekeeper: Erst wird die gespeicherte Konfiguration geladen. Fehlt sie, wird
@@ -124,6 +127,8 @@ type Overlay =
   | { kind: "series"; series: XmbEntry }
   | { kind: "settings"; section: SettingsSection }
   | { kind: "covers" }
+  | { kind: "stremio"; entry: XmbEntry }
+  | { kind: "stremioAddons" }
   | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[] };
 
 const jfConfigOf = (jellyfin: Settings["jellyfin"] | undefined) =>
@@ -144,6 +149,7 @@ function Main({
   // Hauptadresse oder (unterwegs, z. B. Tailscale) zweite Adresse – je nachdem, was gerade antwortet.
   const reachableJf = useReachableServer(settings?.jellyfin ?? null);
   const jellyfin = useJellyfinLibrary(reachableJf ?? undefined);
+  const stremio = useStremioLibrary(settings?.stremio?.addons);
   const emulators = useEmulators(settings?.emulators);
   const biosDir = settings?.biosDir ?? "";
   const requirements = useRequirements(biosDirOf(biosDir));
@@ -191,6 +197,28 @@ function Main({
   }, [requirements.statuses, requirements.loading]);
   const userName = settings?.jellyfin.userName || jellyfin.userName;
 
+  const stremioSummary = stremio.status === "idle" ? "Keine Addons" : `${settings?.stremio?.addons.length ?? 0} Addon${settings?.stremio?.addons.length === 1 ? "" : "s"}`;
+  const stremioCategories = useMemo<XmbCategory[]>(() => {
+    if (stremio.status === "idle") return [];
+    const column = (id: string, label: string, icon: "movies" | "series", entries: XmbEntry[]): XmbCategory => ({
+      id,
+      label,
+      icon,
+      entries: entries.length
+        ? entries
+        : [
+            {
+              id: `st-empty/${id}`,
+              title: stremio.status === "loading" ? "Lade Kataloge …" : stremio.status === "error" ? "Addons nicht erreichbar" : "Keine Titel",
+              subtitle: stremio.problems[0] ?? (stremio.status === "loading" ? undefined : "Das Addon liefert hier keinen Katalog"),
+              description: "Addons trägst du unter Einstellungen → Stremio-Addons ein.",
+              hue: 20,
+            },
+          ],
+    });
+    return [column("stremio-movies", "Stream Filme", "movies", stremio.movies), column("stremio-series", "Stream Serien", "series", stremio.series)];
+  }, [stremio.status, stremio.movies, stremio.series, stremio.problems]);
+
   const categories = useMemo<XmbCategory[]>(() => {
     const base = baseCategories.map((cat) => {
       if (hasJellyfinItems && (cat.id === "movies" || cat.id === "series")) {
@@ -221,6 +249,8 @@ function Main({
                       ? { ...e, subtitle: filesSummary }
                     : e.action === "toggle-transcode"
                       ? { ...e, subtitle: alwaysTranscode ? "Immer vom Server umwandeln" : "Direkt, wenn möglich" }
+                    : e.action === "open-stremio"
+                      ? { ...e, subtitle: stremioSummary }
                     : e.action === "choose-jellyfin-user"
                       ? { ...e, subtitle: userName || (jfConfig ? "Automatisch" : "Nicht verbunden") }
                       : e,
@@ -245,10 +275,10 @@ function Main({
           ? { ...cat, entries: [...bookmarks, ...cat.entries] }
           : cat,
     );
-    // Spiele-Systeme (PS1, PS2, PS3 …) landen direkt hinter den Serien.
+    // Stremio-Spalten (nur mit eingetragenen Addons) und danach die Spiele-Systeme (PS1, PS2, PS3 …) direkt hinter den Serien.
     const at = withRecent.findIndex((c) => c.id === "series") + 1;
-    return [...withRecent.slice(0, at), ...library.categories, ...withRecent.slice(at)];
-  }, [recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
+    return [...withRecent.slice(0, at), ...stremioCategories, ...library.categories, ...withRecent.slice(at)];
+  }, [stremioCategories, recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
 
   /** Titel abspielen; ab einer gespeicherten Position fragt vorher ein Dialog nach Fortsetzen/Von vorn. */
   const play = useCallback(
@@ -321,6 +351,7 @@ function Main({
       else if (entry.action === "open-motion-settings") openOverlay({ kind: "settings", section: "motion" });
       else if (entry.action === "open-sound-settings") openOverlay({ kind: "settings", section: "sound" });
       else if (entry.action === "open-covers") openOverlay({ kind: "covers" });
+      else if (entry.action === "open-stremio") openOverlay({ kind: "stremioAddons" });
       else if (entry.action === "choose-jellyfin-user") void openUsers();
       else if (entry.action === "toggle-transcode") {
         const next = !loadPrefs().alwaysTranscode;
@@ -333,7 +364,8 @@ function Main({
         const id = entry.id.slice(3);
         if (localStorage.getItem("jellystation.webNotice") === "1") void openBookmark(id, notify);
         else openOverlay({ kind: "webNotice", id });
-      } else if (entry.id.startsWith("jf-empty/") || entry.id === "recent-empty") return; // Platzhalter einer leeren Spalte
+      } else if (entry.id.startsWith("jf-empty/") || entry.id.startsWith("st-empty/") || entry.id === "recent-empty") return; // Platzhalter einer leeren Spalte
+      else if (entry.stremio) openOverlay({ kind: "stremio", entry });
       else if (entry.game) {
         setRecentGameIds(rememberGame(entry.id));
         void launch(entry, notify);
@@ -352,6 +384,7 @@ function Main({
       jellyfin.status === "error" ? `Jellyfin: ${jellyfin.error}` : null,
       jellyfin.status === "ok" && !hasJellyfinItems ? "Jellyfin: keine Filme oder Serien gefunden" : null,
       jellyfin.truncated ? `Jellyfin: ${jellyfin.truncated}` : null,
+      stremio.problems.length ? `Stremio: ${stremio.problems[0]}` : null,
     ]
       .filter(Boolean)
       .join(" · ") || undefined;
@@ -515,6 +548,23 @@ function Main({
         auto={coversAuto(settings)}
         onChangeAuto={(auto) => settings && onChangeSettings({ ...settings, covers: { auto } })}
         library={library}
+        onClose={close}
+      />
+    );
+  } else if (overlay?.kind === "stremio") {
+    layer = (
+      <StremioPicker
+        entry={overlay.entry}
+        addons={settings?.stremio?.addons ?? []}
+        onPlay={(entry) => openOverlay({ kind: "player", entry, startSec: 0 })}
+        onClose={close}
+      />
+    );
+  } else if (overlay?.kind === "stremioAddons") {
+    layer = (
+      <StremioAddonsDialog
+        addons={settings?.stremio?.addons ?? []}
+        onChange={(addons) => settings && onChangeSettings({ ...settings, stremio: addons.length ? { addons } : undefined })}
         onClose={close}
       />
     );

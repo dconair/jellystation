@@ -11,6 +11,8 @@ export interface XmbEntry {
   action?: EntryAction;
   /** Gesetzt bei Jellyfin-Filmen, -Serien und -Folgen: Grundlage für Wiedergabe und Fortsetzen. */
   jellyfin?: JellyfinRef;
+  /** Gesetzt bei Titeln aus einem Stremio-Addon: Grundlage für Stream-Suche und Wiedergabe. */
+  stremio?: StremioRef;
   /** Cover/Game-Art. Fehlt sie, zeigt die XMB ein einfaches Icon-Kachel (z. B. bei Einstellungen). */
   art?: ArtSource;
   /** Seitenverhältnis des Originalbilds: "landscape" ≈ 16:9 (Game-Art), "poster" ≈ 2:3 (Film-Cover). */
@@ -18,7 +20,7 @@ export interface XmbEntry {
 }
 
 /** Interne Aktionen, die ein Eintrag statt eines Inhalts auslöst. */
-export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user" | "toggle-transcode" | "open-requirements" | "open-display-settings" | "open-motion-settings" | "open-sound-settings" | "open-server-settings" | "open-games-dir" | "open-about" | "add-bookmark" | "open-covers";
+export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user" | "toggle-transcode" | "open-requirements" | "open-display-settings" | "open-motion-settings" | "open-sound-settings" | "open-server-settings" | "open-games-dir" | "open-about" | "add-bookmark" | "open-covers" | "open-stremio";
 
 /** Verweis auf ein Jellyfin-Objekt (Film, Serie oder Folge). */
 export interface JellyfinRef {
@@ -36,6 +38,17 @@ export interface JellyfinRef {
   seriesName?: string;
   seasonNumber?: number;
   episodeNumber?: number;
+}
+
+/** Verweis auf einen Titel eines Stremio-Addons (Film, Serie oder Folge). */
+export interface StremioRef {
+  /** Addon (`settings.stremio.addons[].id`), aus dessen Katalog der Titel stammt. */
+  addonId: string;
+  type: "movie" | "series";
+  /** Stremio-ID: bei Filmen und Serien z. B. "tt0111161", bei einer Folge "tt0944947:1:2". */
+  id: string;
+  /** Nur zum Abspielen: die gewählte direkte Stream-Adresse (http/https). */
+  streamUrl?: string;
 }
 
 /** Woher das Cover eines Eintrags kommt. */

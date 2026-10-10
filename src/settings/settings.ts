@@ -2,6 +2,7 @@ import { isTauri } from "../platform";
 import type { Bookmark } from "../web/webApi";
 import { sanitizeUiPrefs } from "../prefs/uiPrefs";
 import type { UiPrefs } from "../prefs/uiPrefs";
+import type { StremioSettings } from "../stremio/types";
 
 export interface Settings {
   /** Schema-Version für spätere Migrationen. */
@@ -29,6 +30,8 @@ export interface Settings {
   ui?: Partial<UiPrefs>;
   /** Spiele-Cover (siehe src/art/coverService.ts); fehlt es, gilt auto = true. */
   covers?: CoverSettings;
+  /** Stremio-Addons, die der Nutzer selbst eingetragen hat (siehe src/stremio/); fehlt es, gibt es keine Stremio-Spalten. */
+  stremio?: StremioSettings;
   /** Absoluter Pfad des Spiele-Basisordners; leer = Standardordner/Demo-Modus. */
   gamesDir: string;
   /** Zeitpunkt des Setup-Abschlusses (ISO). */
@@ -105,6 +108,7 @@ function validate(raw: unknown): Settings | null {
     ...(typeof r.biosDir === "string" && r.biosDir.trim() ? { biosDir: r.biosDir } : {}),
     ...(r.ui && typeof r.ui === "object" ? { ui: sanitizeUiPrefs(r.ui) } : {}),
     ...(sanitizeBookmarks(r.bookmarks) ? { bookmarks: sanitizeBookmarks(r.bookmarks) } : {}),
+    ...(sanitizeStremio(r.stremio) ? { stremio: sanitizeStremio(r.stremio) } : {}),
     ...(r.covers && typeof r.covers === "object" ? { covers: { auto: r.covers.auto !== false } } : {}),
     gamesDir: typeof r.gamesDir === "string" ? r.gamesDir : "",
     completedAt: r.completedAt,
@@ -121,6 +125,19 @@ function sanitizeBookmarks(raw: unknown): Bookmark[] | undefined {
     out.push({ id: id.slice(0, 40), name: name.slice(0, 60), url: url.slice(0, 500) });
   }
   return out.length ? out : undefined;
+}
+
+function sanitizeStremio(raw: unknown): StremioSettings | undefined {
+  const list = (raw as { addons?: unknown } | null | undefined)?.addons;
+  if (!Array.isArray(list)) return undefined;
+  const addons: StremioSettings["addons"] = [];
+  for (const a of list.slice(0, 20)) {
+    if (!a || typeof a !== "object") continue;
+    const { id, url, name } = a as Record<string, unknown>;
+    if (typeof id !== "string" || typeof url !== "string" || !/^https?:\/\//i.test(url)) continue;
+    addons.push({ id: id.slice(0, 40), url: url.slice(0, 1000), name: typeof name === "string" && name.trim() ? name.slice(0, 80) : url });
+  }
+  return addons.length ? { addons } : undefined;
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {

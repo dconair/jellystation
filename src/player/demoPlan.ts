@@ -7,7 +7,7 @@ export const DEMO_DURATION_SEC = 24;
 /** Stream-Index der Demo-Untertitelspur (nur für die Auswahl im Player). */
 const DEMO_SUBTITLE_INDEX = 1;
 
-/** true = Demo-Eintrag ohne Server: nichts Jellyfin-Eigenes, also public/demo abspielen. */
+/** true = kein Jellyfin-Titel: Demo-Eintrag (public/demo) oder ein Stremio-Stream mit eigener Adresse. Beides läuft ohne Server-Planung. */
 export const isDemoEntry = (entry: XmbEntry): boolean => !entry.jellyfin;
 
 const base = () => (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL) || "/";
