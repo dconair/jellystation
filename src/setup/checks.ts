@@ -2,7 +2,7 @@ import { biosDirOf, blockingMissing, checkRequirements, missingLabels } from "..
 import { detectEmulators } from "../emulators/detect";
 import { emulatorForSystem, isAppBundle, supportedFolderNames } from "../emulators/catalog";
 import type { EmulatorDef } from "../emulators/catalog";
-import { testJellyfin } from "../jellyfin/testConnection";
+import { testJellyfinAddresses } from "../jellyfin/testConnection";
 import { pickGameFiles, scanGamesDir } from "../library/scanGames";
 import { isTauri } from "../platform";
 
@@ -17,6 +17,8 @@ export interface CheckResult {
 
 export interface CheckInput {
   jellyfinUrl: string;
+  /** Zweite Adresse für unterwegs (z. B. Tailscale); wird mitgeprüft. */
+  jellyfinAltUrl?: string;
   apiKey: string;
   gamesDir: string;
   /** BIOS-/Firmware-Ordner; leer = Standard. */
@@ -46,9 +48,9 @@ export const CHECKS: CheckDef[] = [
   {
     id: "jellyfin",
     label: "Jellyfin-Server",
-    run: async ({ jellyfinUrl, apiKey }) => {
+    run: async ({ jellyfinUrl, jellyfinAltUrl, apiKey }) => {
       if (!jellyfinUrl.trim()) return { status: "warn", detail: "Übersprungen – keine Adresse angegeben" };
-      const res = await testJellyfin(jellyfinUrl, apiKey);
+      const res = await testJellyfinAddresses(jellyfinUrl, jellyfinAltUrl ?? "", apiKey);
       return { status: res.status, detail: res.message };
     },
   },
