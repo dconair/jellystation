@@ -1,9 +1,10 @@
 /*
  * Gemeinsame PS3-Bausteine für Listen und Dialoge (OverlayFrame, PopupList, Dialoge).
  *
- * Optik wie die Systemdialoge der PS3 (Farben, Rand und Glanz sind von setup.css abgeguckt): dunkelblau-
- * transluzentes Panel, feiner heller Rand oben, leichte Schrift. Bewusst OHNE backdrop-filter – ohne GPU
- * ruckelt der Weichzeichner; stattdessen eine dunkle Fläche mit sanftem Verlauf und ein dichteres Panel.
+ * Optik wie die Listen und Systemdialoge der PS3: dunkle, durchscheinende Fläche (das Hintergrundbild bleibt sichtbar),
+ * feiner heller Rand, leichte Schrift. Die Farbe kommt aus der Akzentfarbe (`--ui-l…`, siehe src/prefs/accent.ts):
+ * Standard ist die Farbe des Farbthemas bzw. des Monats, in den Einstellungen wählbar. Bewusst OHNE backdrop-filter –
+ * ohne GPU ruckelt der Weichzeichner; stattdessen eine Fläche mit sanftem Verlauf.
  * Der Fokus ist ein einziger Leuchtbalken, der per transform zur Zeile gleitet (--pop-ease schwingt leicht über).
  * Alles in rem – das Layout skaliert mit dem Fenster (siehe html in index.css).
  */
@@ -12,11 +13,11 @@
 .pop-panel {
   --pop-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* gleiches Überschwingen wie --xmb-ease */
   --pop-soft: cubic-bezier(0.25, 0.8, 0.3, 1);
-  --pop-glow: 150, 190, 255;
+  --pop-glow: var(--ui-l76);
   --pop-ok: #9af2c0;
   --pop-warn: #ffd98a;
   --pop-error: #ff9d9d;
-  --pop-info: #a9c8ff;
+  --pop-info: rgb(var(--ui-l84));
   color: #fff;
   font-family: var(--font-ui);
   font-weight: 300;
@@ -34,8 +35,8 @@
   overflow: hidden;
   background: radial-gradient(
     ellipse 85% 75% at 50% 46%,
-    rgba(5, 10, 32, calc(var(--pop-dim) * 0.9)) 0%,
-    rgba(2, 4, 14, calc(var(--pop-dim) * 1.3)) 100%
+    rgba(var(--ui-l5), calc(var(--pop-dim) * 0.55)) 0%,
+    rgba(var(--ui-l5), calc(var(--pop-dim) * 1.05)) 100%
   );
   animation: pop-fade-in 0.28s ease both;
 }
@@ -86,16 +87,16 @@
   border-radius: 0.6rem;
   background: linear-gradient(
     180deg,
-    rgba(46, 76, 152, 0.94) 0%,
-    rgba(16, 34, 86, 0.98) 38%,
-    rgba(6, 14, 44, 0.99) 100%
+    rgba(var(--ui-l28), 0.62) 0%,
+    rgba(var(--ui-l14), 0.72) 38%,
+    rgba(var(--ui-l5), 0.8) 100%
   );
-  border: 1px solid rgba(190, 212, 255, 0.22);
+  border: 1px solid rgba(var(--ui-l84), 0.22);
   box-shadow:
-    0 2.4rem 5.5rem rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(0, 0, 12, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 0 3.2rem rgba(90, 130, 230, 0.1);
+    0 2.4rem 5.5rem rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 0 3.2rem rgba(var(--ui-l58), 0.07);
   animation: pop-rise 0.55s var(--pop-ease) both;
 }
 
@@ -135,7 +136,7 @@
   z-index: 8;
   border-radius: inherit;
   pointer-events: none;
-  background: rgba(3, 6, 20, 0.62);
+  background: rgba(var(--ui-l5), 0.62);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -253,7 +254,7 @@
   /* Lichtbalken: links hell, nach rechts auslaufend; oben und links eine feine Lichtkante */
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 60%),
-    linear-gradient(90deg, rgba(176, 206, 255, 0.46) 0%, rgba(132, 170, 255, 0.26) 52%, rgba(110, 150, 255, 0.1) 100%);
+    linear-gradient(90deg, rgba(var(--ui-l84), 0.46) 0%, rgba(var(--ui-l76), 0.26) 52%, rgba(var(--ui-l68), 0.1) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     inset 1px 0 0 rgba(255, 255, 255, 0.3),
@@ -349,8 +350,8 @@
   flex: none;
   width: 1.6rem;
   height: 1.6rem;
-  color: #d6e6ff;
-  filter: drop-shadow(0 0 0.35rem rgba(180, 210, 255, 0.7));
+  color: rgb(var(--ui-l92));
+  filter: drop-shadow(0 0 0.35rem rgba(var(--ui-l84), 0.7));
 }
 
 .pop-row__text {
@@ -408,7 +409,7 @@
   height: 4.4rem;
   overflow: hidden;
   border-radius: 0.45rem;
-  background: rgba(10, 16, 40, 0.5);
+  background: rgba(var(--ui-l9), 0.5);
   box-shadow: 0 0.3rem 0.9rem rgba(0, 0, 0, 0.42);
 }
 
@@ -449,7 +450,7 @@
   top: 0;
   bottom: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, #8fb8ff, #fff);
+  background: linear-gradient(90deg, rgb(var(--ui-l76)), #fff);
   box-shadow: 0 0 0.5rem rgba(var(--pop-glow), 0.85);
 }
 
@@ -462,7 +463,7 @@
   height: 0.32rem;
   margin: 0;
   border-radius: 0;
-  background: rgba(0, 4, 20, 0.62);
+  background: rgba(var(--ui-l5), 0.62);
 }
 
 /* Abschnittsüberschrift */
@@ -732,8 +733,8 @@
 .pop-kind.is-info {
   color: var(--pop-info);
   box-shadow:
-    0 0 1rem rgba(169, 200, 255, 0.35),
-    inset 0 0 0.8rem rgba(169, 200, 255, 0.18);
+    0 0 1rem rgba(var(--ui-l84), 0.35),
+    inset 0 0 0.8rem rgba(var(--ui-l84), 0.18);
 }
 .pop-kind.is-error {
   color: var(--pop-error);
@@ -759,7 +760,7 @@
   overflow-y: auto;
   border-radius: 0.35rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 4, 24, 0.42);
+  background: rgba(var(--ui-l5), 0.42);
   font:
     1rem/1.55 ui-monospace,
     "SF Mono",
@@ -807,7 +808,7 @@
   height: 100%;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 60%),
-    linear-gradient(90deg, rgba(132, 170, 255, 0.2) 0%, rgba(176, 206, 255, 0.4) 50%, rgba(132, 170, 255, 0.2) 100%);
+    linear-gradient(90deg, rgba(var(--ui-l76), 0.2) 0%, rgba(var(--ui-l84), 0.4) 50%, rgba(var(--ui-l76), 0.2) 100%);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -910,14 +911,14 @@
   overflow: hidden;
   border-radius: 0.3rem;
   background: rgba(255, 255, 255, 0.14);
-  box-shadow: inset 0 0.05rem 0.2rem rgba(0, 0, 20, 0.5);
+  box-shadow: inset 0 0.05rem 0.2rem rgba(var(--ui-l5), 0.5);
 }
 
 .pop-meter__track > i {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(140, 185, 255, 0.95), #fff);
+  background: linear-gradient(90deg, rgba(var(--ui-l76), 0.95), #fff);
   box-shadow: 0 0 0.8rem rgba(var(--pop-glow), 0.8);
   transform-origin: 0 50%;
   transform: scaleX(0);
@@ -950,7 +951,7 @@
   overflow: hidden;
   border-radius: 0.35rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 4, 24, 0.42);
+  background: rgba(var(--ui-l5), 0.42);
   font:
     1rem/1.6rem ui-monospace,
     "SF Mono",

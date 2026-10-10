@@ -11,6 +11,20 @@
    */
   --font-ui: "Source Sans 3 Variable", "Source Sans 3", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 
+  /* Akzentfarbe (wird von src/prefs/accent.ts überschrieben): Stufen von fast weiß (92) bis fast schwarz (5) als RGB-Tripel */
+  --ui-l92: 214, 228, 255;
+  --ui-l84: 173, 201, 255;
+  --ui-l76: 133, 173, 255;
+  --ui-l68: 92, 146, 255;
+  --ui-l58: 57, 118, 239;
+  --ui-l48: 18, 88, 226;
+  --ui-l38: 34, 76, 160;
+  --ui-l28: 25, 56, 118;
+  --ui-l20: 18, 40, 84;
+  --ui-l14: 12, 28, 59;
+  --ui-l9: 8, 18, 38;
+  --ui-l5: 4, 10, 21;
+
   /* Farben der PlayStation-Tasten */
   --ps-cross: #7fa6ff;
   --ps-circle: #ff6f78;

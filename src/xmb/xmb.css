@@ -300,11 +300,11 @@
   z-index: 4;
   border-radius: inherit;
   pointer-events: none;
-  background: rgba(6, 10, 26, 0.12);
+  background: rgba(var(--ui-l5), 0.12);
 }
 
 .xmb-item.has-art .xmb-item__shade {
-  background: rgba(6, 10, 26, 0.16);
+  background: rgba(var(--ui-l5), 0.16);
 }
 
 /* Gemeinsamer Glanz für Kacheln und Cover: Lichtkante oben, diagonaler Schimmer, feiner Rand. */
@@ -368,7 +368,7 @@
   height: var(--tile-h);
   overflow: hidden;
   border-radius: 0.5rem;
-  background: rgba(10, 16, 40, 0.5);
+  background: rgba(var(--ui-l9), 0.5);
   box-shadow: 0 0.45rem 1.2rem rgba(0, 0, 0, 0.42);
 }
 
@@ -448,7 +448,7 @@
   overflow: hidden;
   margin-bottom: 1.3rem;
   border-radius: 0.7rem;
-  background: rgba(10, 16, 40, 0.5);
+  background: rgba(var(--ui-l9), 0.5);
   box-shadow:
     0 0.8rem 2.2rem rgba(0, 0, 0, 0.45),
     0 0 2.6rem rgba(255, 255, 255, 0.12);
@@ -615,7 +615,7 @@
   border-radius: 0.7rem;
   font-size: 1.15rem;
   letter-spacing: 0.04em;
-  background: linear-gradient(160deg, rgba(40, 58, 120, 0.72), rgba(12, 18, 52, 0.78));
+  background: linear-gradient(160deg, rgba(var(--ui-l28), 0.72), rgba(var(--ui-l14), 0.78));
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.25),
     0 0.6rem 1.8rem rgba(0, 0, 0, 0.35);
@@ -722,7 +722,7 @@
   height: 1.45rem;
   border-radius: 50%;
   color: #fff;
-  background: rgba(20, 28, 60, 0.72);
+  background: rgba(var(--ui-l14), 0.72);
   border: 1px solid rgba(255, 255, 255, 0.55);
   box-shadow: 0 0 0.6rem rgba(0, 0, 0, 0.5);
 }
@@ -737,6 +737,6 @@
   font-size: 1.05rem;
   font-weight: 400;
   letter-spacing: 0.03em;
-  color: #cfe0ff;
+  color: rgb(var(--ui-l92));
   text-shadow: var(--xmb-text-shadow);
 }

@@ -3,7 +3,7 @@ import { PopupList } from "../ui/popup";
 import type { PopupItem } from "../ui/popup";
 import { MOODS } from "../audio/moods";
 import { playSfx } from "../xmb/sound";
-import { BACKGROUND_STYLES, DEFAULT_UI_PREFS, LIMITS, THEMES, resetUiPrefs, setUiPrefs, useUiPrefs } from "./uiPrefs";
+import { ACCENTS, BACKGROUND_STYLES, DEFAULT_UI_PREFS, LIMITS, THEMES, resetUiPrefs, setUiPrefs, useUiPrefs } from "./uiPrefs";
 import type { AnimationMode, UiPrefs } from "./uiPrefs";
 
 export type SettingsSection = "display" | "motion" | "sound";
@@ -17,13 +17,14 @@ export interface SettingsDialogProps {
   onPreviewBoot?: () => void;
 }
 
-type NumKey = "brightness" | "customHue" | "waveSpeed" | "motionSpeed" | "sfxVolume" | "musicVolume";
+type NumKey = "brightness" | "customHue" | "accentHue" | "waveSpeed" | "motionSpeed" | "sfxVolume" | "musicVolume";
 type BoolKey = "dayNight" | "waves" | "shapes" | "dust" | "musicEnabled" | "bootAnimation";
 
 type Row =
   | { id: string; kind: "number"; key: NumKey; label: string; detail: string; format: (v: number) => string }
   | { id: string; kind: "bool"; key: BoolKey; label: string; detail: string }
   | { id: string; kind: "theme"; label: string; detail: string }
+  | { id: string; kind: "accent"; label: string; detail: string }
   | { id: string; kind: "animations"; label: string; detail: string }
   | { id: string; kind: "mood"; label: string; detail: string }
   | { id: string; kind: "style"; label: string; detail: string }
@@ -46,6 +47,8 @@ const ROWS: Record<SettingsSection, Row[]> = {
     { id: "style", kind: "style", label: "Hintergrund-Design", detail: "PS3-Original (seidiges Tuch), die bisherigen JellyStation-Wellen, Nordlicht, Sternenhimmel, Tiefsee, Neon-Gitter oder nur ein Farbverlauf" },
     { id: "theme", kind: "theme", label: "Farbthema", detail: "Hintergrundfarbe – „Automatisch“ wechselt wie die PS3 mit dem Monat" },
     { id: "customHue", kind: "number", key: "customHue", label: "Eigener Farbton", detail: "Nur bei „Eigener Farbton“", format: (v) => `${Math.round(v)}°` },
+    { id: "accent", kind: "accent", label: "Akzentfarbe", detail: "Farbe der Listen und Untermenüs – „Wie Farbthema“ folgt dem Hintergrund" },
+    { id: "accentHue", kind: "number", key: "accentHue", label: "Eigener Akzent-Farbton", detail: "Nur bei „Eigener Farbton“", format: (v) => `${Math.round(v)}°` },
     { id: "dayNight", kind: "bool", key: "dayNight", label: "Tag/Nacht-Verlauf", detail: "Abends wird der Hintergrund dunkler" },
     { id: "waves", kind: "bool", key: "waves", label: "Wellen", detail: "Seidige Bänder im Hintergrund (nur bei „JellyStation-Wellen“)" },
     { id: "shapes", kind: "bool", key: "shapes", label: "PlayStation-Symbole", detail: "Langsam fliegende Formen" },
@@ -84,10 +87,11 @@ export function SettingsDialog({ section, onClose, active = true, onPreviewBoot 
       ROWS[section].filter(
         (r) =>
           !(r.id === "customHue" && prefs.themeId !== "custom") &&
+          !(r.id === "accentHue" && prefs.accentId !== "custom") &&
           // Wellen und Formen gibt es nur beim Design „JellyStation-Wellen“ (id "ps3").
           !((r.id === "waves" || r.id === "shapes") && prefs.backgroundStyle !== "ps3"),
       ),
-    [section, prefs.themeId, prefs.backgroundStyle],
+    [section, prefs.themeId, prefs.accentId, prefs.backgroundStyle],
   );
 
   const items = useMemo<PopupItem[]>(
@@ -97,6 +101,7 @@ export function SettingsDialog({ section, onClose, active = true, onPreviewBoot 
         if (r.kind === "number") trailing = `◀  ${r.format(prefs[r.key])}  ▶`;
         else if (r.kind === "bool") trailing = prefs[r.key] ? "An" : "Aus";
         else if (r.kind === "theme") trailing = `◀  ${THEMES.find((t) => t.id === prefs.themeId)?.label ?? ""}  ▶`;
+        else if (r.kind === "accent") trailing = `◀  ${ACCENTS.find((a) => a.id === prefs.accentId)?.label ?? ""}  ▶`;
         else if (r.kind === "animations") trailing = `◀  ${ANIM_LABEL[prefs.animations]}  ▶`;
         else if (r.kind === "soundPack") trailing = `◀  ${prefs.soundPack === "ps3" ? "PS3-Original" : "Synthetisch"}  ▶`;
         else if (r.kind === "style") trailing = `◀  ${BACKGROUND_STYLES.find((s) => s.id === prefs.backgroundStyle)?.label ?? ""}  ▶`;
@@ -126,6 +131,9 @@ export function SettingsDialog({ section, onClose, active = true, onPreviewBoot 
       const at = THEMES.findIndex((t) => t.id === prefs.themeId);
       const next = THEMES[(at + dir + THEMES.length) % THEMES.length];
       setUiPrefs({ themeId: next.id });
+    } else if (row.kind === "accent") {
+      const at = ACCENTS.findIndex((a) => a.id === prefs.accentId);
+      setUiPrefs({ accentId: ACCENTS[(at + dir + ACCENTS.length) % ACCENTS.length].id });
     } else if (row.kind === "style") {
       const at = BACKGROUND_STYLES.findIndex((s) => s.id === prefs.backgroundStyle);
       setUiPrefs({ backgroundStyle: BACKGROUND_STYLES[(at + dir + BACKGROUND_STYLES.length) % BACKGROUND_STYLES.length].id });
@@ -155,6 +163,7 @@ export function SettingsDialog({ section, onClose, active = true, onPreviewBoot 
     if (!row) return;
     if (row.kind === "number" || row.kind === "bool") setUiPrefs({ [row.key]: DEFAULT_UI_PREFS[row.key] } as Partial<UiPrefs>);
     else if (row.kind === "theme") setUiPrefs({ themeId: DEFAULT_UI_PREFS.themeId });
+    else if (row.kind === "accent") setUiPrefs({ accentId: DEFAULT_UI_PREFS.accentId });
     else if (row.kind === "soundPack") setUiPrefs({ soundPack: DEFAULT_UI_PREFS.soundPack });
     else if (row.kind === "mood") setUiPrefs({ musicMood: DEFAULT_UI_PREFS.musicMood });
     else if (row.kind === "style") setUiPrefs({ backgroundStyle: DEFAULT_UI_PREFS.backgroundStyle });

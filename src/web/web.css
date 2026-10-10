@@ -27,8 +27,8 @@
   outline: none;
 }
 .web-form__body input:focus {
-  border-color: rgba(190, 215, 255, 0.95);
-  box-shadow: 0 0 0 3px rgba(130, 170, 255, 0.35);
+  border-color: rgba(var(--ui-l84), 0.95);
+  box-shadow: 0 0 0 3px rgba(var(--ui-l76), 0.35);
 }
 .web-form__error {
   margin: 0;
@@ -57,11 +57,11 @@
   cursor: pointer;
 }
 .web-btn--primary {
-  background: rgba(110, 160, 255, 0.35);
-  border-color: rgba(170, 205, 255, 0.8);
+  background: rgba(var(--ui-l68), 0.35);
+  border-color: rgba(var(--ui-l84), 0.8);
 }
 .web-btn:hover,
 .web-btn:focus-visible {
-  background: rgba(150, 190, 255, 0.4);
+  background: rgba(var(--ui-l76), 0.4);
   outline: none;
 }

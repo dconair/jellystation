@@ -10,8 +10,8 @@
 .pop-overlay.launch-frame {
   /* Undurchsichtig: Vom Menü dahinter soll nichts durchschimmern (Geisterschrift am Rand wirkte unruhig). */
   background:
-    radial-gradient(ellipse 62% 52% at 50% 44%, rgba(58, 96, 196, 0.5) 0%, rgba(20, 38, 100, 0.22) 46%, rgba(2, 4, 14, 0) 76%),
-    linear-gradient(180deg, #050a22 0%, #02040f 100%);
+    radial-gradient(ellipse 62% 52% at 50% 44%, rgba(var(--ui-l48), 0.5) 0%, rgba(var(--ui-l20), 0.22) 46%, rgba(var(--ui-l5), 0) 76%),
+    linear-gradient(180deg, rgb(var(--ui-l9)) 0%, rgb(var(--ui-l5)) 100%);
 }
 
 .launch {
@@ -38,8 +38,8 @@
   left: -30%;
   width: 160%;
   height: 0.16rem;
-  background: linear-gradient(90deg, transparent 0%, rgba(160, 200, 255, 0.5) 50%, transparent 100%);
-  box-shadow: 0 0 1.2rem 0.1rem rgba(130, 180, 255, 0.35);
+  background: linear-gradient(90deg, transparent 0%, rgba(var(--ui-l84), 0.5) 50%, transparent 100%);
+  box-shadow: 0 0 1.2rem 0.1rem rgba(var(--ui-l76), 0.35);
   opacity: 0.55;
   animation: launch-wave 7s ease-in-out infinite alternate;
 }
@@ -59,7 +59,7 @@
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: 0.6rem;
-  border: 1px solid rgba(200, 220, 255, 0.32);
+  border: 1px solid rgba(var(--ui-l92), 0.32);
   box-shadow:
     0 1.6rem 4.5rem rgba(0, 0, 0, 0.55),
     0 0 5rem rgba(var(--pop-glow, 120, 170, 255), 0.28),

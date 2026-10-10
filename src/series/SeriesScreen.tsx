@@ -301,7 +301,7 @@ export function SeriesScreen({ series, jellyfin, onPlay, onClose, active = true 
   const leavingSeason = swap ? seasons[swap.from] : undefined;
 
   return (
-    <OverlayFrame className="series-frame" dim={1} onBack={onClose} active={active} keyboard={false}>
+    <OverlayFrame className="series-frame" dim={0.3} onBack={onClose} active={active} keyboard={false}>
       <div className={`series-screen${collapsed ? " is-collapsed" : ""}`} style={style} onMouseDown={onScreenMouseDown}>
         <div className="series-art" aria-hidden="true">
           <ArtImage entry={series} active priority />
