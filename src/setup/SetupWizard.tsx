@@ -6,7 +6,7 @@ import { useRequirements } from "../emulators/useRequirements";
 import { useControllerProbe } from "../input/useControllerProbe";
 import { useGamepad } from "../input/useGamepad";
 import type { PadAction } from "../input/useGamepad";
-import { isValidServerUrl, normalizeServerUrl, testJellyfin } from "../jellyfin/testConnection";
+import { isValidServerUrl, normalizeServerUrl, testJellyfinAddresses } from "../jellyfin/testConnection";
 import type { ConnectionResult } from "../jellyfin/testConnection";
 import { saveSettings } from "../settings/settings";
 import type { Settings } from "../settings/settings";
@@ -108,6 +108,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
     const prev = draftRef.current;
     const changed =
       (p.url !== undefined && normalizeServerUrl(p.url) !== normalizeServerUrl(prev.url)) ||
+      (p.altUrl !== undefined && normalizeServerUrl(p.altUrl) !== normalizeServerUrl(prev.altUrl)) ||
       (p.apiKey !== undefined && p.apiKey.trim() !== prev.apiKey.trim());
     if (changed) {
       testSeq.current++;
@@ -120,7 +121,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
   const runTest = async () => {
     const seq = ++testSeq.current;
     setTest({ busy: true, result: null });
-    const result = await testJellyfin(draft.url, draft.apiKey);
+    const result = await testJellyfinAddresses(draft.url, draft.altUrl, draft.apiKey);
     if (seq !== testSeq.current) return;
     setTest({ busy: false, result });
     playSfx(result.status === "ok" ? "confirm" : "error");
@@ -135,6 +136,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
     void runChecks(
       {
         jellyfinUrl: draft.url,
+        jellyfinAltUrl: draft.altUrl,
         apiKey: draft.apiKey,
         gamesDir: draft.gamesDir,
         biosDir: draft.biosDir,

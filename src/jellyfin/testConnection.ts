@@ -20,14 +20,39 @@ export interface ConnectionResult {
   userCount?: number;
 }
 
+/**
+ * Der erste Zugriff über Tailscale braucht oft mehrere Sekunden, bis der Tunnel steht (Hole-Punching bzw. Umweg über
+ * einen Relay-Server) – 6 s waren dafür zu knapp und meldeten den Server fälschlich als unerreichbar.
+ */
+const TEST_TIMEOUT_MS = 10_000;
+/** Wartezeit der Hintergrundprüfung für die zweite Adresse (Tailscale); die Heimadresse antwortet im LAN sofort oder gar nicht. */
+export const ALT_PING_TIMEOUT_MS = 8000;
+
 /** In Tauri über das HTTP-Plugin (Rust, kein CORS/ATS), im Browser über window.fetch. */
-async function request(url: string, headers: Record<string, string>, ms = 6000) {
+async function request(url: string, headers: Record<string, string>, ms = TEST_TIMEOUT_MS) {
   const signal = AbortSignal.timeout(ms);
   if (isTauri()) {
     const { fetch } = await import("@tauri-apps/plugin-http");
     return fetch(url, { headers, signal });
   }
   return window.fetch(url, { headers, signal });
+}
+
+/** Meldung zu einem HTTP-Fehlerstatus der Server-Info. 403 kommt von Jellyfin, wenn „Fernzugriff“ aus ist und die Anfrage von außerhalb des LAN kommt. */
+function statusHint(status: number): string {
+  if (status === 403) {
+    return "Server lehnt die Anfrage ab (403) – in Jellyfin unter Dashboard → Netzwerk „Fernverbindungen zu diesem Server erlauben“ aktivieren (Tailscale-Adressen zählen als extern)";
+  }
+  return `Server antwortet mit Status ${status}`;
+}
+
+/** Meldung zu einem Netzwerkfehler; hängt den technischen Grund an, damit sich Ursachen unterscheiden lassen. */
+function networkHint(err: unknown): string {
+  if (err instanceof DOMException && err.name === "TimeoutError") {
+    return "Zeitüberschreitung – Server nicht erreichbar. Läuft Tailscale auf beiden Geräten, und erlaubt die Firewall des Servers Port 8096 auch im Tailscale-Netz?";
+  }
+  const detail = (err instanceof Error ? err.message : typeof err === "string" ? err : "").trim().replace(/\s+/g, " ");
+  return detail ? `Server nicht erreichbar (${detail.slice(0, 160)})` : "Server nicht erreichbar";
 }
 
 /**
@@ -41,14 +66,10 @@ export async function testJellyfin(urlInput: string, apiKey: string, userId?: st
   let info: { ServerName?: string; Version?: string };
   try {
     const res = await request(`${base}/System/Info/Public`, {});
-    if (!res.ok) return { status: "fail", message: `Server antwortet mit Status ${res.status}` };
+    if (!res.ok) return { status: "fail", message: statusHint(res.status) };
     info = await res.json();
   } catch (err) {
-    const timeout = err instanceof DOMException && err.name === "TimeoutError";
-    return {
-      status: "fail",
-      message: timeout ? "Zeitüberschreitung – Server nicht erreichbar" : "Server nicht erreichbar",
-    };
+    return { status: "fail", message: networkHint(err) };
   }
   const found = { serverName: info.ServerName, version: info.Version };
   const label = `${info.ServerName ?? "Jellyfin"}${info.Version ? ` ${info.Version}` : ""}`;
@@ -100,4 +121,22 @@ export async function pingServer(urlInput: string, ms = 3000): Promise<boolean> 
   } catch {
     return false;
   }
+}
+
+/**
+ * Prüft Heimadresse und – falls eingetragen – die zweite Adresse (Tailscale) einzeln und fasst das Ergebnis zusammen.
+ * Ist nur eine der beiden erreichbar, gilt das als „ok“ (die App wechselt dann selbst); die Meldung nennt beide Ergebnisse.
+ */
+export async function testJellyfinAddresses(
+  urlInput: string,
+  altInput: string,
+  apiKey: string,
+  userId?: string,
+): Promise<ConnectionResult> {
+  const hasAlt = !!altInput.trim() && isValidServerUrl(altInput) && normalizeServerUrl(altInput) !== normalizeServerUrl(urlInput);
+  if (!hasAlt) return testJellyfin(urlInput, apiKey, userId);
+  const [home, alt] = await Promise.all([testJellyfin(urlInput, apiKey, userId), testJellyfin(altInput, apiKey, userId)]);
+  const best = home.status === "ok" ? home : alt.status === "ok" ? alt : home.status === "warn" ? home : alt.status === "warn" ? alt : home;
+  const summary = `Heimadresse: ${home.message} · Zweite Adresse: ${alt.message}`;
+  return { ...best, message: summary };
 }
