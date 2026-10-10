@@ -1,7 +1,9 @@
 pub mod covers;
 pub mod discovery;
+pub mod downloads;
 pub mod emulators;
 pub mod library;
+pub mod hashing;
 pub mod media_proxy;
 pub mod requirements;
 pub mod web;
@@ -32,6 +34,8 @@ pub fn run() {
         .manage(media_proxy::MediaProxy::default())
         // Automatische Spiele-Cover (eingebettet + libretro-Thumbnails, mit Cache) – covers.rs
         .manage(covers::Covers::default())
+        // Downloads (Emulatoren, Firmware, Spiele von eigenen Adressen) mit Fortschritt und Abbruch – downloads.rs
+        .manage(downloads::Downloads::default())
         .setup(|app| {
             // Laufende Spiele und launch.log (App-Log-Ordner) – emulators.rs
             let processes = emulators::init_state(app.handle());
@@ -57,6 +61,12 @@ pub fn run() {
             covers::cover_cache_stats,
             covers::cover_cache_clear,
             library::games_scan,
+            downloads::download_start,
+            downloads::download_cancel,
+            downloads::download_discard,
+            downloads::file_fingerprint,
+            downloads::install_platform,
+            downloads::install_archive,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten der Tauri-Anwendung");

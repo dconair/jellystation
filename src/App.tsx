@@ -18,6 +18,7 @@ import { MOODS } from "./audio/moods";
 import { UiEffects } from "./prefs/UiEffects";
 import { ConfirmDialog, MessageDialog, PopupList } from "./ui/popup";
 import { supportedFolderNames } from "./emulators/catalog";
+import { InstallDialog } from "./install/InstallDialog";
 import { BookmarkDialog } from "./web/BookmarkDialog";
 import { hostOf, importGame, onWebDownload, openWeb } from "./web/webApi";
 import { APP_COMMIT_SUBJECT, APP_VERSION_LABEL } from "./version";
@@ -117,6 +118,7 @@ export default function App() {
 type Overlay =
   | { kind: "emulators"; focusId?: string; message?: string }
   | { kind: "files"; focusEmulatorId?: string; message?: string }
+  | { kind: "install" }
   | { kind: "users"; users: JfUser[] | null; error?: string }
   | { kind: "resume"; entry: XmbEntry; playlist?: XmbEntry[] }
   | { kind: "about" }
@@ -368,6 +370,7 @@ function Main({
       else if (entry.action === "open-about") openOverlay({ kind: "about" });
       else if (entry.action === "open-emulators") openOverlay({ kind: "emulators" });
       else if (entry.action === "open-requirements") openOverlay({ kind: "files" });
+      else if (entry.action === "open-install") openOverlay({ kind: "install" });
       else if (entry.action === "open-display-settings") openOverlay({ kind: "settings", section: "display" });
       else if (entry.action === "open-motion-settings") openOverlay({ kind: "settings", section: "motion" });
       else if (entry.action === "open-sound-settings") openOverlay({ kind: "settings", section: "sound" });
@@ -414,6 +417,15 @@ function Main({
       .join(" · ") || undefined;
 
   const close = () => openOverlay(null);
+
+  // Vom Nutzer gewählter oder frisch installierter Emulator-Pfad (null = wieder automatisch suchen).
+  const setEmulatorOverride = (id: string, path: string | null) => {
+    if (!settings) return;
+    const next = { ...(settings.emulators ?? {}) };
+    if (path) next[id] = path;
+    else delete next[id];
+    onChangeSettings({ ...settings, emulators: next });
+  };
 
   let layer: React.ReactNode = null;
   if (overlay?.kind === "player") {
@@ -674,14 +686,20 @@ function Main({
         loading={emulators.loading}
         focusId={overlay.focusId}
         message={overlay.message}
-        onSetOverride={(id, path) => {
-          if (!settings) return;
-          const next = { ...(settings.emulators ?? {}) };
-          if (path) next[id] = path;
-          else delete next[id];
-          onChangeSettings({ ...settings, emulators: next });
-        }}
+        onSetOverride={setEmulatorOverride}
         onRefresh={emulators.refresh}
+        onClose={close}
+      />
+    );
+  } else if (overlay?.kind === "install") {
+    layer = (
+      <InstallDialog
+        settings={settings}
+        onChangeSettings={onChangeSettings}
+        emulators={emulators}
+        requirements={requirements}
+        onSetOverride={setEmulatorOverride}
+        onOpenEmulators={(focusId) => openOverlay({ kind: "emulators", focusId })}
         onClose={close}
       />
     );

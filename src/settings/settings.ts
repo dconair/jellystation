@@ -3,6 +3,8 @@ import type { Bookmark } from "../web/webApi";
 import { sanitizeUiPrefs } from "../prefs/uiPrefs";
 import type { UiPrefs } from "../prefs/uiPrefs";
 import type { StremioSettings } from "../stremio/types";
+import { sanitizeGameSources } from "../install/gameSources";
+import type { GameSource } from "../install/gameSources";
 
 export interface Settings {
   /** Schema-Version für spätere Migrationen. */
@@ -26,6 +28,8 @@ export interface Settings {
   biosDir?: string;
   /** Lesezeichen des Web-Bereichs (nur http/https). */
   bookmarks?: Bookmark[];
+  /** Eigene Spiele-Quellen für „Einrichtung & Downloads“ (vom Nutzer eingetragen, siehe src/install/); fehlt es, gibt es keine. */
+  gameSources?: GameSource[];
   /** Darstellung und Klang (siehe src/prefs/uiPrefs.ts); fehlt es, gelten die Standardwerte. */
   ui?: Partial<UiPrefs>;
   /** Spiele-Cover (siehe src/art/coverService.ts); fehlt es, gilt auto = true. */
@@ -114,6 +118,7 @@ function validate(raw: unknown): Settings | null {
     ...(r.ui && typeof r.ui === "object" ? { ui: sanitizeUiPrefs(r.ui) } : {}),
     ...(sanitizeBookmarks(r.bookmarks) ? { bookmarks: sanitizeBookmarks(r.bookmarks) } : {}),
     ...(sanitizeStremio(r.stremio) ? { stremio: sanitizeStremio(r.stremio) } : {}),
+    ...(sanitizeGameSources(r.gameSources) ? { gameSources: sanitizeGameSources(r.gameSources) } : {}),
     ...(r.covers && typeof r.covers === "object" ? { covers: { auto: r.covers.auto !== false } } : {}),
     ...(isStringRecord(r.gameSystems) && Object.keys(r.gameSystems).length > 0 ? { gameSystems: r.gameSystems } : {}),
     gamesDir: typeof r.gamesDir === "string" ? r.gamesDir : "",

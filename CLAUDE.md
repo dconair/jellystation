@@ -22,6 +22,7 @@ Ausführlich in `docs/ARCHITEKTUR.md` – vor größeren Änderungen lesen.
 - `src/ui/` gemeinsame PS3-Bausteine (Popup-Listen, Dialoge, `PsSymbol`)
 - `src/player/`, `src/jellyfin/`, `src/series/` Video-Player, Jellyfin-Zugriff, Serien-Screen
 - `src/library/`, `src/emulators/`, `src/launcher/` Spielebibliothek, Emulator-Katalog, Spielstart
+- `src/install/` „Einrichtung & Downloads“: Emulatoren von GitHub laden, BIOS/Firmware prüfen, eigene Spiele-Quellen (Rust: `downloads.rs`)
 - `src/setup/`, `src/settings/` Setup-Assistent und Einstellungen (Tauri-Store bzw. localStorage im Browser)
 - `src/input/` Gamepad-Hook
 - `src-tauri/src/` Rust-Befehle (Medien-Proxy, Server-Suche, Web-Bereich, Emulator-Start, Cover)

@@ -1,9 +1,10 @@
 /**
  * Dateien, die ein Emulator zusätzlich zum Programm braucht (BIOS, Firmware), und die Prüfung, ob sie da sind.
  *
- * JellyStation liefert und lädt solche Dateien NIE herunter: Sie stammen von der eigenen Konsole (PS1/PS2) bzw. von
- * Sonys Support-Seite (PS3-Firmware). Die App prüft nur, ob sie im BIOS-Ordner des Nutzers oder schon beim Emulator
- * liegen, und übernimmt sie auf Wunsch dorthin.
+ * JellyStation liefert BIOS-Dateien NIE und lädt sie nicht herunter: Sie stammen von der eigenen Konsole (PS1/PS2).
+ * Die PS3-Firmware lädt die App nur von einer Adresse auf offiziellen Sony-Servern, die der Nutzer selbst einfügt
+ * (src/install/). Hier wird geprüft, ob die Dateien im BIOS-Ordner des Nutzers oder schon beim Emulator liegen;
+ * auf Wunsch werden sie dorthin übernommen.
  */
 import { isTauri } from "../platform";
 import { biosCopy, errorText, requirementsScan } from "./backend";
