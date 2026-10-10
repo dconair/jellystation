@@ -16,6 +16,7 @@ src/
   stremio/                 Stremio-Addons als zweite Quelle: Protokoll, Kataloge, Stream-Auswahl, Addon-Verwaltung
   player/                  Video-Player im PS3-Stil
   emulators/               Emulator-Katalog, Erkennung, Dialoge
+  install/                 „Einrichtung & Downloads“: Emulatoren von GitHub laden, BIOS/Firmware prüfen, eigene Spiele-Quellen
   launcher/                Spielstart (Rust-Befehl game_launch) + Start-Overlay
   ui/                      Gemeinsame PS3-Bausteine (PsSymbol, Popup-Listen, Dialoge)
   art/                     Cover-Bilder (lokal, HTTP, generiert)
@@ -134,6 +135,28 @@ etwas verschoben, umbenannt oder entpackt.
   Gespeichert wird nur in `settings.gameSystems` (`rel` → System | `"ignore"`); die Kategorien werden daraus neu gebaut, ohne den Ordner erneut zu lesen. Einstellungen → „Spiele-Zuordnung“
   (`AssignmentsList`) setzt einzelne oder alle Zuordnungen zurück. Der Emulator ergibt sich weiter aus dem Systemnamen (`emulatorForSystem`, `src/emulators/catalog.ts`).
 - Browser (`npm run dev`): Demo-Daten (`mockLibrary.ts`) laufen durch dieselbe Pipeline, dazu eine Beispieldatei „Mystery Disc.iso“ unter „Nicht zugeordnet“.
+### Downloads und Einrichtung (`downloads.rs`, `hashing.rs`)
+Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`). Die App bringt keine Quellen für Spiele, BIOS oder Firmware mit.
+- `download_start({ req: { id, url, destDir, fileName?, sha256?, allowedHosts?, allowHttp?, blockExecutables? } }) -> { path, fileName, size, resumed, alreadyPresent, sha256 }` –
+  lädt eine Datei streamend nach `<destDir>/<Name>.part` und benennt sie am Ende um. Fortsetzen: ein abgebrochener Download bleibt als `.part` samt Merkzettel
+  (`.part.json` mit Adresse, ETag/Last-Modified) liegen und wird per `Range`/`If-Range` fortgesetzt; liefert der Server etwas anderes, beginnt er von vorn.
+  Nur https (http nur mit `allowHttp`, für selbst eingetragene Adressen); Weiterleitungen nur auf `allowedHosts` (leer = nur der Server der Adresse,
+  `*.beispiel.de` = Unterserver) und nie von https zu http; Dateiname aus `fileName`, sonst `Content-Disposition`, sonst Adresse – immer bereinigt
+  (kein Pfad, keine Windows-Sonderzeichen); eine Webseite statt einer Datei wird abgelehnt; `blockExecutables` lehnt .exe/.sh/… ab; vorhandene Dateien werden nie
+  überschrieben (`Name (2).iso`), eine gleich große vorhandene Datei wird nicht neu geladen (`alreadyPresent`). 60 s ohne Daten = Abbruch mit Hinweis zum Fortsetzen.
+  Stimmt `sha256` nicht, wird die Datei verworfen. Event `download-progress` `{ id, received, total, state: starting|running|verifying|done|failed|cancelled, message, partPath }`.
+- `download_cancel({ id }) -> boolean` (das Teilstück bleibt), `download_discard({ partPath })` (löscht nur `….part` samt Merkzettel).
+- `file_fingerprint({ path }) -> { size, head, md5, sha256 }` – ein Durchgang, eigene SHA-256-/MD5-Implementierung (`hashing.rs`, keine neuen Pakete).
+- `install_platform() -> { os, arch, emulatorsDir, home }` – macOS `~/Applications`, sonst `<Datenordner>/JellyStation/Emulators`.
+- `install_archive({ req: { archive, id, destRoot, exePattern?, removeArchive? } }) -> { path, root }` – entpackt mit Bordmitteln (macOS `ditto`/`hdiutil` für .dmg,
+  Windows `System32\tar.exe`, sonst `unzip`/`tar`; `.7z` über `tar`/7-Zip, sonst Hinweis zum Entpacken von Hand). macOS: die `.app` kommt nach `destRoot`. Windows/Linux:
+  Inhalt wird in `destRoot/<id>` zusammengeführt (eigene Einstellungen und Spielstände des Emulators bleiben), die Programmdatei wird per `exePattern` gesucht.
+- Frontend `src/install/`: `backend.ts` (Hülle), `github.ts` (`pickAsset`: Archiv je Betriebssystem/Prozessor aus der GitHub-Antwort, `digest` = SHA-256), `sources.ts` (macOS aus
+  `emulators.json`, Windows eigene Tabelle – ungeprüft gegen echte Releases, Dateinamen werden zur Laufzeit gelesen), `emulatorInstall.ts`, `biosCheck.ts` (Größe, Dateikopf
+  „SCEUF“ der PS3-Firmware, bekannte PS1-MD5; unbekannte Prüfsumme ist kein Fehler), `gameSources.ts` (Quellen: Datei, Verzeichnisseite, Adressliste, JSON; Server außerhalb der Quelle
+  müssen bestätigt werden), `downloadQueue.ts` (Warteschlange, lebt so lange wie die App), `InstallDialog.tsx`, `GameSourcesDialog.tsx`. Einstellung: `settings.gameSources`.
+  Spiele landen im Spiele-Ordner (`settings.gamesDir`), bei Bedarf in einem Unterordner-Hinweis der Quelle; das System erkennt `library.rs` danach selbst. PS3-Firmware lädt die App nur von Adressen auf playstation.com/.net und sony.com, die der Nutzer einfügt.
+- Prüfung der reinen Logik ohne Fenster und Netz: `node dev/check-install-logic.mjs`; Rust-Tests: `cargo test --lib -- downloads hashing` (lokaler Mock-Server).
 
 ### Cover (`covers.rs`)
 - `cover_resolve({ system, path, title, online, retry? }) -> { path, source: "embedded"|"online"|"cache"|null, width, height, serial, error }` –

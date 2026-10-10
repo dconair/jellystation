@@ -111,7 +111,7 @@ export function RequirementsDialog(props: RequirementsDialogProps) {
         busy={loading || busy}
         focusId={focusId ? `req:${focusId}` : undefined}
         active={!layer}
-        footer={message ? { text: message, kind: "warn" } : { text: "Diese Dateien werden nie mitgeliefert oder heruntergeladen – sie stammen von deiner eigenen Konsole bzw. von Sony.", kind: "info" }}
+        footer={message ? { text: message, kind: "warn" } : { text: "BIOS-Dateien werden nie mitgeliefert – sie stammen von deiner eigenen Konsole. Die PS3-Firmware gibt es bei Sony; „Einrichtung & Downloads“ prüft Dateien und lädt sie von einer Sony-Adresse.", kind: "info" }}
         onSelect={(id) => {
           if (id === "dir") void chooseDir();
           else if (id === "recheck") void onRefresh();

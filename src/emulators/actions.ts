@@ -7,7 +7,7 @@ import type { InspectResult } from "./backend";
 import type { EmulatorDef } from "./catalog";
 
 /** Letzter Teil eines Pfads ("/Applications/RPCS3.app/" → "RPCS3.app"). */
-export const baseName = (path: string) => path.replace(/\/+$/, "").split("/").pop() ?? path;
+export const baseName = (path: string) => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? path;
 
 /** Öffnet eine Webseite im Standardbrowser (in Tauri über das Shell-Plugin, sonst als neuer Tab). */
 export async function openExternal(url: string): Promise<void> {
@@ -29,9 +29,10 @@ export async function pickAppBundle(defaultPath = "/Applications"): Promise<stri
   const picked = await open({
     directory: false,
     multiple: false,
-    defaultPath,
+    defaultPath: /windows/i.test(navigator.userAgent) ? undefined : defaultPath,
     title: "Emulator-App wählen",
-    filters: [{ name: "Programme", extensions: ["app"] }],
+    // Windows: Programme sind .exe-Dateien; macOS: .app-Pakete.
+    filters: [{ name: "Programme", extensions: /windows/i.test(navigator.userAgent) ? ["exe"] : ["app"] }],
   });
   return typeof picked === "string" && picked !== "" ? picked.replace(/\/+$/, "") || "/" : null;
 }
@@ -43,6 +44,8 @@ export async function pickAppBundle(defaultPath = "/Applications"): Promise<stri
 export function looksLikeEmulator(def: EmulatorDef, path: string, info: Pick<InspectResult, "bundleId">): boolean {
   try {
     if (new RegExp(def.appPattern, "i").test(baseName(path))) return true;
+    // Windows: "rpcs3.exe", "duckstation-qt-x64-ReleaseLTCG.exe" – der Dateiname beginnt mit dem Namen des Emulators.
+    if (/\.exe$/i.test(path) && baseName(path).toLowerCase().startsWith(def.name.toLowerCase())) return true;
   } catch {
     // Ungültiges Muster im Katalog: nicht an der Auswahl scheitern.
     return true;
