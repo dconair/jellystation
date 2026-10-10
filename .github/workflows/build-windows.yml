@@ -1,19 +1,28 @@
-# Baut JellyStation für Windows und lädt den Installer (.exe, .msi) als Artefakt hoch.
+# Baut JellyStation für Windows und hängt die Installer (.exe, .msi) an dieselbe GitHub-Release wie die Mac-DMG.
 #
-# Auslösen:  in GitHub: Actions → „Windows-Build“ → Run workflow. Die Dateien liegen danach unten auf der Lauf-Seite
-#   unter „Artifacts“ (ZIP-Datei herunterladen und entpacken).
+# Auslösen:  git tag v0.1.0 && git push origin v0.1.0     (läuft zusammen mit dem Mac-Build und füllt dieselbe Release)
+#   oder in GitHub: Actions → „Windows-Build“ → Run workflow, dort den Tag der Release eintragen (z. B. v0.1.0).
+#   Gibt es die Release noch nicht, legt der Lauf sie an.
+# Zusätzlich liegen die Dateien als Artefakt „JellyStation-Windows“ auf der Lauf-Seite (läuft nach 90 Tagen ab).
 # Die App ist NICHT signiert: Windows SmartScreen warnt beim ersten Start („Weitere Informationen“ → „Trotzdem ausführen“).
 name: Windows-Build
 
 on:
   workflow_dispatch:
-  # Testlauf, wenn nur dieser Workflow geändert wird (z. B. im Pull Request)
+    inputs:
+      tag:
+        description: "Tag der Release, an die die Windows-Dateien gehängt werden"
+        required: true
+        default: "v0.1.0"
+  push:
+    tags: ["v*"]
+  # Testlauf ohne Release, wenn nur dieser Workflow geändert wird (z. B. im Pull Request)
   pull_request:
     paths:
       - ".github/workflows/build-windows.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -29,7 +38,13 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
-      - run: npm run tauri build -- --bundles nsis,msi
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Leer (Pull Request) = nur bauen, keine Release anfassen
+          tagName: ${{ github.event_name == 'push' && github.ref_name || github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
+          args: --bundles nsis,msi
       - uses: actions/upload-artifact@v4
         with:
           name: JellyStation-Windows
