@@ -1046,6 +1046,10 @@ export async function startMockJellyfin(options = {}) {
         if (!item || !user) return sendText(req, res, 404, "");
         return sendJson(req, res, 200, itemDto(item, user.id, true, { trickplay: true, chapters: true }));
       }
+      if ((m = /^\/items\/([^/]+)\/images\/backdrop$/.exec(low)) && req.method === "GET") {
+        return sendBody(req, res, 200, coverPng(m[1], 640, 360), "image/png");
+      }
+      if (/^\/items\/([^/]+)\/images\/logo$/.test(low) && req.method === "GET") return sendText(req, res, 404, "");
       if ((m = /^\/items\/([^/]+)\/images\/primary$/.exec(low)) && req.method === "GET") {
         return sendBody(req, res, 200, coverPng(m[1], 200, 300), "image/png");
       }

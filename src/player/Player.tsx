@@ -14,6 +14,7 @@ import { PlayerEngine } from "./engine";
 import type { EngineState, PlayerCloseInfo } from "./engine";
 import { formatBitrate, headlineOf, METHOD_LABEL, METHOD_SHORT } from "./format";
 import { NextEpisode } from "./NextEpisode";
+import { PauseScreen } from "./PauseScreen";
 import { OptionsMenu, qualityLabel } from "./OptionsMenu";
 import type { FitMode } from "./OptionsMenu";
 import { Busy, CenterFlash, Cues, Osd, VolumeHud } from "./Osd";
@@ -447,6 +448,13 @@ export function Player({ entry, jellyfin = null, startSec = 0, playlist, onClose
         preload="auto"
         disablePictureInPicture
         controlsList="nodownload noremoteplayback"
+      />
+
+      <PauseScreen
+        entry={current}
+        headline={headline}
+        jellyfin={jellyfin}
+        paused={st.paused && st.phase === "ready" && !st.ended && !dialogOpen && !scrub}
       />
 
       <Cues lines={st.cues} raised={visible} />
