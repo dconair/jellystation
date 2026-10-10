@@ -510,7 +510,7 @@ if (run("pad")) {
   check("L1: vorige Folge", (await detailTitle(page)) === "Kapitel Drei: Der Monsterschlächter", await detailTitle(page));
   await tap(page, "back", 1, 900);
   check("○: zurück zur Übersicht, Fokus auf der Folge", !(await has(page, ".series-detail")) && (await focusedRow(page)) === "Kapitel Drei: Der Monsterschlächter", await focusedRow(page));
-  await tap(page, "up", 3);
+  await tap(page, "up", 4);
   await tap(page, "confirm", 1, 600);
   await expectPlayer(page, "Controller: Hauptknopf startet die Folge bei ≈ 12 s", 11.5, 20);
   await tap(page, "back", 1, 900);
