@@ -15,10 +15,10 @@ const TENT = [
 ];
 // vier PlayStation-Symbole als Raute wie an den Controller-Tasten
 const SYM = `
-  <path d="M-27 -128 L0 -174 L27 -128 Z"/>
-  <circle cx="74" cy="-84" r="27"/>
-  <path d="M-24 -44 l48 48 M24 -44 l-48 48"/>
-  <rect x="-102" y="-112" width="54" height="54" rx="4"/>`;
+  <path d="M-27 -156 L0 -202 L27 -156 Z" transform="translate(0 26)"/>
+  <circle cx="90" cy="-80" r="25"/>
+  <path d="M-22 -14 l44 44 M22 -14 l-44 44" transform="translate(0 -8)"/>
+  <rect x="-113" y="-103" width="46" height="46" rx="4"/>`;
 const symG = (extra = "") => `<g fill="none" stroke-linecap="round" stroke-linejoin="round" ${extra}>${SYM}</g>`;
 const tents = TENT.map((d) => `<path d="${d}"/>`).join("");
 
