@@ -13,7 +13,8 @@ import { SettingsDialog } from "./prefs/SettingsDialog";
 import type { SettingsSection } from "./prefs/SettingsDialog";
 import { SeriesScreen } from "./series/SeriesScreen";
 import { loadPrefs, savePrefs } from "./player/prefs";
-import { PopupList } from "./ui/popup";
+import { MessageDialog, PopupList } from "./ui/popup";
+import { APP_COMMIT_SUBJECT, APP_VERSION_LABEL } from "./version";
 import type { PopupItem } from "./ui/popup";
 import { formatClock, formatRemaining, watchState } from "./xmb/progress";
 import { useJellyfinLibrary } from "./jellyfin/useJellyfinLibrary";
@@ -36,6 +37,8 @@ import { Xmb } from "./xmb/Xmb";
 export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [phase, setPhase] = useState<"loading" | "setup" | "ready">("loading");
+  // Schritt, der allein bearbeitet wird (Einstellungen → Server / Spiele-Ordner); undefined = ganzer Assistent.
+  const [onlyStep, setOnlyStep] = useState<number | undefined>(undefined);
 
   // Neuester Stand der Einstellungen für das (entprellte) Speichern der Darstellungs-Einstellungen.
   const latest = useRef<Settings | null>(null);
@@ -69,9 +72,11 @@ export default function App() {
     return (
       <SetupWizard
         initial={settings}
-        onCancel={settings ? () => setPhase("ready") : undefined}
+        onlyStep={onlyStep}
+        onCancel={settings ? () => { setOnlyStep(undefined); setPhase("ready"); } : undefined}
         onComplete={(saved) => {
           setSettings(saved);
+          setOnlyStep(undefined);
           setPhase("ready");
         }}
       />
@@ -89,7 +94,10 @@ export default function App() {
       key={settings?.completedAt}
       settings={settings}
       onChangeSettings={changeSettings}
-      onRunSetup={() => setPhase("setup")}
+      onRunSetup={(step) => {
+        setOnlyStep(step);
+        setPhase("setup");
+      }}
     />
   );
 }
@@ -99,6 +107,8 @@ type Overlay =
   | { kind: "files"; focusEmulatorId?: string; message?: string }
   | { kind: "users"; users: JfUser[] | null; error?: string }
   | { kind: "resume"; entry: XmbEntry; playlist?: XmbEntry[] }
+  | { kind: "about" }
+  | { kind: "setupStep"; step: number }
   | { kind: "series"; series: XmbEntry }
   | { kind: "settings"; section: SettingsSection }
   | { kind: "covers" }
@@ -116,7 +126,7 @@ function Main({
 }: {
   settings: Settings | null;
   onChangeSettings: (next: Settings) => void;
-  onRunSetup: () => void;
+  onRunSetup: (onlyStep?: number) => void;
 }) {
   const library = useGameLibrary(settings?.gamesDir, coversAuto(settings));
   const jellyfin = useJellyfinLibrary(settings?.jellyfin);
@@ -237,6 +247,9 @@ function Main({
   const onActivate = useCallback(
     (entry: XmbEntry, category: XmbCategory, notify: (text: string) => void) => {
       if (entry.action === "run-setup") onRunSetup();
+      else if (entry.action === "open-server-settings") openOverlay({ kind: "setupStep", step: 0 });
+      else if (entry.action === "open-games-dir") openOverlay({ kind: "setupStep", step: 1 });
+      else if (entry.action === "open-about") openOverlay({ kind: "about" });
       else if (entry.action === "open-emulators") openOverlay({ kind: "emulators" });
       else if (entry.action === "open-requirements") openOverlay({ kind: "files" });
       else if (entry.action === "open-display-settings") openOverlay({ kind: "settings", section: "display" });
@@ -300,6 +313,36 @@ function Main({
         ]}
         onSelect={(id) => openOverlay({ kind: "player", entry, startSec: id === "resume" ? resumeSec : 0, playlist })}
         onBack={close}
+      />
+    );
+  } else if (overlay?.kind === "setupStep") {
+    layer = (
+      <SetupWizard
+        initial={settings}
+        onlyStep={overlay.step}
+        onCancel={close}
+        onComplete={(saved) => {
+          onChangeSettings(saved);
+          close();
+        }}
+      />
+    );
+  } else if (overlay?.kind === "about") {
+    layer = (
+      <MessageDialog
+        title="JellyStation"
+        lines={[
+          `Version ${APP_VERSION_LABEL}`,
+          APP_COMMIT_SUBJECT ? `Letzte Änderung: ${APP_COMMIT_SUBJECT}` : "Ein Media-Hub im Stil der PS3-XrossMediaBar für Jellyfin und Spiele.",
+          "Spiele, BIOS- und Firmware-Dateien werden nicht mitgeliefert. Nutze nur Inhalte, die du besitzt oder legal beziehen darfst.",
+        ]}
+        detail={[
+          `Einstellungen: ${settings?.jellyfin.url ? "Jellyfin verbunden" : "kein Jellyfin-Server"}`,
+          `Spiele-Ordner: ${settings?.gamesDir || "Standard / Demo"}`,
+          "Quelltext und Anleitung: github.com/dconair/jellystation",
+        ]}
+        detailStart="top"
+        onClose={close}
       />
     );
   } else if (overlay?.kind === "series") {

@@ -106,8 +106,8 @@ export const categories: XmbCategory[] = [
     label: "Einstellungen",
     icon: "settings",
     entries: [
-      entry("st1", "Server", "Verbindung verwalten", 225),
-      entry("st-games", "Spiele-Ordner", "Nicht gewählt", 90),
+      { ...entry("st1", "Server", "Verbindung verwalten", 225, "Jellyfin-Adresse und API-Schlüssel ändern und die Verbindung testen."), action: "open-server-settings" },
+      { ...entry("st-games", "Spiele-Ordner", "Nicht gewählt", 90, "Den Ordner mit deinen Spielen wählen (pro System ein Unterordner)."), action: "open-games-dir" },
       {
         ...entry("st-emu", "Emulatoren", "Installieren, finden, Pfad wählen", 20, "Zeigt, welche Emulatoren gefunden wurden, und hilft beim Installieren."),
         action: "open-emulators",
@@ -141,7 +141,7 @@ export const categories: XmbCategory[] = [
         action: "open-sound-settings",
       },
       { ...entry("st-setup", "Einrichtung erneut ausführen", "Jellyfin, Ordner, Controller", 150, "Startet den Setup-Assistenten mit deinen aktuellen Werten."), action: "run-setup" },
-      entry("st5", "Über JellyStation", `Version ${APP_VERSION_LABEL}`, 280, aboutDescription),
+      { ...entry("st5", "Über JellyStation", `Version ${APP_VERSION_LABEL}`, 280, aboutDescription), action: "open-about" },
     ],
   },
 ];

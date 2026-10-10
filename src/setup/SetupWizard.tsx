@@ -26,6 +26,8 @@ interface SetupWizardProps {
   onComplete: (settings: Settings) => void;
   /** Nur gesetzt, wenn bereits eine Konfiguration existiert. */
   onCancel?: () => void;
+  /** Nur dieser Schritt (z. B. Server oder Spiele-Ordner aus den Einstellungen): „Speichern“ statt Durchlauf aller Schritte. */
+  onlyStep?: number;
 }
 
 const STEPS: { symbol: PsSymbolName; title: string }[] = [
@@ -65,8 +67,9 @@ function Hint({ symbol, label, onClick, disabled, primary }: HintProps) {
   );
 }
 
-export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps) {
-  const [step, setStep] = useState(0);
+export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWizardProps) {
+  const single = onlyStep !== undefined;
+  const [step, setStep] = useState(onlyStep ?? 0);
   const [draft, setDraft] = useState<Draft>({
     url: initial?.jellyfin.url ?? "",
     apiKey: initial?.jellyfin.apiKey ?? "",
@@ -175,7 +178,8 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
       ...(initial?.ui ? { ui: initial.ui } : {}),
       ...(initial?.covers ? { covers: initial.covers } : {}),
       gamesDir: draft.gamesDir.trim(),
-      completedAt: new Date().toISOString(),
+      // Einzelner Schritt aus den Einstellungen: Menü nicht neu aufbauen (completedAt ist der Schlüssel dafür).
+      completedAt: single && initial ? initial.completedAt : new Date().toISOString(),
     };
     try {
       await saveSettings(settings);
@@ -186,16 +190,16 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
     }
   };
 
-  const last = step === STEPS.length - 1;
+  const last = single || step === STEPS.length - 1;
   const canNext = useMemo(() => {
     if (step === 0) return isValidServerUrl(draft.url);
     if (step === 1) return draft.gamesDir.trim().length > 0;
     if (step === STEP_CHECK) return !checking && !saving;
     return true;
   }, [step, draft, checking, saving]);
-  const canSkip = step < STEP_CHECK;
+  const canSkip = !single && step < STEP_CHECK;
   const canTest = step === 0 && urlOk && !test.busy;
-  const canRecheck = last && !checking && !saving;
+  const canRecheck = step === STEP_CHECK && !checking && !saving;
 
   const next = () => {
     if (!canNext) {
@@ -207,7 +211,7 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
     else setStep((s) => s + 1);
   };
   const back = () => {
-    if (step > 0) {
+    if (!single && step > 0) {
       playSfx("back");
       setStep((s) => s - 1);
     } else if (onCancel) {
@@ -335,8 +339,9 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
         <header className="setup-head">
           <div className="setup-title">
             <div className="setup-logo">JellyStation</div>
-            <h1 className="setup-sub">{initial ? "Einrichtung" : "Ersteinrichtung"}</h1>
+            <h1 className="setup-sub">{single ? "Einstellung" : initial ? "Einrichtung" : "Ersteinrichtung"}</h1>
           </div>
+          {!single && (
           <ol className="setup-steps" aria-label="Fortschritt">
             {STEPS.map((s, i) => {
               const state = i === step ? "is-active" : i < step ? "is-done" : "is-open";
@@ -356,6 +361,7 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
               );
             })}
           </ol>
+          )}
         </header>
 
         <div className="setup-body" key={step} ref={bodyRef}>
@@ -372,8 +378,8 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
         </div>
 
         <footer className="setup-actions">
-          {(step > 0 || onCancel) && (
-            <Hint symbol="circle" label={step === 0 ? "Abbrechen" : "Zurück"} onClick={back} disabled={saving} />
+          {((!single && step > 0) || onCancel) && (
+            <Hint symbol="circle" label={single || step === 0 ? "Abbrechen" : "Zurück"} onClick={back} disabled={saving} />
           )}
           <span className="setup-actions__spacer">
             {last && !checking && results.length > 0 && (problems > 0 || warnings > 0) && (
@@ -387,10 +393,10 @@ export function SetupWizard({ initial, onComplete, onCancel }: SetupWizardProps)
           {canSkip && <Hint symbol="triangle" label="Überspringen" onClick={skip} />}
           {step === 0 && <Hint symbol="square" label="Verbindung testen" onClick={retest} disabled={!canTest} />}
           {step === STEP_FILES && <Hint symbol="square" label="Neu prüfen" onClick={() => void requirements.refresh()} />}
-          {last && <Hint symbol="square" label="Erneut prüfen" onClick={recheck} disabled={!canRecheck} />}
+          {step === STEP_CHECK && <Hint symbol="square" label="Erneut prüfen" onClick={recheck} disabled={!canRecheck} />}
           <Hint
             symbol="cross"
-            label={last ? (saving ? "Speichere …" : "Einrichtung abschließen") : "Weiter"}
+            label={last ? (saving ? "Speichere …" : single ? "Speichern" : "Einrichtung abschließen") : "Weiter"}
             onClick={next}
             disabled={!canNext}
             primary
