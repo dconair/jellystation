@@ -3,6 +3,7 @@ pub mod discovery;
 pub mod emulators;
 pub mod media_proxy;
 pub mod requirements;
+pub mod web;
 
 #[cfg(test)]
 mod config_tests;
@@ -48,6 +49,9 @@ pub fn run() {
             emulators::launch_log_tail,
             requirements::requirements_scan,
             requirements::bios_copy,
+            web::web_open,
+            web::web_close,
+            web::game_import,
             covers::cover_resolve,
             covers::cover_cache_stats,
             covers::cover_cache_clear,

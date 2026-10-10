@@ -176,6 +176,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
       ...(initial?.emulators ? { emulators: initial.emulators } : {}),
       ...(draft.biosDir.trim() ? { biosDir: draft.biosDir.trim() } : {}),
       ...(initial?.ui ? { ui: initial.ui } : {}),
+      ...(initial?.bookmarks ? { bookmarks: initial.bookmarks } : {}),
       ...(initial?.covers ? { covers: initial.covers } : {}),
       gamesDir: draft.gamesDir.trim(),
       // Einzelner Schritt aus den Einstellungen: Menü nicht neu aufbauen (completedAt ist der Schlüssel dafür).

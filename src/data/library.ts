@@ -108,6 +108,12 @@ export const categories: XmbCategory[] = [
     ],
   },
   {
+    id: "web",
+    label: "Web",
+    icon: "web",
+    entries: [{ ...entry("web-add", "Lesezeichen hinzufügen", "Seiten, die du in der App öffnen willst", 200, "Lege Webseiten als Lesezeichen an. Sie öffnen in einem eigenen Fenster; Downloads landen im Ordner „Downloads“ deines Spiele-Ordners und lassen sich danach einem System zuordnen. △ löscht ein Lesezeichen."), action: "add-bookmark" }],
+  },
+  {
     id: "settings",
     label: "Einstellungen",
     icon: "settings",

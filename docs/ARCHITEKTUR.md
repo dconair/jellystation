@@ -49,6 +49,12 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
 - `jellyfin_discover({ waitMs? }) -> [{ address, id, name }]` – UDP-Broadcast „who is JellyfinServer?“ an Port 7359; jeder Server einmal.
   Der Setup-Assistent sucht beim Öffnen automatisch (nur Desktop-App) und übernimmt einen einzelnen Fund.
 
+### Web-Bereich (`web.rs`)
+- `web_open({ url, title?, downloadDir })` – öffnet nur http/https in einem eigenen Fenster „web“ (ohne Tauri-Rechte, eigenes Profil), Downloads
+  landen in `downloadDir` (= `<Spiele-Ordner>/Downloads`), Event `web-download` `{ name, path, state: started|done|failed }`.
+- `game_import({ from, gamesDir, system })` – verschiebt eine Datei aus `Downloads/` nach `<Spiele-Ordner>/<System>/` (kein Überschreiben, nur gültige Systemnamen).
+- `web_close()`. Frontend: `src/web/*`, Lesezeichen in `settings.bookmarks`; keine Seiten vorinstalliert, nichts wird automatisch geladen oder entpackt.
+
 ### BIOS/Firmware (`requirements.rs`)
 - `requirements_scan({ specs: [{ id, locations: [{ kind: "emulator"|"folder", dir }], nameRegex?, minSize, maxSize, markers[] }] }) -> [{ id, found: [{ kind, dir, path, size }] }]` –
   sucht Dateien nach Namensmuster/Größe (im BIOS-Ordner auch eine Ebene tiefer) und Markerdateien (z. B. `sys/external/liblv2.sprx` der

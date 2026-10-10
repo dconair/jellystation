@@ -33,6 +33,17 @@ const glyphs: Record<CategoryIconName, Glyph> = {
     ),
   },
 
+  // Web: Globus mit Längen- und Breitengraden.
+  web: {
+    fill: (p) => <circle cx="12" cy="12" r="9.4" fill={p} />,
+    cut: (
+      <>
+        <ellipse cx="12" cy="12" rx="4" ry="9.4" fill="none" stroke={K} strokeWidth="1.5" />
+        <path d="M2.8 12h18.4M4.4 7.2h15.2M4.4 16.8h15.2" fill="none" stroke={K} strokeWidth="1.5" strokeLinecap="round" />
+      </>
+    ),
+  },
+
   // Zuletzt: Uhr mit Zeigern (Verlauf).
   recent: {
     fill: (p) => <circle cx="12" cy="12" r="9.2" fill={p} />,

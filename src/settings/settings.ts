@@ -1,4 +1,5 @@
 import { isTauri } from "../platform";
+import type { Bookmark } from "../web/webApi";
 import { sanitizeUiPrefs } from "../prefs/uiPrefs";
 import type { UiPrefs } from "../prefs/uiPrefs";
 
@@ -20,6 +21,8 @@ export interface Settings {
   emulators?: Record<string, string>;
   /** Ordner mit BIOS- und Firmware-Dateien (vom Nutzer bereitgestellt); fehlt er, gilt ~/JellyStation/BIOS. */
   biosDir?: string;
+  /** Lesezeichen des Web-Bereichs (nur http/https). */
+  bookmarks?: Bookmark[];
   /** Darstellung und Klang (siehe src/prefs/uiPrefs.ts); fehlt es, gelten die Standardwerte. */
   ui?: Partial<UiPrefs>;
   /** Spiele-Cover (siehe src/art/coverService.ts); fehlt es, gilt auto = true. */
@@ -98,10 +101,23 @@ function validate(raw: unknown): Settings | null {
     ...(isStringRecord(r.emulators) ? { emulators: r.emulators } : {}),
     ...(typeof r.biosDir === "string" && r.biosDir.trim() ? { biosDir: r.biosDir } : {}),
     ...(r.ui && typeof r.ui === "object" ? { ui: sanitizeUiPrefs(r.ui) } : {}),
+    ...(sanitizeBookmarks(r.bookmarks) ? { bookmarks: sanitizeBookmarks(r.bookmarks) } : {}),
     ...(r.covers && typeof r.covers === "object" ? { covers: { auto: r.covers.auto !== false } } : {}),
     gamesDir: typeof r.gamesDir === "string" ? r.gamesDir : "",
     completedAt: r.completedAt,
   };
+}
+
+function sanitizeBookmarks(raw: unknown): Bookmark[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: Bookmark[] = [];
+  for (const b of raw.slice(0, 40)) {
+    if (!b || typeof b !== "object") continue;
+    const { id, name, url } = b as Record<string, unknown>;
+    if (typeof id !== "string" || typeof name !== "string" || typeof url !== "string" || !/^https?:\/\//i.test(url)) continue;
+    out.push({ id: id.slice(0, 40), name: name.slice(0, 60), url: url.slice(0, 500) });
+  }
+  return out.length ? out : undefined;
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {

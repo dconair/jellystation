@@ -27,6 +27,8 @@ export interface GameLibrary {
   cancelCovers: () => void;
   /** Nach dem Leeren des Cache: aus dem Cache stammende Cover wieder durch Platzhalter ersetzen. */
   dropAutoCovers: () => void;
+  /** Liest den Spiele-Ordner neu ein (z. B. nach einem Download). */
+  rescan: () => void;
 }
 
 const IDLE: CoverProgress = { running: false, done: 0, total: 0, found: 0 };
@@ -85,6 +87,8 @@ export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary
     scan: 0,
   });
   const [progress, setProgress] = useState<CoverProgress>(IDLE);
+  const [scanNonce, setScanNonce] = useState(0);
+  const rescan = useCallback(() => setScanNonce((n) => n + 1), []);
   const latest = useRef(library);
   latest.current = library;
   const job = useRef<CoverJob | null>(null);
@@ -131,7 +135,7 @@ export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary
       cancelled = true;
       stopJob();
     };
-  }, [baseDir, stopJob]);
+  }, [baseDir, stopJob, scanNonce]);
 
   // Cover im Hintergrund: nach jedem Scan und wenn „automatisch laden“ umgeschaltet wird.
   useEffect(() => {
@@ -202,5 +206,5 @@ export function useGameLibrary(baseDir?: string, autoCovers = true): GameLibrary
     setProgress(IDLE);
   }, [stopJob]);
 
-  return { source: library.source, categories: library.categories, covers: progress, searchCovers, cancelCovers, dropAutoCovers };
+  return { source: library.source, categories: library.categories, covers: progress, searchCovers, cancelCovers, dropAutoCovers, rescan };
 }

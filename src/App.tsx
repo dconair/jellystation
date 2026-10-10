@@ -7,14 +7,17 @@ import { biosDirOf, blockingMissing, checkRequirements, missingLabels, requireme
 import { useRequirements } from "./emulators/useRequirements";
 import { listJfUsers } from "./jellyfin/context";
 import type { JfUser } from "./jellyfin/context";
-import { emptyLibraryEntry } from "./jellyfin/library";
+import { emptyLibraryEntry, hueFromTitle } from "./jellyfin/library";
 import { Player } from "./player/Player";
 import { SettingsDialog } from "./prefs/SettingsDialog";
 import type { SettingsSection } from "./prefs/SettingsDialog";
 import { SeriesScreen } from "./series/SeriesScreen";
 import { loadPrefs, savePrefs } from "./player/prefs";
 import { UiEffects } from "./prefs/UiEffects";
-import { MessageDialog, PopupList } from "./ui/popup";
+import { ConfirmDialog, MessageDialog, PopupList } from "./ui/popup";
+import { supportedFolderNames } from "./emulators/catalog";
+import { BookmarkDialog } from "./web/BookmarkDialog";
+import { hostOf, importGame, onWebDownload, openWeb } from "./web/webApi";
 import { APP_COMMIT_SUBJECT, APP_VERSION_LABEL } from "./version";
 import type { PopupItem } from "./ui/popup";
 import { formatClock, formatRemaining, watchState } from "./xmb/progress";
@@ -110,6 +113,11 @@ type Overlay =
   | { kind: "users"; users: JfUser[] | null; error?: string }
   | { kind: "resume"; entry: XmbEntry; playlist?: XmbEntry[] }
   | { kind: "about" }
+  | { kind: "bookmarkAdd" }
+  | { kind: "bookmarkDelete"; id: string }
+  | { kind: "webNotice"; id: string }
+  | { kind: "import"; path: string; name: string }
+  | { kind: "message"; title: string; lines: string[]; tone: "info" | "error" | "success" }
   | { kind: "setupStep"; step: number }
   | { kind: "series"; series: XmbEntry }
   | { kind: "settings"; section: SettingsSection }
@@ -219,7 +227,20 @@ function Main({
     const games = new Map(library.categories.flatMap((c) => c.entries).map((e) => [e.id, e] as const));
     const recentGames = recentGameIds.map((id) => games.get(id)).filter((e): e is XmbEntry => !!e);
     const recentEntries = [...recentJf.entries, ...recentGames];
-    const withRecent = base.map((cat) => (cat.id === "recent" && recentEntries.length > 0 ? { ...cat, entries: recentEntries } : cat));
+    const bookmarks = (settings?.bookmarks ?? []).map<XmbEntry>((b) => ({
+      id: `bm/${b.id}`,
+      title: b.name,
+      subtitle: hostOf(b.url),
+      description: `${b.url} – öffnet in einem eigenen Fenster der App. △ löscht das Lesezeichen.`,
+      hue: hueFromTitle(b.name),
+    }));
+    const withRecent = base.map((cat) =>
+      cat.id === "recent" && recentEntries.length > 0
+        ? { ...cat, entries: recentEntries }
+        : cat.id === "web"
+          ? { ...cat, entries: [...bookmarks, ...cat.entries] }
+          : cat,
+    );
     // Spiele-Systeme (PS1, PS2, PS3 …) landen direkt hinter den Serien.
     const at = withRecent.findIndex((c) => c.id === "series") + 1;
     return [...withRecent.slice(0, at), ...library.categories, ...withRecent.slice(at)];
@@ -255,6 +276,35 @@ function Main({
     }
   }, [jfConfig, openOverlay]);
 
+  const openBookmark = useCallback(
+    async (id: string, notify?: (text: string) => void) => {
+      const b = settings?.bookmarks?.find((x) => x.id === id);
+      if (!b) return;
+      try {
+        await openWeb(b.url, b.name, settings?.gamesDir);
+      } catch (err) {
+        const text = err instanceof Error ? err.message : String(err);
+        if (notify) notify(text);
+        else openOverlay({ kind: "message", title: "Seite lässt sich nicht öffnen", lines: [text], tone: "error" });
+      }
+    },
+    [settings, openOverlay],
+  );
+
+  // Downloads aus dem Web-Fenster: danach fragen, in welches System die Datei gehört.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    let dead = false;
+    void onWebDownload((e) => {
+      if (e.state === "done" && e.path) setOverlay({ kind: "import", path: e.path, name: e.name });
+      else if (e.state === "failed") setOverlay({ kind: "message", title: "Download fehlgeschlagen", lines: [`„${e.name}“ konnte nicht vollständig geladen werden.`], tone: "error" });
+    }).then((fn) => (dead ? fn() : (off = fn)));
+    return () => {
+      dead = true;
+      off?.();
+    };
+  }, []);
+
   const onActivate = useCallback(
     (entry: XmbEntry, category: XmbCategory, notify: (text: string) => void) => {
       if (entry.action === "run-setup") onRunSetup();
@@ -274,7 +324,12 @@ function Main({
         setAlwaysTranscode(next);
         notify(next ? "Der Server wandelt jetzt immer um" : "Dateien werden direkt abgespielt, wenn möglich");
       }
-      else if (entry.id.startsWith("jf-empty/") || entry.id === "recent-empty") return; // Platzhalter einer leeren Spalte
+      else if (entry.action === "add-bookmark") openOverlay({ kind: "bookmarkAdd" });
+      else if (entry.id.startsWith("bm/")) {
+        const id = entry.id.slice(3);
+        if (localStorage.getItem("jellystation.webNotice") === "1") void openBookmark(id, notify);
+        else openOverlay({ kind: "webNotice", id });
+      } else if (entry.id.startsWith("jf-empty/") || entry.id === "recent-empty") return; // Platzhalter einer leeren Spalte
       else if (entry.game) {
         setRecentGameIds(rememberGame(entry.id));
         void launch(entry, notify);
@@ -283,7 +338,7 @@ function Main({
       else if (category.id === "series") openSeries(entry);
       else void launch(entry, notify);
     },
-    [launch, onRunSetup, openOverlay, openUsers, openSeries, play],
+    [launch, onRunSetup, openOverlay, openUsers, openSeries, play, openBookmark],
   );
 
   // Kopfzeilen-Hinweis: Spiele-Vorschau und/oder Zustand der Jellyfin-Verbindung.
@@ -345,6 +400,82 @@ function Main({
         }}
       />
     );
+  } else if (overlay?.kind === "bookmarkAdd") {
+    layer = (
+      <BookmarkDialog
+        onClose={close}
+        onSave={(name, url) => {
+          if (settings) {
+            const id = Math.random().toString(36).slice(2, 10);
+            onChangeSettings({ ...settings, bookmarks: [...(settings.bookmarks ?? []), { id, name, url }] });
+          }
+          close();
+        }}
+      />
+    );
+  } else if (overlay?.kind === "bookmarkDelete") {
+    const target = settings?.bookmarks?.find((b) => b.id === overlay.id);
+    layer = (
+      <ConfirmDialog
+        title="Lesezeichen löschen?"
+        message={target ? `„${target.name}“ (${hostOf(target.url)}) wird aus der Liste entfernt.` : "Das Lesezeichen gibt es nicht mehr."}
+        confirmLabel="Löschen"
+        danger
+        onCancel={close}
+        onConfirm={() => {
+          if (settings) onChangeSettings({ ...settings, bookmarks: (settings.bookmarks ?? []).filter((b) => b.id !== overlay.id) });
+          close();
+        }}
+      />
+    );
+  } else if (overlay?.kind === "webNotice") {
+    layer = (
+      <ConfirmDialog
+        title="Hinweis zum Web-Bereich"
+        message={[
+          "Die Seite öffnet in einem eigenen Fenster. Downloads landen im Ordner „Downloads“ deines Spiele-Ordners.",
+          "Lade nur Spiele und Dateien, die du besitzt oder legal beziehen darfst (eigene Sicherungen, Homebrew, gemeinfreie Titel). Für Inhalte der Seiten ist JellyStation nicht verantwortlich.",
+        ]}
+        confirmLabel="Verstanden, öffnen"
+        cancelLabel="Abbrechen"
+        onCancel={close}
+        onConfirm={() => {
+          try {
+            localStorage.setItem("jellystation.webNotice", "1");
+          } catch {
+            /* bewusst ignoriert */
+          }
+          close();
+          void openBookmark(overlay.id);
+        }}
+      />
+    );
+  } else if (overlay?.kind === "import") {
+    const archive = /\.(zip|7z|rar|tar|gz)$/i.test(overlay.name);
+    layer = (
+      <PopupList
+        title={`„${overlay.name}“ geladen`}
+        subtitle={archive ? "Archiv: muss vor dem Spielen entpackt werden" : "In welches System gehört die Datei?"}
+        width="narrow"
+        items={[
+          ...supportedFolderNames().map((s) => ({ id: s, label: s, detail: `→ ${s}/` })),
+          { id: "", label: "Im Ordner „Downloads“ lassen" },
+        ]}
+        onBack={close}
+        onSelect={(system) => {
+          if (!system) return close();
+          importGame(overlay.path, settings?.gamesDir, system).then(
+            (dest) => {
+              library.rescan();
+              setOverlay({ kind: "message", title: "Übernommen", lines: [`Die Datei liegt jetzt in ${dest}.`, archive ? "Archive werden nicht automatisch entpackt – entpacke die Datei, damit das Spiel erscheint." : "Das Spiel erscheint im Menü."], tone: "success" });
+            },
+            (err) => setOverlay({ kind: "message", title: "Verschieben fehlgeschlagen", lines: [err instanceof Error ? err.message : String(err)], tone: "error" }),
+          );
+        }}
+      />
+    );
+  } else if (overlay?.kind === "message") {
+    layer = <MessageDialog title={overlay.title} lines={overlay.lines} kind={overlay.tone} onClose={close} />;
   } else if (overlay?.kind === "about") {
     layer = (
       <MessageDialog
@@ -441,6 +572,9 @@ function Main({
         notice={notice}
         inputEnabled={!overlay && !launcherOverlay}
         startCategoryId={startCategory}
+        onSecondary={(entry) => {
+          if (entry.id.startsWith("bm/")) openOverlay({ kind: "bookmarkDelete", id: entry.id.slice(3) });
+        }}
       />
       {layer}
       {launcherOverlay}

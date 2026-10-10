@@ -1,0 +1,67 @@
+.web-form {
+  display: flex;
+  flex-direction: column;
+}
+.web-form__body {
+  display: grid;
+  gap: 1.1rem;
+  padding: 1.4rem 2.3rem 0.4rem;
+}
+.web-form__body label {
+  display: grid;
+  gap: 0.4rem;
+}
+.web-form__body label > span {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+.web-form__body input {
+  font: inherit;
+  font-size: 1.15rem;
+  color: #fff;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+.web-form__body input:focus {
+  border-color: rgba(190, 215, 255, 0.95);
+  box-shadow: 0 0 0 3px rgba(130, 170, 255, 0.35);
+}
+.web-form__error {
+  margin: 0;
+  color: #ff9d9d;
+  font-size: 0.95rem;
+}
+.web-form__note {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+.web-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.8rem;
+  padding: 1rem 2.3rem 1.6rem;
+}
+.web-btn {
+  font: inherit;
+  font-size: 1.05rem;
+  color: #fff;
+  padding: 0.6rem 1.4rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+.web-btn--primary {
+  background: rgba(110, 160, 255, 0.35);
+  border-color: rgba(170, 205, 255, 0.8);
+}
+.web-btn:hover,
+.web-btn:focus-visible {
+  background: rgba(150, 190, 255, 0.4);
+  outline: none;
+}
