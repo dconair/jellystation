@@ -1017,11 +1017,15 @@ export async function startMockJellyfin(options = {}) {
           const who = userById(userId);
           return sendJson(req, res, 200, { Items: hits.map((it) => itemDto(it, who?.id, withData, extras)), TotalRecordCount: hits.length, StartIndex: 0 });
         }
-        const type = param(url, "IncludeItemTypes");
+        // IncludeItemTypes darf eine Kommaliste sein ("Movie,Series"), searchTerm filtert wie beim echten Server nach dem Namen.
+        const types = csv(param(url, "IncludeItemTypes"));
         const limit = Number(param(url, "Limit") ?? 100000);
-        let all = type === "Series" ? (mode === "many" ? MANY_SERIES : SERIES) : MOVIES_FOR(mode);
-        if (type !== "Series" && type !== "Movie") all = [];
-        if (mode === "emptyall" || (mode === "emptyseries" && type === "Series")) all = [];
+        const seriesList = mode === "many" ? MANY_SERIES : SERIES;
+        let all = [...(types.includes("movie") ? MOVIES_FOR(mode) : []), ...(types.includes("series") ? seriesList : [])];
+        if (mode === "emptyall") all = [];
+        else if (mode === "emptyseries") all = all.filter((it) => it.type !== "Series");
+        const term = String(param(url, "searchTerm") ?? "").trim().toLowerCase();
+        if (term) all = all.filter((it) => it.name.toLowerCase().includes(term));
         const user = userById(userId);
         // Wie der echte Server nach SortName (mit deutscher Sortierung: "Ä" bei "A") ordnen.
         if (/sortname/i.test(String(param(url, "SortBy") ?? "SortName"))) {
