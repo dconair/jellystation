@@ -139,16 +139,24 @@ function sanitizeBookmarks(raw: unknown): Bookmark[] | undefined {
 }
 
 function sanitizeStremio(raw: unknown): StremioSettings | undefined {
-  const list = (raw as { addons?: unknown } | null | undefined)?.addons;
-  if (!Array.isArray(list)) return undefined;
+  const r = raw as { addons?: unknown; account?: unknown } | null | undefined;
+  const list = Array.isArray(r?.addons) ? r.addons : [];
   const addons: StremioSettings["addons"] = [];
-  for (const a of list.slice(0, 20)) {
+  for (const a of list.slice(0, 40)) {
     if (!a || typeof a !== "object") continue;
-    const { id, url, name } = a as Record<string, unknown>;
+    const { id, url, name, fromAccount } = a as Record<string, unknown>;
     if (typeof id !== "string" || typeof url !== "string" || !/^https?:\/\//i.test(url)) continue;
-    addons.push({ id: id.slice(0, 40), url: url.slice(0, 1000), name: typeof name === "string" && name.trim() ? name.slice(0, 80) : url });
+    addons.push({
+      id: id.slice(0, 40),
+      url: url.slice(0, 1000),
+      name: typeof name === "string" && name.trim() ? name.slice(0, 80) : url,
+      ...(fromAccount === true ? { fromAccount: true } : {}),
+    });
   }
-  return addons.length ? { addons } : undefined;
+  const acc = r?.account as { email?: unknown; authKey?: unknown } | null | undefined;
+  const account =
+    acc && typeof acc.email === "string" && typeof acc.authKey === "string" && acc.authKey ? { email: acc.email.slice(0, 200), authKey: acc.authKey.slice(0, 200) } : undefined;
+  return addons.length || account ? { addons, ...(account ? { account } : {}) } : undefined;
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {

@@ -13,7 +13,8 @@ src/
   settings/settings.ts     Persistenz (Tauri-Store bzw. localStorage im Browser)
   library/                 Spielebibliothek: Scan-Ergebnis → Kategorien, Zuordnung von Hand, Demo-Daten
   jellyfin/                Jellyfin-Zugriff: Bibliothek, Kontext/Benutzer, Wiedergabeplanung, Berichte
-  stremio/                 Stremio-Addons als zweite Quelle: Protokoll, Kataloge, Stream-Auswahl, Addon-Verwaltung
+  stremio/                 Stremio als zweite Quelle: Konto, Addons, Kataloge, Stream-Auswahl, Suche
+  search/                  Suche in Jellyfin und Stremio (SearchDialog, Verlauf)
   player/                  Video-Player im PS3-Stil
   emulators/               Emulator-Katalog, Erkennung, Dialoge
   install/                 „Einrichtung & Downloads“: Emulatoren von GitHub laden, BIOS/Firmware prüfen, eigene Spiele-Quellen
@@ -198,21 +199,39 @@ Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`).
 ## Stremio (`src/stremio/`)
 
 Zweite Quelle neben Jellyfin: „Streaming auf Abruf“ über das offene Addon-Protokoll (https://github.com/Stremio/stremio-addon-sdk).
-Die App bringt **keine** Addons mit und empfiehlt keine; der Nutzer trägt Adressen selbst ein (Einstellungen → „Stremio-Addons“,
-`settings.stremio.addons: [{ id, url, name }]`, `stremio://` und fehlendes `/manifest.json` werden ergänzt, Prüfung per Manifest-Abruf vor dem Speichern).
+Die App bringt **keine** Addons mit und empfiehlt keine. Der Nutzer meldet sich unter Einstellungen → „Stremio“ mit seinem Stremio-Konto an
+(lädt dessen Addons) und/oder trägt Addon-Adressen von Hand ein (`stremio://` und fehlendes `/manifest.json` werden ergänzt, Prüfung per Manifest-Abruf).
+Gespeichert wird `settings.stremio: { addons: [{ id, url, name, fromAccount? }], account?: { email, authKey } }` – **nie das Passwort**.
 
-- `api.ts` – Abrufe `manifest.json`, `catalog/<typ>/<id>.json`, `meta/<typ>/<id>.json`, `stream/<typ>/<id>.json` (in Tauri über das HTTP-Plugin, im Browser
-  über `fetch`, 12 s Frist). `supports()` wertet `resources`/`types`/`idPrefixes` des Manifests aus. `parseStreams()` behält nur Streams mit direkter
-  http(s)-Adresse und ohne `proxyHeaders`; Torrent (`infoHash`), `ytId`, `externalUrl` zählt die Oberfläche als „ausgeblendet“ (keine Torrent-Engine).
-- `manifests.ts` – Manifest-Cache pro Adresse (der Abruf läuft unabhängig vom Abbruch einzelner Aufrufer).
-- `library.ts`, `useStremioLibrary.ts` – erste Katalogseite (höchstens 100 Titel) je Addon für Filme und Serien, jeweils der erste Katalog ohne Pflicht-Zusatzangabe
-  (Suche/Genre). Ergebnis: Spalten „Stream Filme“ und „Stream Serien“ hinter den Serien (nur mit eingetragenen Addons). Einträge tragen `entry.stremio` (`StremioRef`).
+**Warum Kataloge von Cinemeta kommen:** Stream-Addons (Torrentio & Co.) haben keine Kataloge, sie liefern nur Streams. Die Titellisten in Stremio kommen von
+Cinemeta, das in jedem Konto vorinstalliert ist. `addons.ts` → `effectiveAddons()` ergänzt Cinemeta deshalb still, wenn es nicht eingetragen ist; ein Ausfall
+von Cinemeta wird nur gemeldet, wenn sonst nichts da ist. Ohne Konto und ohne Addons gibt es keine Stremio-Spalten.
+
+- `account.ts` – Konto über `api.strem.io`: `login` (E-Mail + Passwort → `authKey`), `addonCollectionGet` (Addons mit Manifest; Hosts auf `127.0.0.1`/`localhost`
+  wie „Lokale Dateien“ und Addons ohne Katalog/Meta/Stream wie reine Untertitel-Addons fallen weg), `logout`. `useStremioAccountSync.ts` lädt die Liste einmal pro
+  App-Start neu (`addons.ts` → `mergeAccountAddons()` ersetzt nur Einträge mit `fromAccount`, von Hand eingetragene bleiben).
+- `api.ts` – Abrufe `manifest.json`, `catalog/<typ>/<id>.json`, `catalog/<typ>/<id>/search=<Begriff>.json`, `meta/…`, `stream/…` (in Tauri über das HTTP-Plugin, im Browser
+  über `fetch`, 12 s Frist). `supports()` wertet `resources`/`types`/`idPrefixes` aus, `listCatalogs()` liefert Kataloge ohne Pflicht-Zusatzangabe, `findSearchCatalog()` den
+  ersten mit `search`. `parseStreams()` behält nur Streams mit direkter http(s)-Adresse und ohne `proxyHeaders`; Torrent (`infoHash`), `ytId`, `externalUrl` zählt die Oberfläche als „ausgeblendet“
+  (keine Torrent-Engine; mit einem Debrid-Dienst im Addon sind die Links direkt).
+- `manifests.ts` – Manifest-Cache pro Adresse (der Abruf läuft unabhängig vom Abbruch einzelner Aufrufer; Konto-Manifeste werden vorab eingetragen).
+- `library.ts`, `useStremioLibrary.ts` – je Addon bis zu zwei Kataloge pro Typ (Filme/Serien), höchstens 100 Titel je Katalog und 8 Spalten insgesamt. Jeder Katalog wird eine XMB-Spalte
+  hinter den Serien („Beliebt – Filme“, „Empfohlen – Serien“ …). Einträge tragen `entry.stremio` (`StremioRef`).
+- `search.ts` – Suche in allen Addons, deren Katalog `search` versteht (Cinemeta tut das); gleiche Titel erscheinen einmal.
+- `StremioAddonsDialog.tsx` – Konto-Login/-Abmeldung/-Neuladen, Addon-Liste, Addon von Hand hinzufügen oder (△) entfernen. Konto-Addons verwaltet man in Stremio selbst.
 - `StremioPicker.tsx` – Film: Streams aller Addons mit passendem Typ/ID abfragen → Liste → Player. Serie: Meta laden → Staffeln → Folgen → Streams.
   ○ geht je eine Stufe zurück. `resolve.ts` fragt die Addons gleichzeitig ab; ein stummes Addon hält die anderen nicht auf.
 - `plan.ts` – `makeStremioPlan()`: Wiedergabeplan für eine direkte Adresse (Direktwiedergabe, `.m3u8` als HLS, keine Berichte/Umwandlung/Spuren). Die Engine nutzt ihn für Einträge mit
   `entry.stremio.streamUrl` im selben Zweig wie die Demo (`isDemoEntry` = kein Jellyfin-Titel).
-- Noch nicht dabei: Suche, gespeicherte Position („Weiterschauen“), Untertitel aus Addons, „Nächste Folge“.
+- Noch nicht dabei: gespeicherte Position („Weiterschauen“), Untertitel aus Addons, „Nächste Folge“, Anmeldung über Google/Facebook (in Stremio ein Passwort festlegen).
 - Test: `dev/mock-stremio/server.mjs` (Mock-Addon) und `dev/e2e/stremio.mjs` (Playwright, Aufruf im Skriptkopf).
+
+## Suche (`src/search/`)
+
+Der Eintrag „Suchen …“ in der ersten Spalte „Suche“ (Aktion `open-search`), darunter die zuletzt gesuchten Begriffe (localStorage, `history.ts`).
+`SearchDialog.tsx`: Suchfeld → Trefferliste nach Quelle und Typ (Jellyfin · Filme/Serien, Stremio · Filme/Serien). Jellyfin über `searchJellyfin()` in `jellyfin/library.ts`
+(`/Items?searchTerm=`, mit dem gewählten Benutzer), Stremio über `stremio/search.ts`. Ein Treffer öffnet wie in den Spalten: Jellyfin-Film → Player, Jellyfin-Serie → Serien-Screen,
+Stremio-Titel → Stream-Auswahl. Beide Quellen laufen gleichzeitig; fällt eine aus, steht der Grund unter der Liste.
 
 ## Oberfläche
 

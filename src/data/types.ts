@@ -20,7 +20,7 @@ export interface XmbEntry {
 }
 
 /** Interne Aktionen, die ein Eintrag statt eines Inhalts auslöst. */
-export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user" | "toggle-transcode" | "open-requirements" | "open-display-settings" | "open-motion-settings" | "open-sound-settings" | "open-server-settings" | "open-games-dir" | "open-game-assignments" | "open-about" | "add-bookmark" | "open-covers" | "open-stremio" | "open-install";
+export type EntryAction = "run-setup" | "open-emulators" | "choose-jellyfin-user" | "toggle-transcode" | "open-requirements" | "open-display-settings" | "open-motion-settings" | "open-sound-settings" | "open-server-settings" | "open-games-dir" | "open-game-assignments" | "open-about" | "add-bookmark" | "open-covers" | "open-stremio" | "open-install" | "open-search";
 
 /** Verweis auf ein Jellyfin-Objekt (Film, Serie oder Folge). */
 export interface JellyfinRef {

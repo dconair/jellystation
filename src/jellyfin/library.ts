@@ -35,6 +35,7 @@ export type JellyfinError = JfError;
 
 interface JellyfinItem {
   Id?: unknown;
+  Type?: unknown;
   Name?: unknown;
   Overview?: unknown;
   Genres?: unknown;
@@ -270,4 +271,53 @@ export async function fetchJellyfinLibrary(
   } finally {
     signal?.removeEventListener("abort", abort);
   }
+}
+
+/** So viele Treffer pro Typ liefert die Suche höchstens. */
+const SEARCH_LIMIT = 40;
+
+/**
+ * Sucht Filme und Serien auf dem Server (Name, Originaltitel …). `userId` bringt die Wiedergabestände mit;
+ * ohne ihn fehlen Weiterschauen-Balken und Gesehen-Haken. Wirft wie {@link fetchJellyfinLibrary} eine JellyfinError.
+ */
+export async function searchJellyfin(
+  url: string,
+  apiKey: string,
+  query: string,
+  signal?: AbortSignal,
+  userId?: string,
+): Promise<{ movies: XmbEntry[]; series: XmbEntry[] }> {
+  const base = normalizeServerUrl(url);
+  if (!isValidServerUrl(base)) throw new JfError("Ungültige Server-Adresse", "config");
+  if (!apiKey.trim()) throw new JfError("API-Key fehlt", "config");
+  const auth: JfAuth = { base, apiKey: apiKey.trim(), deviceId: getDeviceId() };
+  const json = await jfJson<ItemsResponse | null>(auth, "/Items", {
+    signal,
+    timeoutMs: TIMEOUT_MS,
+    query: {
+      userId,
+      enableUserData: userId ? true : undefined,
+      searchTerm: query,
+      IncludeItemTypes: "Movie,Series",
+      Recursive: true,
+      Fields: "Overview,Genres,ProductionYear,ChildCount",
+      ImageTypeLimit: 1,
+      EnableImageTypes: "Primary",
+      Limit: SEARCH_LIMIT * 2,
+    },
+  });
+  if (!json || typeof json !== "object" || !Array.isArray(json.Items)) {
+    throw new JfError("Unerwartete Antwort des Servers", "protocol");
+  }
+  const movies: XmbEntry[] = [];
+  const series: XmbEntry[] = [];
+  const seen = new Set<string>();
+  for (const item of json.Items as JellyfinItem[]) {
+    const kind: ItemKind | null = item?.Type === "Movie" ? "Movie" : item?.Type === "Series" ? "Series" : null;
+    const entry = kind ? toEntry(item, kind, auth.base, auth.apiKey) : null;
+    if (!kind || !entry || seen.has(entry.id)) continue;
+    seen.add(entry.id);
+    (kind === "Movie" ? movies : series).push(entry);
+  }
+  return { movies: movies.slice(0, SEARCH_LIMIT), series: series.slice(0, SEARCH_LIMIT) };
 }

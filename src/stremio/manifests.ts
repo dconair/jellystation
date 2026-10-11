@@ -29,3 +29,8 @@ export function getManifest(addon: Pick<StremioAddonCfg, "url">, signal?: AbortS
 export function forgetManifest(url: string) {
   cache.delete(url);
 }
+
+/** Legt ein schon bekanntes Manifest (etwa aus dem Stremio-Konto) in den Speicher, damit es nicht noch einmal geladen wird. */
+export function primeManifest(url: string, manifest: Manifest) {
+  if (!cache.has(url)) cache.set(url, Promise.resolve(manifest));
+}

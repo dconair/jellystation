@@ -33,9 +33,10 @@ export const categories: XmbCategory[] = [
     label: "Suche",
     icon: "search",
     entries: [
-      entry("search-all", "Gesamte Bibliothek durchsuchen", "Titel, Personen, Genres", 210),
-      entry("search-recent", "Zuletzt gesucht", "Verlauf", 190),
-      entry("search-genre", "Nach Genre stöbern", "Action, Drama, Komödie …", 230),
+      {
+        ...entry("search-all", "Suchen …", "Jellyfin und Stremio", 210, "Sucht Filme und Serien auf deinem Jellyfin-Server und in den Katalogen deiner Stremio-Addons."),
+        action: "open-search",
+      },
     ],
   },
   {
@@ -138,7 +139,7 @@ export const categories: XmbCategory[] = [
         action: "choose-jellyfin-user",
       },
       {
-        ...entry("st-stremio", "Stremio-Addons", "Streaming auf Abruf", 20, "Trage Stremio-Addons ein, deren Kataloge und Streams du nutzen willst. Die Titel erscheinen in den Spalten „Stream Filme“ und „Stream Serien“. Addons bringst du selbst mit."),
+        ...entry("st-stremio", "Stremio", "Konto, Addons, Kataloge", 20, "Melde dich mit deinem Stremio-Konto an oder trage Addons ein. Die Kataloge erscheinen als eigene Spalten hinter den Serien; ein Titel zeigt dir die Streams deiner Addons. Addons bringst du selbst mit."),
         action: "open-stremio",
       },
       {

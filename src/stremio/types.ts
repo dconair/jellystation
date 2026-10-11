@@ -6,10 +6,19 @@ export interface StremioAddonCfg {
   url: string;
   /** Anzeigename aus dem Manifest. */
   name: string;
+  /** true = stammt aus dem Stremio-Konto und wird beim Aktualisieren des Kontos ersetzt; sonst von Hand eingetragen. */
+  fromAccount?: boolean;
+}
+
+/** Angemeldetes Stremio-Konto. Das Passwort wird nie gespeichert, nur der Schlüssel, den Stremio dafür ausgibt. */
+export interface StremioAccount {
+  email: string;
+  authKey: string;
 }
 
 export interface StremioSettings {
   addons: StremioAddonCfg[];
+  account?: StremioAccount;
 }
 
 export type StremioType = "movie" | "series";
@@ -27,6 +36,8 @@ export interface ManifestCatalog {
   name: string;
   /** Der Katalog braucht zwingend eine Zusatzangabe (Suchbegriff, Genre …) und taugt dann nicht als Startliste. */
   needsExtra: boolean;
+  /** Das Addon versteht für diesen Katalog eine Suche (`search`). */
+  searchable: boolean;
 }
 
 export interface Manifest {
