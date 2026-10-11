@@ -196,6 +196,13 @@ function busyFor(plan: PlaybackPlan): { text: string; sub?: string } {
   return { text: "Lade …", ...(plan.method === "DirectStream" && plan.reason ? { sub: plan.reason } : {}) };
 }
 
+/** Wahl von der Film-Detailseite: Fassung, Tonspur und Untertitel (`null` = aus). Fehlt ein Feld, entscheidet der Server. */
+export interface OpenChoice {
+  mediaSourceId?: string;
+  audioIndex?: number;
+  subtitleIndex?: number | null;
+}
+
 /** Wählt den anfänglichen Untertitel: gemerkte Sprache, sonst Vorgabe des Servers (nur Text, nie Einbrennen). */
 export function chooseInitialSubtitle(plan: PlaybackPlan): number | null {
   if (plan.burnedSubtitle) return plan.subtitleIndex;
@@ -324,7 +331,7 @@ export class PlayerEngine {
   /* ------------------------------------------------------------------ Öffnen */
 
   /** Lädt einen Titel (ersetzt eine laufende Wiedergabe: die alte Position wird noch gemeldet). */
-  async open(entry: XmbEntry, startSec = 0): Promise<void> {
+  async open(entry: XmbEntry, startSec = 0, choice: OpenChoice = {}): Promise<void> {
     if (this.disposed) return;
     const gen = ++this.gen;
     this.abortWork();
@@ -379,13 +386,18 @@ export class PlayerEngine {
         if (gen !== this.gen) return;
         plan = await planPlayback(this.ctx, ref.id, {
           startSec: this.pendingStart,
+          ...(choice.mediaSourceId ? { mediaSourceId: choice.mediaSourceId } : {}),
+          ...(choice.audioIndex !== undefined ? { audioIndex: choice.audioIndex } : {}),
+          ...(choice.subtitleIndex !== undefined ? { subtitleIndex: choice.subtitleIndex } : {}),
           ...(this.s.maxBitrate ? { maxBitrate: this.s.maxBitrate } : {}),
           ...(loadPrefs().alwaysTranscode ? { forceTranscode: true } : {}),
           signal: work.signal,
         });
       }
       if (gen !== this.gen) return;
-      await this.activate(plan, this.pendingStart, gen, { play: true, wanted: chooseInitialSubtitle(plan) });
+      // Eine Wahl auf der Detailseite (Untertitel/„Aus“) gilt; sonst entscheidet die gemerkte Sprache.
+      const wanted = choice.subtitleIndex !== undefined ? plan.subtitleIndex : chooseInitialSubtitle(plan);
+      await this.activate(plan, this.pendingStart, gen, { play: true, wanted });
     } catch (err) {
       if (gen !== this.gen || isAbortError(err)) return;
       await this.handleOpenFailure(err, gen);

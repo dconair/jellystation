@@ -14,6 +14,8 @@ import { emptyLibraryEntry, hueFromTitle } from "./jellyfin/library";
 import { Player } from "./player/Player";
 import { SettingsDialog } from "./prefs/SettingsDialog";
 import type { SettingsSection } from "./prefs/SettingsDialog";
+import { MovieScreen } from "./movie/MovieScreen";
+import type { MovieChoice } from "./movie/MovieScreen";
 import { SeriesScreen } from "./series/SeriesScreen";
 import { loadPrefs, savePrefs } from "./player/prefs";
 import { MOODS } from "./audio/moods";
@@ -137,6 +139,7 @@ type Overlay =
   | { kind: "message"; title: string; lines: string[]; tone: "info" | "error" | "success" }
   | { kind: "setupStep"; step: number }
   | { kind: "series"; series: XmbEntry }
+  | { kind: "movie"; movie: XmbEntry }
   | { kind: "settings"; section: SettingsSection }
   | { kind: "covers" }
   | { kind: "assign"; entry: XmbEntry }
@@ -144,7 +147,7 @@ type Overlay =
   | { kind: "stremio"; entry: XmbEntry }
   | { kind: "stremioAddons" }
   | { kind: "search"; query?: string }
-  | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[] };
+  | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[]; choice?: MovieChoice };
 
 const jfConfigOf = (jellyfin: Settings["jellyfin"] | undefined) =>
   jellyfin && jellyfin.url.trim() && jellyfin.apiKey.trim() ? jellyfin : null;
@@ -371,6 +374,9 @@ function Main({
     [openOverlay],
   );
 
+  /** Film: erst die Detailseite (Logo, Optionen), erst dort startet der Player. Demo-Filme öffnen dieselbe Seite. */
+  const openMovie = useCallback((movie: XmbEntry) => openOverlay({ kind: "movie", movie }), [openOverlay]);
+
   const openUsers = useCallback(async () => {
     if (!jfConfig) return openOverlay({ kind: "users", users: [], error: "Jellyfin ist noch nicht eingerichtet." });
     openOverlay({ kind: "users", users: null });
@@ -452,12 +458,14 @@ function Main({
       else if (entry.game) {
         setRecentGameIds(rememberGame(entry.id));
         void launch(entry, notify);
-      } else if (category.id === "recent") play(entry);
-      else if (category.id === "movies") play(entry);
+      } else if (category.id === "recent") {
+        if (entry.jellyfin?.type === "Movie") openMovie(entry);
+        else play(entry);
+      } else if (category.id === "movies") openMovie(entry);
       else if (category.id === "series") openSeries(entry);
       else void launch(entry, notify);
     },
-    [launch, onRunSetup, openOverlay, openUsers, openSeries, play, openBookmark],
+    [launch, onRunSetup, openOverlay, openUsers, openSeries, openMovie, play, openBookmark],
   );
 
   // Kopfzeilen-Hinweis: Spiele-Vorschau und/oder Zustand der Jellyfin-Verbindung.
@@ -492,6 +500,7 @@ function Main({
         jellyfin={jfConfig}
         startSec={overlay.startSec}
         playlist={overlay.playlist}
+        choice={overlay.choice}
         onClose={(info) => {
           close();
           // Neue Wiedergabestände (Balken, Haken) sofort sichtbar machen.
@@ -632,6 +641,19 @@ function Main({
         series={overlay.series}
         jellyfin={jfConfig}
         onPlay={(episode, playlist, startSec) => openOverlay({ kind: "player", entry: episode, startSec, playlist })}
+        onClose={close}
+      />
+    );
+  } else if (overlay?.kind === "movie") {
+    layer = (
+      <MovieScreen
+        movie={overlay.movie}
+        jellyfin={jfConfig}
+        onPlay={(movie, startSec, choice) => openOverlay({ kind: "player", entry: movie, startSec, choice })}
+        onChanged={() => {
+          jellyfin.reload();
+          recentJf.reload();
+        }}
         onClose={close}
       />
     );

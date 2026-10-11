@@ -11,7 +11,7 @@ import { playSfx } from "../xmb/sound";
 import { toggleFullscreen } from "../xmb/fullscreen";
 import { isDemoEntry } from "./demoPlan";
 import { PlayerEngine } from "./engine";
-import type { EngineState, PlayerCloseInfo } from "./engine";
+import type { EngineState, OpenChoice, PlayerCloseInfo } from "./engine";
 import { formatBitrate, headlineOf, METHOD_LABEL, METHOD_SHORT } from "./format";
 import { NextEpisode } from "./NextEpisode";
 import { PauseScreen } from "./PauseScreen";
@@ -32,6 +32,8 @@ export interface PlayerProps {
   startSec?: number;
   /** Folgen derselben Serie in Reihenfolge (für „Nächste Folge“). Fehlt sie bei einer Folge, lädt der Player die Liste selbst. */
   playlist?: XmbEntry[];
+  /** Fassung, Tonspur und Untertitel, wie auf der Film-Detailseite gewählt (gilt nur für den ersten Titel). */
+  choice?: OpenChoice;
   onClose(info: PlayerCloseInfo): void;
 }
 
@@ -72,7 +74,7 @@ const sameEpisode = (a: XmbEntry, b: XmbEntry) => a.id === b.id || (!!a.jellyfin
  * Vollbild-Player im PS3-Stil. Die Wiedergabe-Logik steckt in PlayerEngine, hier sind Eingabe, Bedienfeld und die
  * Dialoge (Optionen, Fehler, Stream-Info, Nächste Folge).
  */
-export function Player({ entry, jellyfin = null, startSec = 0, playlist, onClose }: PlayerProps) {
+export function Player({ entry, jellyfin = null, startSec = 0, playlist, choice, onClose }: PlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const snapRef = useRef<HTMLCanvasElement>(null);
   const cfgRef = useRef(jellyfin);
@@ -100,9 +102,12 @@ export function Player({ entry, jellyfin = null, startSec = 0, playlist, onClose
 
   const [current, setCurrent] = useState<XmbEntry>(entry);
   const startRef = useRef(Math.max(0, startSec));
+  const choiceRef = useRef(choice);
   useEffect(() => {
     if (!engine) return;
-    void engine.open(current, startRef.current);
+    // Die Wahl der Detailseite gilt nur für den Titel, mit dem der Player geöffnet wurde – nicht für „Nächste Folge“.
+    void engine.open(current, startRef.current, current === entry ? choiceRef.current : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine, current]);
 
   const demo = isDemoEntry(current);
