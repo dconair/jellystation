@@ -413,7 +413,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   overflow: hidden;
   border: 1px solid rgba(var(--ui-l84), 0.24);
   border-radius: 0.6rem;
-  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.8) 0%, rgba(var(--ui-l14), 0.88) 40%, rgba(var(--ui-l5), 0.93) 100%);
+  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.97) 0%, rgba(var(--ui-l14), 0.98) 40%, rgba(var(--ui-l5), 0.99) 100%);
   box-shadow:
     0 1.8rem 4rem rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(var(--ui-l5), 0.3),
@@ -733,7 +733,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(var(--s-bg), 0.86);
+  background: rgba(var(--s-bg), 0.97);
 }
 /* Darüber läuft die Liste weich aus, statt an der Leiste hart abzureißen */
 .series-hints::before {
@@ -744,7 +744,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   bottom: 100%;
   height: 3.2rem;
   pointer-events: none;
-  background: linear-gradient(0deg, rgba(var(--s-bg), 0.86), rgba(var(--s-bg), 0));
+  background: linear-gradient(0deg, rgba(var(--s-bg), 0.97), rgba(var(--s-bg), 0));
 }
 .series-hints .pop-hints {
   padding: 1.1rem var(--s-pad) 1rem;
@@ -793,8 +793,10 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   z-index: 10;
   inset: 0;
   overflow: hidden;
+  /* Deckender Grund unter dem Verlauf: sonst scheint die Folgenliste der Serienseite durch Text und Buttons */
   background:
-    radial-gradient(ellipse 90% 80% at 72% 12%, rgba(var(--ui-l20), 0.6) 0%, rgba(var(--s-bg), 0.7) 72%);
+    radial-gradient(ellipse 90% 80% at 72% 12%, rgba(var(--ui-l20), 0.6) 0%, rgba(var(--s-bg), 0.7) 72%),
+    rgb(var(--s-bg));
   animation: series-detail-in 0.42s var(--s-ease) both;
 }
 .series-detail.is-leaving {

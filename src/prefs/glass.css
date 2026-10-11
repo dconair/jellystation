@@ -1,0 +1,322 @@
+/*
+ * „Liquid Glass“ – zweiter Oberflächen-Stil neben dem klassischen PS3-Design (Einstellungen → Anzeige → Oberflächen-Stil).
+ * Alles hier greift nur bei <html data-look="glass"> (UiEffects.tsx); ohne den Stil ändert sich am bisherigen Aussehen nichts.
+ *
+ * Glas heißt: eine leicht dunkle Tönung (damit weißer Text auf hellem Grund lesbar bleibt), ein weicher Verlauf mit Lichtkante
+ * oben links, ein feiner heller Rand und – das Wichtigste – ein unscharfer Hintergrund (backdrop-filter). Das kostet Grafikleistung,
+ * deshalb ist der Stil abschaltbar. Wo der Browser kein backdrop-filter kann, wird die Tönung kräftiger (Abschnitt ganz unten).
+ *
+ * Bewusst NICHT hinterlegt: die Einträge und Kategorien des Hauptmenüs. Die MotionEngine bewegt sie jedes Bild per transform und
+ * opacity; ein Hintergrundfilter an so vielen bewegten Ebenen würde ruckeln. Sie sitzen stattdessen auf einer ruhigen Glasleiste.
+ */
+
+:root[data-look="glass"] {
+  --g-tint: rgba(var(--ui-l9), 0.4);
+  --g-tint-strong: rgba(var(--ui-l9), 0.56);
+  --g-sheen: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.26) 0%,
+    rgba(255, 255, 255, 0.08) 38%,
+    rgba(255, 255, 255, 0.02) 62%,
+    rgba(var(--ui-l76), 0.12) 100%
+  );
+  --g-blur: blur(1.8rem) saturate(1.7);
+  --g-blur-soft: blur(1.1rem) saturate(1.5);
+  --g-edge:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.6),
+    inset 1px 0 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 2.4rem rgba(255, 255, 255, 0.05);
+  --g-drop: 0 1.6rem 3.6rem rgba(0, 0, 0, 0.34);
+  --g-radius: 1.5rem;
+}
+
+/* Die Glasfläche der Detailkarte gibt es nur im Glas-Stil */
+.xmb-detail__glass {
+  display: none;
+}
+
+/* ---------- Gemeinsame Glasflächen ---------- */
+
+:root[data-look="glass"] .pop-panel,
+:root[data-look="glass"] .movie-panel,
+:root[data-look="glass"] .movie-options,
+:root[data-look="glass"] .player-next,
+:root[data-look="glass"] .xmb-detail__glass {
+  background: var(--g-sheen), var(--g-tint);
+  -webkit-backdrop-filter: var(--g-blur);
+  backdrop-filter: var(--g-blur);
+  border: 0;
+  border-radius: var(--g-radius);
+  box-shadow: var(--g-edge), var(--g-drop);
+}
+
+/* Listen und Dialoge liegen über viel Text und Bewegung: etwas kräftigere Tönung als die ruhigen Flächen */
+:root[data-look="glass"] .pop-panel {
+  background: var(--g-sheen), var(--g-tint-strong);
+}
+
+/* Der Glanz oben läuft über die Rundung, nicht über ein eckiges Rechteck */
+:root[data-look="glass"] .pop-panel::before,
+:root[data-look="glass"] .movie-panel::before,
+:root[data-look="glass"] .movie-options::before {
+  background: radial-gradient(ellipse 90% 70% at 18% 0%, rgba(255, 255, 255, 0.2), transparent 62%);
+}
+
+/* Liegt ein anderes Overlay darüber: die Fläche tritt zurück, bleibt aber Glas */
+:root[data-look="glass"] .pop-panel::after {
+  background: rgba(var(--ui-l5), 0.5);
+}
+
+/*
+ * Die Einblend-Animationen von Overlay und Panel halten ihren Endwert („both“). Eine aktive Deckkraft-Animation macht das Overlay
+ * zum Bezugsrahmen des Hintergrundfilters: das Panel würde dann nur das (leere) Overlay verwischen, nicht das Video oder die
+ * Seite dahinter. Mit „backwards“ gilt nach dem Einblenden wieder der normale Zustand.
+ */
+:root[data-look="glass"] .pop-overlay:not(.is-leaving),
+:root[data-look="glass"] .pop-overlay:not(.is-leaving) > .pop-stage > .pop-panel {
+  animation-fill-mode: backwards;
+}
+
+/* Der Abdunkler hinter Listen und Dialogen darf heller sein: das Glas sorgt selbst für Lesbarkeit */
+:root[data-look="glass"] .pop-overlay {
+  background: radial-gradient(
+    ellipse 85% 75% at 50% 46%,
+    rgba(var(--ui-l5), calc(var(--pop-dim) * 0.28)) 0%,
+    rgba(var(--ui-l5), calc(var(--pop-dim) * 0.62)) 100%
+  );
+}
+
+/* Auswahlbalken: heller Glasstreifen statt Farbfläche */
+:root[data-look="glass"] .pop-bar {
+  border-radius: 1rem;
+}
+
+/* ---------- Serien: Glas hinter Staffeln und Folgen ---------- */
+
+:root[data-look="glass"] .series-lower::before {
+  background: var(--g-sheen), var(--g-tint);
+  -webkit-backdrop-filter: var(--g-blur);
+  backdrop-filter: var(--g-blur);
+  border: 0;
+  border-radius: var(--g-radius) var(--g-radius) 0 0;
+  box-shadow: var(--g-edge), 0 -1.2rem 4rem rgba(0, 0, 0, 0.26);
+}
+
+/* Staffel-Auswahl: liegt über der Folgenliste, deshalb kräftigere Tönung zusätzlich zur Unschärfe */
+:root[data-look="glass"] .series-menu {
+  background: var(--g-sheen), var(--g-tint-strong);
+  -webkit-backdrop-filter: var(--g-blur);
+  backdrop-filter: var(--g-blur);
+  border: 0;
+  border-radius: 1.2rem;
+  box-shadow: var(--g-edge), var(--g-drop);
+}
+
+/* ---------- Hauptmenü ---------- */
+
+/* Ruhige Glasleiste hinter der Kategorie-Reihe (ROW_Y = 13.5rem in layout.ts) */
+:root[data-look="glass"] .xmb-stage::before {
+  content: "";
+  position: absolute;
+  left: 2.6rem;
+  right: 2.6rem;
+  top: 9.4rem;
+  height: 10.4rem;
+  border-radius: 2.6rem;
+  pointer-events: none;
+  background: var(--g-sheen), rgba(var(--ui-l9), 0.24);
+  -webkit-backdrop-filter: var(--g-blur-soft);
+  backdrop-filter: var(--g-blur-soft);
+  box-shadow: var(--g-edge), 0 1.2rem 3rem rgba(0, 0, 0, 0.22);
+}
+
+/* Uhr, Statusmarken und Hinweisleiste als schwebende Glaskapseln; alle Außenkanten liegen bei 2,6 rem */
+:root[data-look="glass"] .xmb-header,
+:root[data-look="glass"] .xmb-hints {
+  padding: 0 1.8rem;
+  border-radius: 2rem;
+  background: var(--g-sheen), var(--g-tint);
+  -webkit-backdrop-filter: var(--g-blur-soft);
+  backdrop-filter: var(--g-blur-soft);
+  box-shadow: var(--g-edge), 0 0.8rem 2rem rgba(0, 0, 0, 0.24);
+}
+:root[data-look="glass"] .xmb-header {
+  right: 2.6rem;
+  height: 3.6rem;
+}
+:root[data-look="glass"] .xmb-hints {
+  right: 2.6rem;
+  height: 3.6rem;
+  gap: 1.8rem;
+}
+:root[data-look="glass"] .xmb-chip {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Meldung oben rechts */
+:root[data-look="glass"] .xmb-toast {
+  background: var(--g-sheen), var(--g-tint-strong);
+  -webkit-backdrop-filter: var(--g-blur-soft);
+  backdrop-filter: var(--g-blur-soft);
+  box-shadow: var(--g-edge), 0 0.8rem 2rem rgba(0, 0, 0, 0.3);
+  border-radius: 1.4rem;
+}
+
+/* Detailkarte rechts: eine Glasfläche hinter Cover und Text (DetailCard.tsx setzt .xmb-detail__glass) */
+:root[data-look="glass"] .xmb-detail {
+  box-sizing: border-box;
+  top: calc(21rem + var(--stage-shift)); /* unter der Glasleiste der Kategorien */
+  right: 2.6rem;
+  width: 26rem;
+  padding: 1.4rem 1.6rem 1.5rem;
+  isolation: isolate;
+}
+:root[data-look="glass"] .xmb-detail.is-poster .xmb-detail__art {
+  width: 9.6rem;
+}
+:root[data-look="glass"] .xmb-detail__art {
+  margin-bottom: 1rem;
+}
+:root[data-look="glass"] .xmb-detail__glass {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Cover und Kacheln: etwas rundere, hellere Kante */
+:root[data-look="glass"] .xmb-item__tile::after,
+:root[data-look="glass"] .xmb-item__cover::after,
+:root[data-look="glass"] .xmb-detail__art::after {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ---------- Player ---------- */
+
+/* Der dunkle Verlauf am Rand wird sanfter: Lesbarkeit kommt vom Glas */
+:root[data-look="glass"] .player-osd::before {
+  background: linear-gradient(180deg, rgba(var(--ui-l5), 0.4), transparent);
+}
+:root[data-look="glass"] .player-osd::after {
+  background: linear-gradient(0deg, rgba(var(--ui-l5), 0.5), transparent);
+}
+
+:root[data-look="glass"] .player-osd__top {
+  padding: 2.6rem 3.6rem 0;
+}
+:root[data-look="glass"] .player-osd__bottom {
+  padding: 0 5.4rem 2.8rem;
+  isolation: isolate;
+}
+
+/* Titel und Uhr: je eine Kapsel */
+:root[data-look="glass"] .player-headline,
+:root[data-look="glass"] .player-clock,
+:root[data-look="glass"] .player-osd__bottom::before {
+  background: var(--g-sheen), var(--g-tint);
+  -webkit-backdrop-filter: var(--g-blur);
+  backdrop-filter: var(--g-blur);
+  box-shadow: var(--g-edge), 0 0.8rem 2.4rem rgba(0, 0, 0, 0.3);
+}
+:root[data-look="glass"] .player-headline {
+  padding: 1rem 2.4rem 1.1rem;
+  border-radius: 1.8rem;
+}
+:root[data-look="glass"] .player-headline__title {
+  font-size: 2.3rem;
+}
+:root[data-look="glass"] .player-headline__sub {
+  margin-top: 0.3rem;
+  font-size: 1.4rem;
+}
+:root[data-look="glass"] .player-clock {
+  padding: 0.9rem 2rem;
+  border-radius: 2rem;
+  font-size: 1.8rem;
+}
+
+/* Fortschritt und Hinweise sitzen gemeinsam auf einer breiten Glasfläche */
+:root[data-look="glass"] .player-osd__bottom::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 3.6rem;
+  right: 3.6rem;
+  top: -1.8rem;
+  bottom: 1.4rem;
+  border-radius: 2.2rem;
+  pointer-events: none;
+}
+
+/* Zeitleiste: Glasrinne, heller Füllstand */
+:root[data-look="glass"] .player-track {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Vorschau über der Zeitleiste */
+:root[data-look="glass"] .player-bubble__card {
+  background: var(--g-sheen), var(--g-tint-strong);
+  -webkit-backdrop-filter: var(--g-blur);
+  backdrop-filter: var(--g-blur);
+  border: 0;
+  border-radius: 1.2rem;
+  box-shadow: var(--g-edge), 0 0.8rem 2rem rgba(0, 0, 0, 0.4);
+}
+
+/* Kleine Hinweise im Bild */
+:root[data-look="glass"] .player-sound,
+:root[data-look="glass"] .player-toast {
+  background: var(--g-sheen), var(--g-tint-strong);
+  -webkit-backdrop-filter: var(--g-blur-soft);
+  backdrop-filter: var(--g-blur-soft);
+  border: 0;
+  box-shadow: var(--g-edge), 0 0.8rem 2rem rgba(0, 0, 0, 0.3);
+}
+
+/* Pause-Bild: der Text steht auf einer Glaskarte, Untertitel und Disc bleiben frei */
+:root[data-look="glass"] .player-pause__text {
+  padding: 2rem 2.6rem 2.2rem;
+  border-radius: 2rem;
+  background: var(--g-sheen), var(--g-tint);
+  -webkit-backdrop-filter: var(--g-blur);
+  backdrop-filter: var(--g-blur);
+  box-shadow: var(--g-edge), var(--g-drop);
+}
+
+/* ---------- Ohne backdrop-filter: kräftigere Tönung, damit der Text lesbar bleibt ---------- */
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-look="glass"] {
+    --g-tint: rgba(var(--ui-l9), 0.9);
+    --g-tint-strong: rgba(var(--ui-l9), 0.94);
+  }
+  :root[data-look="glass"] .xmb-stage::before {
+    background: var(--g-sheen), rgba(var(--ui-l9), 0.5);
+  }
+}
+
+/* Systemeinstellung „Transparenz reduzieren“: keine Unschärfe, deckende Flächen */
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-look="glass"] {
+    --g-tint: rgba(var(--ui-l9), 0.92);
+    --g-tint-strong: rgba(var(--ui-l9), 0.95);
+    --g-blur: none;
+    --g-blur-soft: none;
+  }
+  :root[data-look="glass"] .xmb-stage::before {
+    background: var(--g-sheen), rgba(var(--ui-l9), 0.55);
+  }
+}
+
+/* „Animationen: aus“ spart auch das Glas nicht, aber der Stil soll nichts mitbewegen */
+:root[data-look="glass"][data-anim="off"] .pop-panel,
+:root[data-look="glass"][data-anim="off"] .movie-panel,
+:root[data-look="glass"][data-anim="off"] .movie-options {
+  animation: none;
+}

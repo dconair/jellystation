@@ -34,6 +34,7 @@ export function DetailCard({ data, motion }: { data: DetailData | null; motion: 
   const cls = "xmb-detail" + (poster ? " is-poster" : hasArt ? " is-landscape" : " is-icon");
   return (
     <aside ref={ref} className={cls} style={{ "--hue": entry?.hue ?? 0 } as CSSProperties}>
+      <span className="xmb-detail__glass" aria-hidden="true" />
       {data && <DetailBody key={data.key} entry={data.entry} icon={data.icon} />}
     </aside>
   );
