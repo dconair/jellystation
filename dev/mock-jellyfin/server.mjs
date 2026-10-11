@@ -594,6 +594,21 @@ export async function startMockJellyfin(options = {}) {
       if (extras.trickplay && state.scenario.trickplay !== "notrickplay") dto.Trickplay = trickplayDto(item);
       if (extras.chapters) dto.Chapters = CHAPTERS;
     }
+    // Filmdetails (Einzelabruf): Logo, Hintergrundbild, Besetzung und die Spuren der Datei – Grundlage der Film-Detailseite.
+    if (extras.chapters && item.type === "Movie") {
+      dto.ImageTags = { ...dto.ImageTags, Logo: `l${item.id.slice(-4)}` };
+      dto.BackdropImageTags = [`b${item.id.slice(-4)}`];
+      dto.Taglines = ["Manche Geschichten fangen erst im Dunkeln an."];
+      dto.OfficialRating = "FSK-12";
+      dto.CommunityRating = 7.8;
+      dto.People = [
+        { Name: "Regina Regisseur", Type: "Director" },
+        { Name: "Anna Beispiel", Type: "Actor", Role: "Hauptrolle" },
+        { Name: "Ben Muster", Type: "Actor", Role: "Nebenrolle" },
+      ];
+      dto.Studios = [{ Name: "Mock Pictures" }];
+      dto.MediaSources = [{ Id: item.id, Name: item.name, MediaStreams: FILES.webm.streams }];
+    }
     return dto;
   }
 
@@ -1053,7 +1068,9 @@ export async function startMockJellyfin(options = {}) {
       if ((m = /^\/items\/([^/]+)\/images\/backdrop$/.exec(low)) && req.method === "GET") {
         return sendBody(req, res, 200, coverPng(m[1], 640, 360), "image/png");
       }
-      if (/^\/items\/([^/]+)\/images\/logo$/.test(low) && req.method === "GET") return sendText(req, res, 404, "");
+      if ((m = /^\/items\/([^/]+)\/images\/logo$/.exec(low)) && req.method === "GET") {
+        return sendBody(req, res, 200, coverPng(m[1], 600, 200), "image/png");
+      }
       if ((m = /^\/items\/([^/]+)\/images\/primary$/.exec(low)) && req.method === "GET") {
         return sendBody(req, res, 200, coverPng(m[1], 200, 300), "image/png");
       }

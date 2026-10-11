@@ -1,0 +1,355 @@
+/*
+ * Film-Detailseite (MovieScreen): links eine Glasfläche mit Logo, Eckdaten und Beschreibung, rechts die Optionen
+ * wie ein PS3-Kontextmenü (wandernder Leuchtbalken). Die Fläche trägt dieselbe Farbe wie die Listen der App
+ * (Akzentfarbe, `--ui-l…`); Grundlagen (Variablen, Hinweisleiste) kommen von `.series-screen` in series.css.
+ */
+
+.movie-screen {
+  --m-pad: 5.5rem;
+}
+
+/* ---------- Hintergrund ---------- */
+
+.movie-art {
+  position: absolute;
+  inset: 0;
+  opacity: 0.78;
+  animation: series-fade 0.7s ease both;
+}
+
+.movie-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(var(--s-bg), 0.86) 0%, rgba(var(--s-bg), 0.5) 46%, rgba(var(--s-bg), 0.22) 100%),
+    linear-gradient(0deg, rgba(var(--s-bg), 0.8) 0%, rgba(var(--s-bg), 0) 30%),
+    radial-gradient(ellipse 70% 55% at 20% 0%, rgba(var(--ui-l48), 0.3), transparent 70%);
+}
+
+/* ---------- Glasflächen ---------- */
+
+.movie-panel,
+.movie-options {
+  isolation: isolate;
+  border-radius: 0.7rem;
+  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.62) 0%, rgba(var(--ui-l14), 0.72) 38%, rgba(var(--ui-l5), 0.8) 100%);
+  border: 1px solid rgba(var(--ui-l84), 0.24);
+  box-shadow:
+    0 2.4rem 5.5rem rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 0 3.2rem rgba(var(--ui-l58), 0.08);
+  animation: series-fade 0.55s ease both;
+}
+/* Glanzlicht am oberen Rand */
+.movie-panel::before,
+.movie-options::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.03) 18%, transparent 38%);
+}
+
+/* Beide Flächen stehen nebeneinander, mittig zwischen oberem Rand und Hinweisleiste */
+.movie-layout {
+  position: absolute;
+  z-index: 2;
+  left: var(--m-pad);
+  right: var(--m-pad);
+  top: 3rem;
+  bottom: calc(var(--s-hints) + 1.6rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3rem;
+}
+
+.movie-panel {
+  position: relative;
+  flex: 0 1 50rem;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-width: 0;
+  padding: 2.6rem 3rem 2.6rem;
+}
+
+.movie-options {
+  position: relative;
+  flex: 0 0 min(37rem, 36%);
+  padding: 1.1rem;
+  animation-name: movie-options-in;
+}
+
+/* ---------- Kopf ---------- */
+
+.movie-head {
+  flex: none;
+  margin-bottom: 1.6rem;
+}
+
+.movie-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  margin: 0 0 1rem;
+  padding: 0.1rem 0;
+  overflow: hidden;
+  font-size: 3.8rem;
+  font-weight: 300;
+  line-height: 1.14;
+  letter-spacing: 0.015em;
+  overflow-wrap: anywhere;
+}
+
+.movie-logo {
+  display: flex;
+  align-items: flex-end;
+  height: 10.5rem;
+  margin: 0 0 1.2rem;
+}
+.movie-logo img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: left bottom;
+  filter: drop-shadow(0 0.2rem 0.8rem rgba(0, 0, 0, 0.6));
+  animation: series-fade 0.5s ease both;
+}
+
+.movie-meta {
+  margin: 0 0 0.8rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.07em;
+  opacity: 0.8;
+}
+
+.movie-tagline {
+  margin: 0;
+  font-size: 1.45rem;
+  font-style: italic;
+  line-height: 1.45;
+  letter-spacing: 0.03em;
+  opacity: 0.68;
+}
+
+/* ---------- Beschreibung ---------- */
+
+.movie-textwrap {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  min-height: 6rem;
+  border-radius: 0.5rem;
+  transition: box-shadow 0.3s ease;
+}
+.movie-textwrap.is-focused {
+  box-shadow:
+    0 0 0 1px rgba(var(--ui-l84), 0.5),
+    0 0 1.2rem rgba(var(--ui-l76), 0.4);
+}
+.movie-text {
+  flex: 1 1 auto;
+  max-height: 21rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.2rem 1.2rem 0.2rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  outline: none;
+}
+.movie-textwrap.is-focused .movie-text {
+  padding-left: 1.2rem;
+}
+.movie-text::-webkit-scrollbar {
+  width: 0.5rem;
+}
+.movie-text::-webkit-scrollbar-thumb {
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.3);
+}
+.movie-text p {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+.movie-text .movie-credit {
+  margin-bottom: 0.4rem;
+  font-size: 1.3rem;
+  line-height: 1.5;
+  opacity: 0.62;
+}
+.movie-text .movie-none {
+  opacity: 0.55;
+}
+.movie-textwrap.is-scrollable:not(.at-end):not(.at-start) .movie-text {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 2rem, #000 calc(100% - 2.6rem), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 2rem, #000 calc(100% - 2.6rem), transparent 100%);
+}
+.movie-textwrap.is-scrollable.at-start:not(.at-end) .movie-text {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 2.6rem), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 2.6rem), transparent 100%);
+}
+.movie-textwrap.is-scrollable.at-end:not(.at-start) .movie-text {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 2rem);
+  mask-image: linear-gradient(180deg, transparent 0, #000 2rem);
+}
+
+.movie-status {
+  flex: none;
+  min-height: 0;
+  margin-top: 1.2rem;
+}
+.movie-note {
+  flex: none;
+  margin: 1.2rem 0 0;
+  font-size: 1.3rem;
+  line-height: 1.45;
+  letter-spacing: 0.03em;
+  color: var(--pop-warn, #ffd98a);
+}
+
+/* ---------- Optionen ---------- */
+
+.movie-rows {
+  position: relative;
+}
+
+.movie-bar {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--m-row) * 1rem);
+  border-radius: 0.5rem;
+  background: var(--s-focus-bg);
+  box-shadow: var(--s-focus-edge);
+  transition:
+    transform 0.5s var(--s-spring),
+    opacity 0.3s ease;
+  will-change: transform;
+}
+.movie-bar__halo {
+  position: absolute;
+  inset: -0.15rem;
+  border-radius: 0.65rem;
+  pointer-events: none;
+  box-shadow: var(--s-glow);
+  animation: series-pulse 2.6s ease-in-out infinite;
+}
+
+.movie-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  width: 100%;
+  height: calc(var(--m-row) * 1rem);
+  padding: 0 1.6rem;
+  border: 0;
+  background: none;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  text-shadow: inherit;
+  cursor: pointer;
+  outline: none;
+  opacity: 0.66;
+  transition: opacity 0.35s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.movie-row.is-focused {
+  opacity: 1;
+}
+.movie-row:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.movie-row__glyph {
+  flex: none;
+  display: block;
+  width: 2.1rem;
+  height: 2.1rem;
+  margin-left: -0.2rem;
+}
+
+.movie-row__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.movie-row__label {
+  overflow: hidden;
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.movie-row.is-primary .movie-row__label {
+  font-size: 1.9rem;
+}
+.movie-row__detail {
+  font-size: 1.2rem;
+  letter-spacing: 0.05em;
+  opacity: 0.68;
+}
+
+.movie-row__value {
+  flex: 0 1 62%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.03em;
+  opacity: 0.85;
+}
+.movie-row__value > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.movie-row.is-focused .movie-row__value {
+  opacity: 1;
+}
+.movie-arrow {
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+@keyframes movie-options-in {
+  from {
+    opacity: 0;
+    transform: translate3d(2.4rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Ein generiertes Platzhalter-Cover trägt seinen Titel im Bild – als Hintergrund stört der Text die Schrift davor */
+.movie-art .art-ph__center,
+.movie-art .art-ph__credits,
+.movie-art .art-ph__name,
+.movie-art .art-ph__bar {
+  visibility: hidden;
+}

@@ -292,6 +292,38 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   transform: translate3d(0, var(--s-top-collapsed), 0);
 }
 
+/* Glasfläche hinter Staffel-Auswahl und Folgenliste – wie die Listen der PS3 (vgl. .pop-panel in popup.css) */
+.series-lower::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -2.6rem;
+  right: -2.6rem;
+  top: -1.2rem;
+  bottom: -2rem;
+  border-radius: 0.7rem 0.7rem 0 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.58) 0%, rgba(var(--ui-l14), 0.7) 30%, rgba(var(--ui-l5), 0.78) 100%);
+  border: 1px solid rgba(var(--ui-l84), 0.22);
+  border-bottom: 0;
+  box-shadow:
+    0 -1.2rem 4rem rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 0 3.2rem rgba(var(--ui-l58), 0.08);
+}
+.series-lower::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -2.6rem;
+  right: -2.6rem;
+  top: -1.2rem;
+  height: 14rem;
+  border-radius: 0.7rem 0.7rem 0 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03) 30%, transparent);
+}
+
 .series-bar-row {
   position: relative;
   z-index: 5;

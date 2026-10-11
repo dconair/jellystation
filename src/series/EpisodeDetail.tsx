@@ -43,6 +43,8 @@ export interface EpisodeDetailProps {
   onTogglePlayed: (episode: SeriesEpisode) => Promise<void>;
   /** Die lange Beschreibung nachladen (nicht blockierend). */
   loadDetails: (key: string) => void;
+  /** △: schnelle Farbwahl öffnen. */
+  onColor?: () => void;
 }
 
 /** Für die Detailseite ein größeres Bild anfordern (die Listen-Kachel ist nur 400 px hoch). */
@@ -66,6 +68,7 @@ export function EpisodeDetail({
   onShow,
   onTogglePlayed,
   loadDetails,
+  onColor,
 }: EpisodeDetailProps) {
   const [zone, setZone] = useState<Zone>("buttons");
   const [btn, setBtn] = useState(0);
@@ -218,6 +221,8 @@ export function EpisodeDetail({
         return confirm();
       case "back":
         return back();
+      case "triangle":
+        return onColor?.();
       default:
         return;
     }
@@ -229,6 +234,7 @@ export function EpisodeDetail({
     if (!active || leaving) return;
     if (a === "confirm") confirm();
     else if (a === "back") back();
+    else if (a === "triangle") onColor?.();
   };
 
   /* ---- Maus ---- */
@@ -378,6 +384,7 @@ export function EpisodeDetail({
           hints={[
             { symbol: "cross", label: focusLabel },
             { symbol: "circle", label: "Zurück" },
+            ...(onColor ? [{ symbol: "triangle" as const, label: "Farbe" }] : []),
           ]}
           onHint={onHint}
           end={

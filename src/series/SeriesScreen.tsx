@@ -4,6 +4,7 @@ import { ArtImage } from "../art/ArtImage";
 import type { XmbEntry } from "../data/types";
 import type { JfConfig } from "../jellyfin/context";
 import type { PadAction } from "../input/useGamepad";
+import { AccentPicker } from "../prefs/AccentPicker";
 import { OverlayFrame, useOverlayInput } from "../ui/popup";
 import { DotSpinner, HintBar } from "../ui/popup/parts";
 import type { HintAction } from "../ui/popup/types";
@@ -77,6 +78,13 @@ export function SeriesScreen({ series, jellyfin, onPlay, onClose, active = true 
     navRef.current = n;
     setNavState(n);
   }, []);
+
+  /** Schnelle Farbwahl (△). */
+  const [picker, setPicker] = useState(false);
+  const openPicker = () => {
+    playSfx("confirm");
+    setPicker(true);
+  };
 
   const [menu, setMenuState] = useState<number | null>(null);
   const menuRef = useRef<number | null>(null);
@@ -190,6 +198,7 @@ export function SeriesScreen({ series, jellyfin, onPlay, onClose, active = true 
   const onAction = (action: PadAction) => {
     if (action === "back") return back();
     if (action === "confirm") return confirm();
+    if (action === "triangle") return openPicker();
     if (!hasList || !season) return;
     const cur = navRef.current;
 
@@ -249,13 +258,14 @@ export function SeriesScreen({ series, jellyfin, onPlay, onClose, active = true 
     }
   };
 
-  const overviewActive = active && !(detail && !detail.leaving);
+  const overviewActive = active && !picker && !(detail && !detail.leaving);
   useOverlayInput({ active: overviewActive, onAction, keyMap: KEYS });
 
   const onHint = (a: HintAction) => {
     if (!overviewActive) return;
     if (a === "confirm") confirm();
     else if (a === "back") back();
+    else if (a === "triangle") openPicker();
   };
 
   /* ------------------------------------------------------------------- Maus */
@@ -300,7 +310,7 @@ export function SeriesScreen({ series, jellyfin, onPlay, onClose, active = true 
   const style = { "--s-row": `${ROW_H}rem` } as CSSProperties;
   const leavingSeason = swap ? seasons[swap.from] : undefined;
 
-  return (
+  const screen = (
     <OverlayFrame className="series-frame" dim={0.3} onBack={onClose} active={active} keyboard={false}>
       <div className={`series-screen${collapsed ? " is-collapsed" : ""}`} style={style} onMouseDown={onScreenMouseDown}>
         <div className="series-art" aria-hidden="true">
@@ -450,6 +460,7 @@ export function SeriesScreen({ series, jellyfin, onPlay, onClose, active = true 
             hints={[
               { symbol: "cross", label: hintLabel },
               { symbol: "circle", label: menu !== null ? "Schließen" : "Zurück" },
+              { symbol: "triangle", label: "Farbe" },
             ]}
             onHint={onHint}
             end={
@@ -472,9 +483,10 @@ export function SeriesScreen({ series, jellyfin, onPlay, onClose, active = true 
             following={data.episodes.slice(followIndex + 1, followIndex + 1 + MORE_COUNT)}
             prev={followIndex > 0 ? data.episodes[followIndex - 1] : null}
             next={followIndex + 1 < data.episodes.length ? data.episodes[followIndex + 1] : null}
-            active={active && !detail.leaving}
+            active={active && !picker && !detail.leaving}
             leaving={detail.leaving}
             onBack={closeDetail}
+            onColor={openPicker}
             onPlay={play}
             onShow={showEpisode}
             onTogglePlayed={(ep) => data.setPlayed(ep.key, !ep.played)}
@@ -483,5 +495,13 @@ export function SeriesScreen({ series, jellyfin, onPlay, onClose, active = true 
         )}
       </div>
     </OverlayFrame>
+  );
+
+  // Die Farbwahl bekommt einen eigenen Rahmen neben dem der Serie (PopupList nutzt sonst den umgebenden mit).
+  return (
+    <>
+      {screen}
+      {picker && <AccentPicker active={active} onClose={() => setPicker(false)} />}
+    </>
   );
 }

@@ -16,6 +16,7 @@ src/
   stremio/                 Stremio als zweite Quelle: Konto, Addons, Kataloge, Stream-Auswahl, Suche
   search/                  Suche in Jellyfin und Stremio (SearchDialog, Verlauf)
   player/                  Video-Player im PS3-Stil
+  movie/                   Film-Detailseite vor dem Player (Logo, Optionen)
   emulators/               Emulator-Katalog, Erkennung, Dialoge
   diagnose/                Diagnose: Prüflauf, Regeln, Dialog „Diagnose“
   install/                 „Einrichtung & Downloads“: Emulatoren von GitHub laden, BIOS/Firmware prüfen, eigene Spiele-Quellen
@@ -49,6 +50,9 @@ Das Hauptmenü (`<Xmb inputEnabled={…}>`) ignoriert jede Eingabe, solange ein 
   Flächen über dem Hintergrundbild (wie die Listen der PS3), getönt in der Akzentfarbe. Standard „Wie Farbthema“ = Monatsfarbe bzw. gewähltes Farbthema; alternativ PS3-Weiß (neutral),
   ein Thema oder ein eigener Farbton. `UiEffects` schreibt eine Helligkeitsleiter `--ui-l92 … --ui-l5` (RGB-Tripel, feste HSL-Helligkeit) an `<html>`; die Stylesheets nutzen sie als
   `rgba(var(--ui-l76), 0.4)` – keine festen Blautöne mehr. Standardwerte (Blau) stehen in `index.css`. Beim Serien-Screen tritt die Menü-Ebene zurück, das Hintergrundbild bleibt (`:has(.series-frame)` in `series.css`).
+- **Schnelle Farbwahl** (`src/prefs/AccentPicker.tsx`): △ im Serien-Screen (Übersicht und Folgen-Details) und auf der Film-Detailseite öffnet eine Liste der Akzentfarben. Beim Bewegen färbt
+  sich die Oberfläche sofort um (`setUiPrefs({ accentId })`), ✕ übernimmt, ○ stellt die vorherige Farbe wieder her. Es ist dieselbe Einstellung wie Einstellungen → Anzeige & Farben → Akzentfarbe.
+  Die Folgenliste des Serien-Screens und die beiden Flächen der Film-Detailseite sind Glasflächen wie die Listen der PS3 (Verlauf aus `--ui-l…`, Lichtkante oben).
 - **Kategorie-Icons** (`src/xmb/CategoryIcon.tsx`): selbst gezeichnete Vektor-Piktogramme nach dem Vorbild der XMB (Video = Filmstreifen, Foto = Kamera, Einstellungen = Werkzeugkasten, Spiele = Gamepad …). Es liegen keine Sony-Originaldateien im Repo.
 - **PS3-Klänge** (`src/audio/ps3Sounds.ts`, Dateien in `public/sounds/ps3/`, Einstellung `soundPack`: `ps3` | `synth`): Zuordnung in `sound.ts`
   (`SFX_AS_PS3`): Cursor-Bewegung und Kategoriewechsel → `snd_option` (auf der PS3 bytegleich mit `snd_cursor`, `snd_decide` und `snd_category_decide`), Zurück → `snd_cancel`, Bestätigen → `snd_system_ok`, Fehler → `snd_system_ng`; dazu
@@ -219,6 +223,12 @@ Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`).
   Mit API-Key funktionieren die älteren Endpunkte `/Users/{userId}/PlayingItems/…` zuverlässig; die neueren `/Sessions/Playing*`
   sind Rückfall.
 - Positionen: Jellyfin-Ticks (1 s = 10 000 000). Bibliotheks-Einträge tragen `entry.jellyfin` (`JellyfinRef`).
+- `getMovieInfo(ctx, id) -> MovieInfo` (`movie.ts`): Einzelabruf eines Films für die Detailseite – Logo (`Images/Logo`), Hintergrundbild (`Images/Backdrop`), Tagline, Altersfreigabe, Wertung, Regie/Besetzung
+  und je Fassung (`MediaSources`) die Ton- und Untertitelspuren mit ihren Stream-Indizes.
+- **Film-Detailseite** (`src/movie/MovieScreen.tsx`, `useMovieData.ts`): ✕ auf einem Film (Filme, Zuletzt) öffnet erst diese Seite, nicht den Player. Links Logo (sonst der Titel als Text), Eckdaten, Beschreibung;
+  rechts die Optionen: Abspielen bzw. Fortsetzen bei …, Von vorn, Fassung, Tonspur, Untertitel (←/→ schalten durch, ✕ öffnet eine Liste), Als gesehen markieren, Farbe. Die Wahl geht als `choice`
+  (`mediaSourceId`, `audioIndex`, `subtitleIndex`; `null` = Untertitel aus) über `Player` an `PlayerEngine.open` und von dort in `planPlayback`; „Automatisch“ überlässt es dem Server bzw. der gemerkten Sprache.
+  Ist der Abruf der Details fehlgeschlagen, bleibt Abspielen möglich. Demo-Filme zeigen nur Abspielen und Farbe.
 
 ## Stremio (`src/stremio/`)
 
