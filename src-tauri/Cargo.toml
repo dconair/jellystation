@@ -1,6 +1,6 @@
 [package]
 name = "jellystation"
-version = "0.2.0"
+version = "0.3.0"
 description = "JellyStation – ein XMB-Media-Frontend"
 edition = "2021"
 
