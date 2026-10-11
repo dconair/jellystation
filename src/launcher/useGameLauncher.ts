@@ -9,6 +9,7 @@ import { detectOne } from "../emulators/detect";
 import { tildePath } from "../emulators/status";
 import type { EmulatorStatus } from "../emulators/status";
 import type { EmulatorsState } from "../emulators/useEmulators";
+import type { DiagnoseContext } from "../diagnose/types";
 import { isTauri } from "../platform";
 import { playSfx } from "../xmb/sound";
 import { classifyLaunchError, commandLineOf, exitDetail, exitHow, exitShort, formatDuration, judgeExit, MIN_OVERLAY_MS } from "./format";
@@ -40,6 +41,11 @@ export interface GameLauncherOptions {
   preflight?: (def: EmulatorDef) => Promise<string | null>;
   /** Wird bei einem Hinweis der Vorabprüfung aufgerufen (öffnet z. B. den Dialog „BIOS & Firmware“). */
   onNeedFiles?: (emulatorId: string, message: string) => void;
+  /**
+   * Ein Spiel ließ sich nicht starten oder wurde sofort bzw. unerwartet beendet: Der Aufrufer öffnet die Diagnose
+   * (`<DiagnoseDialog context={…}>`), die Ursache und Behebung zeigt. Ohne diese Funktion erscheint der Fehlerdialog.
+   */
+  onDiagnose?: (context: DiagnoseContext) => void;
 }
 
 export interface GameLauncher {
@@ -390,6 +396,7 @@ class LaunchController {
       s.notify(`„${title}“ läuft bereits`);
       return;
     }
+    if (this.diagnose(s, { launchError: text })) return;
     const open = this.options().onNeedEmulator;
     const def = s.def;
     const hint =
@@ -413,6 +420,23 @@ class LaunchController {
     });
   }
 
+  /** Öffnet die Diagnose zum gescheiterten Start; false, wenn der Aufrufer keine anbietet (dann der Fehlerdialog). */
+  private diagnose(s: Session, cause: Pick<DiagnoseContext, "exit" | "launchError">): boolean {
+    const open = this.options().onDiagnose;
+    const game = s.entry.game;
+    if (!open || !game) return false;
+    playSfx("error");
+    open({
+      emulatorId: s.def?.id ?? null,
+      title: s.entry.title,
+      path: game.path,
+      system: game.system,
+      commandLine: s.commandLine,
+      ...cause,
+    });
+    return true;
+  }
+
   /* ------------------------------------------------------------------ Ende */
 
   private handleExit(exit: GameExit) {
@@ -431,6 +455,7 @@ class LaunchController {
     }
 
     this.closeLaunch(s.overlayKey, true);
+    if (this.diagnose(s, { exit })) return;
     const how = exitHow(exit);
     const dur = formatDuration(exit.durationMs);
     // Kurze, feste Titel (lange Spielnamen würden abgeschnitten); der Name steht im Text.

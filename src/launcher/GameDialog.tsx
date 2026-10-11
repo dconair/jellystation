@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { PadAction } from "../input/useGamepad";
 import { OverlayFrame, useOverlayInput } from "../ui/popup";
 import type { PopupHint } from "../ui/popup";
@@ -38,6 +39,10 @@ export function GameDialog({ tone, title, lines, detail, action, closeLabel = "S
   const indexRef = useRef(index);
   const cb = useRef({ action, onClose });
   cb.current = { action, onClose };
+
+  // Lange Beschriftungen (z. B. „In den Emulator übernehmen“) brauchen breitere Knöpfe als die Standardbreite.
+  const longest = Math.max(...labels.map((l) => l.length));
+  const choiceWidth = longest > 14 ? ({ "--choice-w": `${Math.min(18, Math.ceil(longest * 0.8) + 3)}rem` } as CSSProperties) : undefined;
 
   const move = (i: number) => {
     if (i < 0 || i >= labels.length || i === indexRef.current) return;
@@ -143,7 +148,7 @@ export function GameDialog({ tone, title, lines, detail, action, closeLabel = "S
             </pre>
           )}
         </div>
-        <div className={`pop-choices${ready ? " is-ready" : ""}`} role="group">
+        <div className={`pop-choices${ready ? " is-ready" : ""}`} role="group" style={choiceWidth}>
           <div className="pop-choices__row">
             <div
               className="pop-choice-bar"

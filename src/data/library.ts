@@ -135,6 +135,10 @@ export const categories: XmbCategory[] = [
         action: "open-requirements",
       },
       {
+        ...entry("st-diagnose", "Diagnose", "Probleme mit Spielen und Emulatoren finden", 150, "Prüft Emulatoren, BIOS und Firmware, Spieldateien und Ordner automatisch, erklärt Probleme verständlich und behebt, was die App selbst beheben kann. Öffnet sich auch von selbst, wenn ein Spiel nicht startet."),
+        action: "open-diagnose",
+      },
+      {
         ...entry("st2", "Jellyfin-Benutzer", "Wer schaut?", 255, "Wählt den Jellyfin-Benutzer für Wiedergabestatus und „Weiterschauen“."),
         action: "choose-jellyfin-user",
       },

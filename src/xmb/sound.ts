@@ -509,8 +509,12 @@ import.meta.hot?.dispose(() => {
   void ctx?.close().catch(() => undefined);
 });
 
-/** Welche Menü-Töne im Klangpaket "ps3" durch Originalklänge ersetzt werden; alles andere bleibt synthetisch. */
-const SFX_AS_PS3: Partial<Record<Sfx, PsSound>> = { move: "option", back: "cancel", confirm: "ok", error: "ng" };
+/**
+ * Welche Menü-Töne im Klangpaket "ps3" durch Originalklänge ersetzt werden. Auf der PS3 sind snd_cursor, snd_option,
+ * snd_decide und snd_category_decide bytegleich: Der Wechsel der Kategorie (links/rechts) klingt also wie die Bewegung
+ * im Eintrag (hoch/runter). Nur ohne Originaldatei greift der synthetische Ton.
+ */
+const SFX_AS_PS3: Partial<Record<Sfx, PsSound>> = { move: "option", category: "option", back: "cancel", confirm: "ok", error: "ng" };
 
 /** Spielt einen PS3-Klang ab; false, wenn er (noch) nicht geladen ist. */
 function playPs3(id: PsSound, volume: number): AudioBufferSourceNode | null {

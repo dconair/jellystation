@@ -17,6 +17,7 @@ src/
   search/                  Suche in Jellyfin und Stremio (SearchDialog, Verlauf)
   player/                  Video-Player im PS3-Stil
   emulators/               Emulator-Katalog, Erkennung, Dialoge
+  diagnose/                Diagnose: Prüflauf, Regeln, Dialog „Diagnose“
   install/                 „Einrichtung & Downloads“: Emulatoren von GitHub laden, BIOS/Firmware prüfen, eigene Spiele-Quellen
   launcher/                Spielstart (Rust-Befehl game_launch) + Start-Overlay
   ui/                      Gemeinsame PS3-Bausteine (PsSymbol, Popup-Listen, Dialoge)
@@ -50,8 +51,8 @@ Das Hauptmenü (`<Xmb inputEnabled={…}>`) ignoriert jede Eingabe, solange ein 
   `rgba(var(--ui-l76), 0.4)` – keine festen Blautöne mehr. Standardwerte (Blau) stehen in `index.css`. Beim Serien-Screen tritt die Menü-Ebene zurück, das Hintergrundbild bleibt (`:has(.series-frame)` in `series.css`).
 - **Kategorie-Icons** (`src/xmb/CategoryIcon.tsx`): selbst gezeichnete Vektor-Piktogramme nach dem Vorbild der XMB (Video = Filmstreifen, Foto = Kamera, Einstellungen = Werkzeugkasten, Spiele = Gamepad …). Es liegen keine Sony-Originaldateien im Repo.
 - **PS3-Klänge** (`src/audio/ps3Sounds.ts`, Dateien in `public/sounds/ps3/`, Einstellung `soundPack`: `ps3` | `synth`): Zuordnung in `sound.ts`
-  (`SFX_AS_PS3`): Cursor-Bewegung → `snd_option`, Zurück → `snd_cancel`, Bestätigen → `snd_system_ok`, Fehler → `snd_system_ng`; dazu
-  `playSound("trophy")` (Erfolgsmeldung), `playSound("gameboot")` (Spielstart) und `startBootSound()` (coldboot). Der Kategoriewechsel bleibt synthetisch. Die Originale sind sehr leise; `psGain` hebt sie auf einen einheitlichen Pegel. `snd_error.wav` ist praktisch
+  (`SFX_AS_PS3`): Cursor-Bewegung und Kategoriewechsel → `snd_option` (auf der PS3 bytegleich mit `snd_cursor`, `snd_decide` und `snd_category_decide`), Zurück → `snd_cancel`, Bestätigen → `snd_system_ok`, Fehler → `snd_system_ng`; dazu
+  `playSound("trophy")` (Erfolgsmeldung), `playSound("gameboot")` (Spielstart) und `startBootSound()` (coldboot). Die Originale sind sehr leise; `psGain` hebt sie auf einen einheitlichen Pegel. `snd_error.wav` ist praktisch
   stumm (1,75 ms, −91 dB) und wird nicht verwendet.
 - **Herkunft/Rechte:** Die WAV-Dateien stammen aus der PS3-Systemsoftware (Sony) und liegen auf ausdrücklichen Wunsch des Projekteigentümers im Repo.
   Rechte daran liegen bei Sony. Wer sie nicht ausliefern will, löscht `public/sounds/ps3/`: Die App fällt dann automatisch auf die synthetischen Töne
@@ -108,6 +109,29 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
 
 Shell-Plugin (`@tauri-apps/plugin-shell`): nur für `open()` (Webseiten öffnen; `plugins.shell.open` in tauri.conf.json) und
 `brew install --cask <name>` (Scope in `capabilities/emulators.json`, Pfade `/opt/homebrew/bin/brew` und `/usr/local/bin/brew`).
+
+### Diagnose (`diagnose.rs`)
+Alles lesend; die App ändert nur auf Klick. Befehle:
+
+- `diag_probe({ paths }) -> [FileProbe]` – je Pfad (gleiche Reihenfolge): `exists`, `isDir`, `isFile`, `readable`, `size`, `headHex` (erste 16 Bytes als Hex),
+  `names` (bei Ordnern, höchstens 60), `refs` (zu `.cue`/`.m3u`: genannte Dateien und ob sie daneben liegen), `quarantined` (nur macOS und nur bei `.app`), `error`.
+  Höchstens 2000 Pfade je Aufruf; Pfade mit `..` werden abgelehnt.
+- `diag_log_tail({ candidates, lines? }) -> { path, modifiedMs, lines } | null` – Ende (höchstens 192 KB) der zuletzt geänderten Datei unter den Kandidaten;
+  nur Dateien im Benutzerordner, ANSI-Codes und Steuerzeichen entfernt.
+- `diag_clear_quarantine({ path })` – `xattr -dr com.apple.quarantine` für ein vorhandenes `.app`-Paket (nur macOS). Die einzige ändernde Funktion.
+
+Frontend `src/diagnose/`:
+
+- `run.ts` `runDiagnosis(input)` prüft in dieser Reihenfolge: Anlass (Exit-Code/Signal/Ausgabe eines gescheiterten Starts, Emulator-Protokoll, Datei des Spiels),
+  Spiele-Ordner, jeder Emulator (installiert, startbar, Quarantäne), BIOS/Firmware (nutzt `checkRequirements` aus `emulators/requirements.ts`; dazu Kopfprüfung:
+  PS3-`.PUP` beginnt mit „SCEUF“, BIOS nicht nur Nullen/Einsen), alle Spieldateien der Bibliothek (lesbar, nicht leer, `.cue`-/`.m3u`-Teile vorhanden, kein Archiv,
+  passende Endung, Ordnerform bei PS3/PSP). Ergebnis: `DiagnoseReport` mit `Finding`s (`error|warn|info|ok`, Erklärung mit nächstem Schritt, optional `fix`).
+  `applyFix()` führt `copy-bios` (über `bios_copy`) und `clear-quarantine` aus; `open-emulators|open-files|open-games-dir` öffnet der Aufrufer.
+- `rules.ts` – reine Regeln: erlaubte Endungen je Emulator, Protokollpfade, Muster für typische Fehlermeldungen (BIOS/Firmware/Lizenz/Abbild/Rechte/Quarantäne/Architektur/Grafik …).
+  Die Muster sind bewusst weit gefasst, die Texte vorsichtig („vermutlich“). Es gibt **keine** Hashlisten bekannter BIOS-Dateien (nichts davon wird mitgeliefert).
+- `DiagnoseDialog.tsx` – Liste der Befunde (Probleme, Hinweise, In Ordnung), „Behebbares beheben“, „Neu prüfen“, Protokolle, „Bericht kopieren“.
+- Einstiege: Einstellungen → „Diagnose“ (`open-diagnose`) und **automatisch**, wenn ein Start scheitert (`onDiagnose` in `useGameLauncher`, Anlass = `DiagnoseContext`);
+  ohne `onDiagnose` zeigt der Starter wie bisher den Fehlerdialog.
 
 ### Spielebibliothek (`library.rs`)
 Ein einziger Spiele-Ordner genügt: Der Nutzer legt Spiele unsortiert hinein (auch in Unterordner), die App sortiert **nur virtuell**, es wird nie

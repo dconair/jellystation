@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { categories as baseCategories } from "./data/library";
 import type { XmbCategory, XmbEntry } from "./data/types";
 import { EmulatorsDialog, summarizeEmulators, useEmulators } from "./emulators";
+import { DiagnoseDialog } from "./diagnose/DiagnoseDialog";
+import type { DiagnoseContext, DiagnoseGame } from "./diagnose/types";
 import { RequirementsDialog } from "./emulators/RequirementsDialog";
 import { biosDirOf, blockingMissing, checkRequirements, missingLabels, requirementsFor } from "./emulators/requirements";
 import { useRequirements } from "./emulators/useRequirements";
@@ -123,6 +125,7 @@ export default function App() {
 type Overlay =
   | { kind: "emulators"; focusId?: string; message?: string }
   | { kind: "files"; focusEmulatorId?: string; message?: string }
+  | { kind: "diagnose"; context?: DiagnoseContext }
   | { kind: "install" }
   | { kind: "users"; users: JfUser[] | null; error?: string }
   | { kind: "resume"; entry: XmbEntry; playlist?: XmbEntry[] }
@@ -195,6 +198,8 @@ function Main({
       return `${def.name} braucht noch: ${lacking.map((s) => s.req.label).join(", ")}.`;
     },
     onNeedFiles: (emulatorId, message) => openOverlay({ kind: "files", focusEmulatorId: emulatorId, message }),
+    // Ein Spiel startet nicht: gleich die Diagnose mit Ursache und Behebung zeigen.
+    onDiagnose: (context) => openOverlay({ kind: "diagnose", context }),
   });
 
   const jfConfig = jfConfigOf(reachableJf ?? undefined);
@@ -222,6 +227,18 @@ function Main({
   const assignmentCount = Object.keys(settings?.gameSystems ?? {}).length;
   const assignmentSummary = assignmentCount ? `${assignmentCount} von dir geändert` : "Alles automatisch erkannt";
   const emulatorSummary = useMemo(() => summarizeEmulators(emulators.statuses), [emulators.statuses]);
+  // Echte Spiele der Bibliothek für die Diagnose (Demo-Einträge gibt es auf der Platte nicht).
+  const diagnoseGames = useMemo<DiagnoseGame[]>(() => {
+    const seen = new Set<string>();
+    const out: DiagnoseGame[] = [];
+    for (const e of library.categories.flatMap((c) => c.entries)) {
+      const g = e.game;
+      if (!g || g.mock || seen.has(g.path)) continue;
+      seen.add(g.path);
+      out.push({ title: e.title, path: g.path, system: g.system });
+    }
+    return out;
+  }, [library.categories]);
   const filesSummary = useMemo(() => {
     const m = missingLabels(requirements.statuses);
     return requirements.loading ? "Wird geprüft …" : m.length ? `Fehlt: ${m.join(", ")}` : "Alles vorhanden";
@@ -394,6 +411,7 @@ function Main({
       else if (entry.action === "open-about") openOverlay({ kind: "about" });
       else if (entry.action === "open-emulators") openOverlay({ kind: "emulators" });
       else if (entry.action === "open-requirements") openOverlay({ kind: "files" });
+      else if (entry.action === "open-diagnose") openOverlay({ kind: "diagnose" });
       else if (entry.action === "open-install") openOverlay({ kind: "install" });
       else if (entry.action === "open-display-settings") openOverlay({ kind: "settings", section: "display" });
       else if (entry.action === "open-motion-settings") openOverlay({ kind: "settings", section: "motion" });
@@ -716,6 +734,25 @@ function Main({
         message={overlay.message}
         onSetBiosDir={(dir) => settings && onChangeSettings({ ...settings, biosDir: dir.trim() || undefined })}
         onRefresh={requirements.refresh}
+        onClose={close}
+      />
+    );
+  } else if (overlay?.kind === "diagnose") {
+    layer = (
+      <DiagnoseDialog
+        emulators={emulators.statuses}
+        refreshEmulators={emulators.refresh}
+        biosDir={biosDirOf(biosDir)}
+        gamesDir={settings?.gamesDir ?? ""}
+        games={diagnoseGames}
+        context={overlay.context}
+        onOpenEmulators={(focusId) => openOverlay({ kind: "emulators", focusId })}
+        onOpenFiles={(focusEmulatorId) => openOverlay({ kind: "files", focusEmulatorId })}
+        onOpenGamesDir={() => openOverlay({ kind: "setupStep", step: 1 })}
+        onChanged={() => {
+          void emulators.refresh();
+          void requirements.refresh();
+        }}
         onClose={close}
       />
     );
