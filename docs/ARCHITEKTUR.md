@@ -184,6 +184,7 @@ Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`).
   `emulators.json`, Windows eigene Tabelle – ungeprüft gegen echte Releases, Dateinamen werden zur Laufzeit gelesen), `emulatorInstall.ts`, `biosCheck.ts` (Größe, Dateikopf
   „SCEUF“ der PS3-Firmware, bekannte PS1-MD5; unbekannte Prüfsumme ist kein Fehler), `gameSources.ts` (Quellen: Datei, Verzeichnisseite, Adressliste, JSON; Server außerhalb der Quelle
   müssen bestätigt werden), `downloadQueue.ts` (Warteschlange, lebt so lange wie die App), `InstallDialog.tsx`, `GameSourcesDialog.tsx`. Einstellung: `settings.gameSources`.
+  Im Hauptmenü steht die Spalte „Spiele laden“ (`games-get` in `App.tsx`, hinter den Spiele-Systemen): „Link einfügen und laden“ öffnet `GameSourcesDialog` mit `start="link"` (Datei-Link wird sofort geladen, Listen-Link als unsichtbare Quelle zur Auswahl; △ speichert sie), dazu Verknüpfungen zu Quellen/Downloads, BIOS & Firmware und Einrichtung.
   Spiele landen im Spiele-Ordner (`settings.gamesDir`), bei Bedarf in einem Unterordner-Hinweis der Quelle; das System erkennt `library.rs` danach selbst. PS3-Firmware lädt die App nur von Adressen auf playstation.com/.net und sony.com, die der Nutzer einfügt.
 - Prüfung der reinen Logik ohne Fenster und Netz: `node dev/check-install-logic.mjs`; Rust-Tests: `cargo test --lib -- downloads hashing` (lokaler Mock-Server).
 

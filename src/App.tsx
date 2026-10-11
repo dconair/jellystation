@@ -22,8 +22,9 @@ import { MOODS } from "./audio/moods";
 import { UiEffects } from "./prefs/UiEffects";
 import { ConfirmDialog, MessageDialog, PopupList } from "./ui/popup";
 import { supportedFolderNames } from "./emulators/catalog";
+import { GameSourcesDialog } from "./install/GameSourcesDialog";
 import { InstallDialog } from "./install/InstallDialog";
-import { onItemDone } from "./install/downloadQueue";
+import { onItemDone, useDownloadQueue } from "./install/downloadQueue";
 import { BookmarkDialog } from "./web/BookmarkDialog";
 import { hostOf, importGame, onWebDownload, openWeb } from "./web/webApi";
 import { APP_COMMIT_SUBJECT, APP_VERSION_LABEL } from "./version";
@@ -129,6 +130,7 @@ type Overlay =
   | { kind: "files"; focusEmulatorId?: string; message?: string }
   | { kind: "diagnose"; context?: DiagnoseContext }
   | { kind: "install" }
+  | { kind: "gameSources"; start?: "link" }
   | { kind: "users"; users: JfUser[] | null; error?: string }
   | { kind: "resume"; entry: XmbEntry; playlist?: XmbEntry[] }
   | { kind: "about" }
@@ -290,6 +292,57 @@ function Main({
     return [gateway, ...stremio.columns.map<XmbCategory>((c) => ({ id: c.id, label: c.label, icon: c.type === "movie" ? "movies" : "series", entries: c.entries }))];
   }, [stremio.status, stremio.columns, stremio.problems, settings?.stremio?.account, stremioSummary]);
 
+  // Spalte hinter den Spiele-Systemen: eigene Links einfügen, Quellen und Downloads, BIOS/Emulatoren.
+  const gameQueue = useDownloadQueue();
+  const gameSourceCount = settings?.gameSources?.length ?? 0;
+  const activeDownloads = gameQueue.filter((q) => q.state === "queued" || q.state === "running" || q.state === "verifying");
+  const getGamesCategory = useMemo<XmbCategory>(
+    () => ({
+      id: "games-get",
+      label: "Spiele laden",
+      icon: "games",
+      entries: [
+        {
+          id: "gg-link",
+          title: "Link einfügen und laden",
+          subtitle: "Spiel-Datei oder Liste von deiner Webseite",
+          description: "Füge den Link zu einer Spiel-Datei ein (ISO, CHD, CUE/BIN, PKG, ZIP …): Die App lädt sie in den Spiele-Ordner, setzt abgebrochene Downloads fort und erkennt das System danach selbst. Zeigt der Link auf eine Seite mit mehreren Dateien, wählst du eine aus. Die Links suchst und bestätigst du selbst – lade nur Spiele, die du besitzt oder legal beziehen darfst.",
+          hue: 140,
+          action: "open-game-link",
+        },
+        {
+          id: "gg-sources",
+          title: "Quellen und Downloads",
+          subtitle: activeDownloads.length
+            ? `Lädt: ${activeDownloads[0].name}${activeDownloads.length > 1 ? ` (+${activeDownloads.length - 1})` : ""}`
+            : gameSourceCount
+              ? `${gameSourceCount} Quelle${gameSourceCount === 1 ? "" : "n"}`
+              : "Noch keine Quelle",
+          description: "Deine gespeicherten Quellen (eigene Webseite, NAS, Adressliste) und die laufenden Downloads mit Fortschritt.",
+          hue: 175,
+          action: "open-game-sources",
+        },
+        {
+          id: "gg-files",
+          title: "BIOS & Firmware",
+          subtitle: filesSummary,
+          description: "Zeigt, welche BIOS- und Firmware-Dateien die Emulatoren brauchen, mit Anleitung und Link. Die Dateien bringst du selbst mit.",
+          hue: 40,
+          action: "open-requirements",
+        },
+        {
+          id: "gg-install",
+          title: "Emulatoren einrichten",
+          subtitle: emulatorSummary,
+          description: "Lädt fehlende Emulatoren von den offiziellen Seiten der Projekte und richtet ein leeres System Schritt für Schritt ein.",
+          hue: 210,
+          action: "open-install",
+        },
+      ],
+    }),
+    [activeDownloads.length, activeDownloads[0]?.name, gameSourceCount, filesSummary, emulatorSummary],
+  );
+
   const categories = useMemo<XmbCategory[]>(() => {
     const base = baseCategories.map((cat) => {
       if (hasJellyfinItems && (cat.id === "movies" || cat.id === "series")) {
@@ -353,8 +406,8 @@ function Main({
     );
     // Stremio-Spalten (nur mit eingetragenen Addons) und danach die Spiele-Systeme (PS1, PS2, PS3 …) direkt hinter den Serien.
     const at = withRecent.findIndex((c) => c.id === "series") + 1;
-    return [...withRecent.slice(0, at), ...stremioCategories, ...library.categories, ...withRecent.slice(at)];
-  }, [stremioCategories, searchHistory, recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, assignmentSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
+    return [...withRecent.slice(0, at), ...stremioCategories, ...library.categories, getGamesCategory, ...withRecent.slice(at)];
+  }, [stremioCategories, getGamesCategory, searchHistory, recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, assignmentSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
 
   /** Titel abspielen; ab einer gespeicherten Position fragt vorher ein Dialog nach Fortsetzen/Von vorn. */
   const play = useCallback(
@@ -432,6 +485,8 @@ function Main({
       else if (entry.action === "open-requirements") openOverlay({ kind: "files" });
       else if (entry.action === "open-diagnose") openOverlay({ kind: "diagnose" });
       else if (entry.action === "open-install") openOverlay({ kind: "install" });
+      else if (entry.action === "open-game-link") openOverlay({ kind: "gameSources", start: "link" });
+      else if (entry.action === "open-game-sources") openOverlay({ kind: "gameSources" });
       else if (entry.action === "open-display-settings") openOverlay({ kind: "settings", section: "display" });
       else if (entry.action === "open-motion-settings") openOverlay({ kind: "settings", section: "motion" });
       else if (entry.action === "open-sound-settings") openOverlay({ kind: "settings", section: "sound" });
@@ -805,6 +860,8 @@ function Main({
         onClose={close}
       />
     );
+  } else if (overlay?.kind === "gameSources") {
+    layer = <GameSourcesDialog settings={settings} onChangeSettings={onChangeSettings} start={overlay.start} onClose={close} />;
   } else if (overlay?.kind === "install") {
     layer = (
       <InstallDialog

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { GAMES_BASE_DIR } from "../config/games";
+import { isTauri } from "../platform";
 import { supportedFolderNames } from "../emulators/catalog";
 import type { Settings } from "../settings/settings";
 import { ConfirmDialog, MessageDialog, PopupList, ProgressDialog } from "../ui/popup";
@@ -8,7 +9,7 @@ import { errorText } from "./backend";
 import { cancelItem, enqueue, removeItem, retryItem, useDownloadQueue } from "./downloadQueue";
 import type { QueueItem } from "./downloadQueue";
 import { FormDialog } from "./FormDialog";
-import { allowedHostsOf, foreignHosts, hostOf, loadListing, normalizeSourceUrl } from "./gameSources";
+import { allowedHostsOf, foreignHosts, hostOf, isGameFileUrl, loadListing, nameFromUrl, normalizeSourceUrl } from "./gameSources";
 import type { GameSource, RemoteGame } from "./gameSources";
 import { formatMB } from "./emulatorInstall";
 
@@ -17,10 +18,13 @@ export interface GameSourcesDialogProps {
   onChangeSettings: (next: Settings) => void;
   onClose: () => void;
   active?: boolean;
+  /** "link" öffnet gleich die Eingabe „Link einfügen und laden“ (Spiele-Spalte im Menü). */
+  start?: "link";
 }
 
 type Layer =
   | { kind: "add" }
+  | { kind: "link" }
   | { kind: "addSystem"; name: string; url: string }
   | { kind: "games"; source: GameSource; games: RemoteGame[] }
   | { kind: "item"; id: string }
@@ -55,8 +59,8 @@ const queueDetail = (q: QueueItem): string => {
 };
 
 /** Eigene Spiele-Quellen verwalten und Spiele von dort in den Spiele-Ordner laden. */
-export function GameSourcesDialog({ settings, onChangeSettings, onClose, active = true }: GameSourcesDialogProps) {
-  const [layers, setLayers] = useState<Layer[]>([]);
+export function GameSourcesDialog({ settings, onChangeSettings, onClose, active = true, start }: GameSourcesDialogProps) {
+  const [layers, setLayers] = useState<Layer[]>(start === "link" ? [{ kind: "link" }] : []);
   const [loading, setLoading] = useState<string | null>(null);
   const queue = useDownloadQueue();
   const loadCtl = useRef<AbortController | null>(null);
@@ -127,6 +131,21 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
     ]);
   };
 
+  /** Ein eingefügter Link: eine Spiel-Datei wird sofort geladen, eine Liste (Verzeichnisseite, Adressen, JSON) wird zur Auswahl geöffnet. */
+  const submitLink = (rawUrl: string) => {
+    const url = normalizeSourceUrl(rawUrl)!;
+    if (!isTauri()) {
+      message("info", "Nur in der Desktop-App", ["Das Laden von Spielen funktioniert nur in der Desktop-App, nicht im Browser."]);
+      return;
+    }
+    if (isGameFileUrl(url)) {
+      const game: RemoteGame = { name: nameFromUrl(url), url };
+      startDownload({ id: "link", name: hostOf(url), url }, game, undefined);
+    } else {
+      void openSource({ id: `tmp-${Date.now().toString(36)}`, name: hostOf(url), url });
+    }
+  };
+
   const downloads = queue;
   const mainItems: PopupItem[] = [];
   if (downloads.length) {
@@ -170,6 +189,15 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
           if (!game) return;
           startDownload(source, game, game.system ?? source.system);
         }}
+        onAlt={
+          sources.some((x) => x.id === source.id)
+            ? undefined
+            : () => {
+                saveSources([...sources, { ...source, name: hostOf(source.url) }]);
+                message("success", "Quelle gespeichert", [`„${hostOf(source.url)}“ steht jetzt unter „Meine Quellen“.`]);
+              }
+        }
+        altLabel="Als Quelle merken"
         onBack={pop}
       />
     );
@@ -222,6 +250,7 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
 
   return (
     <>
+      {!(start === "link" && layers.length === 1 && top?.kind === "link") && (
       <PopupList
         key="sources-main"
         title="Spiele-Quellen und Downloads"
@@ -253,6 +282,7 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
         altLabel="Löschen"
         onBack={onClose}
       />
+      )}
       {overlay}
       {top?.kind === "add" && (
         <FormDialog
@@ -271,6 +301,21 @@ export function GameSourcesDialog({ settings, onChangeSettings, onClose, active 
             push({ kind: "addSystem", name: v.name.trim() || hostOf(url), url });
           }}
           onClose={pop}
+        />
+      )}
+      {top?.kind === "link" && (
+        <FormDialog
+          title="Link einfügen und laden"
+          subtitle="Direkter Link zu einer Spiel-Datei oder zu einer Seite mit einer Liste"
+          fields={[{ key: "url", label: "Link", placeholder: "https://… (Datei, Verzeichnisseite oder Adressliste)" }]}
+          note="Ein Link zu einer Spiel-Datei (ISO, CHD, CUE/BIN, PKG, ZIP …) wird sofort in den Spiele-Ordner geladen und das System danach automatisch erkannt. Bei einer Seite mit mehreren Dateien suchst du dir die Datei aus. Lade nur Spiele, die du besitzt oder legal beziehen darfst."
+          submitLabel="Laden"
+          validate={(v) => (normalizeSourceUrl(v.url) ? null : "Bitte einen gültigen Link eintragen (z. B. https://meine-seite.de/spiel.iso)")}
+          onSubmit={(v) => {
+            pop();
+            submitLink(v.url);
+          }}
+          onClose={() => (layers.length === 1 && start === "link" ? onClose() : pop())}
         />
       )}
       {top?.kind === "message" && <MessageDialog title={top.title} lines={top.lines} kind={top.tone} onClose={pop} />}
