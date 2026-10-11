@@ -46,11 +46,11 @@ export async function stremioLogout(authKey: string): Promise<void> {
   }
 }
 
-/** Hosts, die nur auf dem Rechner des Nutzers selbst laufen (Stremios „Lokale Dateien“) – in dieser App nicht erreichbar. */
-const isLocalHost = (url: string) => {
+/** Stremios „Lokale Dateien“-Addon (`http://127.0.0.1:11470/local-addon/…`) läuft nur in der Stremio-App – in dieser App nicht erreichbar. Selbst gehostete Addons auf localhost bleiben. */
+const isLocalFilesAddon = (url: string) => {
   try {
-    const h = new URL(url).hostname;
-    return h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]";
+    const u = new URL(url);
+    return /\/local-addon\//i.test(u.pathname);
   } catch {
     return true;
   }
@@ -67,7 +67,7 @@ export async function fetchAccountAddons(authKey: string, signal?: AbortSignal):
   for (const raw of list) {
     const o = obj(raw);
     const url = normalizeAddonUrl(str(o?.transportUrl));
-    if (!o || !url || isLocalHost(url)) continue;
+    if (!o || !url || isLocalFilesAddon(url)) continue;
     let manifest: Manifest;
     try {
       manifest = parseManifest(o.manifest);

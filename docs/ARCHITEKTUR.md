@@ -241,8 +241,7 @@ Gespeichert wird `settings.stremio: { addons: [{ id, url, name, fromAccount? }],
 Cinemeta, das in jedem Konto vorinstalliert ist. `addons.ts` → `effectiveAddons()` ergänzt Cinemeta deshalb still, wenn es nicht eingetragen ist; ein Ausfall
 von Cinemeta wird nur gemeldet, wenn sonst nichts da ist. Ohne Konto und ohne Addons gibt es keine Stremio-Spalten.
 
-- `account.ts` – Konto über `api.strem.io`: `login` (E-Mail + Passwort → `authKey`), `addonCollectionGet` (Addons mit Manifest; Hosts auf `127.0.0.1`/`localhost`
-  wie „Lokale Dateien“ und Addons ohne Katalog/Meta/Stream wie reine Untertitel-Addons fallen weg), `logout`. `useStremioAccountSync.ts` lädt die Liste einmal pro
+- `account.ts` – Konto über `api.strem.io`: `login` (E-Mail + Passwort → `authKey`), `addonCollectionGet` (Addons mit Manifest; das „Lokale Dateien“-Addon (`/local-addon/`) und Addons ohne Katalog/Meta/Stream wie reine Untertitel-Addons fallen weg), `logout`. `useStremioAccountSync.ts` lädt die Liste einmal pro
   App-Start neu (`addons.ts` → `mergeAccountAddons()` ersetzt nur Einträge mit `fromAccount`, von Hand eingetragene bleiben).
 - `api.ts` – Abrufe `manifest.json`, `catalog/<typ>/<id>.json`, `catalog/<typ>/<id>/search=<Begriff>.json`, `meta/…`, `stream/…` (in Tauri über das HTTP-Plugin, im Browser
   über `fetch`, 12 s Frist). `supports()` wertet `resources`/`types`/`idPrefixes` aus, `listCatalogs()` liefert Kataloge ohne Pflicht-Zusatzangabe, `findSearchCatalog()` den
