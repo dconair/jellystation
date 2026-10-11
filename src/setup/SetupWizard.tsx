@@ -17,7 +17,7 @@ import { Background } from "../xmb/Background";
 import { playSfx } from "../xmb/sound";
 import { runChecks } from "./checks";
 import type { CheckResult } from "./checks";
-import { CheckStep, ControllerStep, FilesStep, GamesStep, JellyfinStep } from "./steps";
+import { CheckStep, ControllerStep, FilesStep, GamesStep, JellyfinStep, StremioStep } from "./steps";
 import type { Draft } from "./steps";
 import "./setup.css";
 
@@ -33,14 +33,19 @@ interface SetupWizardProps {
 
 const STEPS: { symbol: PsSymbolName; title: string }[] = [
   { symbol: "triangle", title: "Jellyfin" },
-  { symbol: "circle", title: "Spiele" },
-  { symbol: "cross", title: "Dateien" },
-  { symbol: "square", title: "Controller" },
-  { symbol: "triangle", title: "Prüfung" },
+  { symbol: "circle", title: "Stremio" },
+  { symbol: "cross", title: "Spiele" },
+  { symbol: "square", title: "Dateien" },
+  { symbol: "triangle", title: "Controller" },
+  { symbol: "circle", title: "Prüfung" },
 ];
-const STEP_FILES = 2;
-const STEP_CONTROLLER = 3;
-const STEP_CHECK = 4;
+/** Nummern der Schritte (für `onlyStep`, z. B. „Server“ oder „Spiele-Ordner“ aus den Einstellungen). */
+export const SETUP_STEP = { jellyfin: 0, stremio: 1, games: 2 } as const;
+const STEP_STREMIO = SETUP_STEP.stremio;
+const STEP_GAMES = SETUP_STEP.games;
+const STEP_FILES = 3;
+const STEP_CONTROLLER = 4;
+const STEP_CHECK = 5;
 
 /** Alles, was sich per Steuerkreuz anwählen lässt (Reihenfolge = DOM-Reihenfolge). */
 const FOCUSABLE = "input:not([disabled]), button:not([disabled])";
@@ -79,6 +84,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
       apiKey: initial?.jellyfin.apiKey ?? "",
       gamesDir: initial?.gamesDir ?? "",
       biosDir: initial?.biosDir ?? "",
+      stremio: initial?.stremio,
     };
   });
   const emulators = useEmulators(initial?.emulators);
@@ -187,6 +193,9 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
       ...(initial?.ui ? { ui: initial.ui } : {}),
       ...(initial?.bookmarks ? { bookmarks: initial.bookmarks } : {}),
       ...(initial?.covers ? { covers: initial.covers } : {}),
+      ...(draft.stremio ? { stremio: draft.stremio } : {}),
+      ...(initial?.gameSources ? { gameSources: initial.gameSources } : {}),
+      ...(initial?.gameSystems ? { gameSystems: initial.gameSystems } : {}),
       gamesDir: draft.gamesDir.trim(),
       // Einzelner Schritt aus den Einstellungen: Menü nicht neu aufbauen (completedAt ist der Schlüssel dafür).
       completedAt: single && initial ? initial.completedAt : new Date().toISOString(),
@@ -203,7 +212,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
   const last = single || step === STEPS.length - 1;
   const canNext = useMemo(() => {
     if (step === 0) return isValidServerUrl(draft.url);
-    if (step === 1) return draft.gamesDir.trim().length > 0;
+    if (step === STEP_GAMES) return draft.gamesDir.trim().length > 0;
     if (step === STEP_CHECK) return !checking && !saving;
     return true;
   }, [step, draft, checking, saving]);
@@ -233,7 +242,7 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
     if (!canSkip) return;
     playSfx("move");
     if (step === 0) patch({ url: "", altUrl: "", apiKey: "" });
-    if (step === 1) patch({ gamesDir: "" });
+    if (step === STEP_GAMES) patch({ gamesDir: "" });
     if (step === STEP_FILES) patch({ biosDir: "" });
     setStep((s) => s + 1);
   };
@@ -376,7 +385,8 @@ export function SetupWizard({ initial, onComplete, onCancel, onlyStep }: SetupWi
 
         <div className="setup-body" key={step} ref={bodyRef}>
           {step === 0 && <JellyfinStep draft={draft} onChange={patch} test={test} onTest={runTest} />}
-          {step === 1 && <GamesStep draft={draft} onChange={patch} />}
+          {step === STEP_STREMIO && <StremioStep draft={draft} onChange={patch} />}
+          {step === STEP_GAMES && <GamesStep draft={draft} onChange={patch} />}
           {step === STEP_FILES && <FilesStep draft={draft} onChange={patch} emulators={emulators} requirements={requirements} />}
           {step === STEP_CONTROLLER && <ControllerStep name={probe.name} pressed={probe.pressed} />}
           {step === STEP_CHECK && <CheckStep results={results} />}

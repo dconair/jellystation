@@ -85,6 +85,9 @@ Den Key legst du in Jellyfin unter *Dashboard → API-Schlüssel* an.
 
 ![Schritt 1](images/setup-1-jellyfin.png)
 
+**Stremio (optional)** · direkt nach Jellyfin: mit deinem Stremio-Konto anmelden, dann erscheinen Kataloge, Streams deiner Addons und die Suche im Menü.
+Das Passwort wird nicht gespeichert. Mit △ überspringst du den Schritt, nachholen geht unter *Einstellungen → Stremio*.
+
 **Schritt 2 – Spiele-Ordner** · **Ordner wählen …** öffnet den echten macOS-Dialog. Es genügt **ein einziger Ordner**: Lege ISOs und Spieldateien
 einfach hinein, auch unsortiert oder in Unterordnern – die App erkennt das System selbst. Liegt der Ordner in *Dokumente*, *Schreibtisch* oder auf einem externen Laufwerk, fragt macOS einmalig
 nach Zugriff → **OK**.

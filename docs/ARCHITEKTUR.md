@@ -9,7 +9,7 @@ src/
   xmb/                     Hauptmenü (Xmb.tsx), Hintergrund, Icons, Sound, Detailkarte
   boot/                    Start-Animation (BootAnimation.tsx)
   audio/                   Hintergrundmusik und PS3-Klänge (ps3Sounds.ts)
-  setup/                   Setup-Wizard (4 Schritte) und Abhängigkeits-Checks
+  setup/                   Setup-Wizard (Jellyfin, Stremio, Spiele, Dateien, Controller, Prüfung) und Abhängigkeits-Checks
   settings/settings.ts     Persistenz (Tauri-Store bzw. localStorage im Browser)
   library/                 Spielebibliothek: Scan-Ergebnis → Kategorien, Zuordnung von Hand, Demo-Daten
   jellyfin/                Jellyfin-Zugriff: Bibliothek, Kontext/Benutzer, Wiedergabeplanung, Berichte
@@ -251,6 +251,7 @@ von Cinemeta wird nur gemeldet, wenn sonst nichts da ist. Ohne Konto und ohne Ad
 - `library.ts`, `useStremioLibrary.ts` – je Addon bis zu zwei Kataloge pro Typ (Filme/Serien), höchstens 100 Titel je Katalog und 8 Spalten insgesamt. Jeder Katalog wird eine XMB-Spalte
   hinter den Serien („Beliebt – Filme“, „Empfohlen – Serien“ …). Davor steht die Einstiegsspalte „Stremio“ (immer sichtbar): „Suchen …“ und „Konto & Addons“. Einträge tragen `entry.stremio` (`StremioRef`).
 - `search.ts` – Suche in allen Addons, deren Katalog `search` versteht (Cinemeta tut das); gleiche Titel erscheinen einmal.
+- `setup/steps.tsx` → `StremioStep` – derselbe Login und Addon-Eintrag als optionaler Schritt 2 des Setup-Assistenten (Schrittnummern: `SETUP_STEP` in `SetupWizard.tsx`).
 - `StremioAddonsDialog.tsx` – Konto-Login/-Abmeldung/-Neuladen, Addon-Liste, Addon von Hand hinzufügen oder (△) entfernen. Konto-Addons verwaltet man in Stremio selbst.
 - `StremioPicker.tsx` – Film: Streams aller Addons mit passendem Typ/ID abfragen → Liste → Player. Serie: Meta laden → Staffeln → Folgen → Streams.
   ○ geht je eine Stufe zurück. `resolve.ts` fragt die Addons gleichzeitig ab; ein stummes Addon hält die anderen nicht auf.
