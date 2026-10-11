@@ -1,5 +1,5 @@
 /** Version der App: Paketversion + Git-Stand zum Zeitpunkt von `dev`/`build`. */
-export const APP_VERSION = "0.2.0";
+export const APP_VERSION = "0.3.0";
 export const APP_COMMIT = typeof __APP_COMMIT__ === "string" ? __APP_COMMIT__ : "unbekannt";
 export const APP_COMMIT_SUBJECT =
   typeof __APP_COMMIT_SUBJECT__ === "string" ? __APP_COMMIT_SUBJECT__ : "";
