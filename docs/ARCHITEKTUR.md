@@ -240,7 +240,7 @@ von Cinemeta wird nur gemeldet, wenn sonst nichts da ist. Ohne Konto und ohne Ad
   (keine Torrent-Engine; mit einem Debrid-Dienst im Addon sind die Links direkt).
 - `manifests.ts` – Manifest-Cache pro Adresse (der Abruf läuft unabhängig vom Abbruch einzelner Aufrufer; Konto-Manifeste werden vorab eingetragen).
 - `library.ts`, `useStremioLibrary.ts` – je Addon bis zu zwei Kataloge pro Typ (Filme/Serien), höchstens 100 Titel je Katalog und 8 Spalten insgesamt. Jeder Katalog wird eine XMB-Spalte
-  hinter den Serien („Beliebt – Filme“, „Empfohlen – Serien“ …). Einträge tragen `entry.stremio` (`StremioRef`).
+  hinter den Serien („Beliebt – Filme“, „Empfohlen – Serien“ …). Davor steht die Einstiegsspalte „Stremio“ (immer sichtbar): „Suchen …“ und „Konto & Addons“. Einträge tragen `entry.stremio` (`StremioRef`).
 - `search.ts` – Suche in allen Addons, deren Katalog `search` versteht (Cinemeta tut das); gleiche Titel erscheinen einmal.
 - `StremioAddonsDialog.tsx` – Konto-Login/-Abmeldung/-Neuladen, Addon-Liste, Addon von Hand hinzufügen oder (△) entfernen. Konto-Addons verwaltet man in Stremio selbst.
 - `StremioPicker.tsx` – Film: Streams aller Addons mit passendem Typ/ID abfragen → Liste → Player. Serie: Meta laden → Staffeln → Folgen → Streams.
@@ -252,7 +252,7 @@ von Cinemeta wird nur gemeldet, wenn sonst nichts da ist. Ohne Konto und ohne Ad
 
 ## Suche (`src/search/`)
 
-Der Eintrag „Suchen …“ in der ersten Spalte „Suche“ (Aktion `open-search`), darunter die zuletzt gesuchten Begriffe (localStorage, `history.ts`).
+Der Eintrag „Suchen …“ in den Spalten „Suche“ und „Stremio“ (Aktion `open-search`), darunter die zuletzt gesuchten Begriffe (localStorage, `history.ts`).
 `SearchDialog.tsx`: Suchfeld → Trefferliste nach Quelle und Typ (Jellyfin · Filme/Serien, Stremio · Filme/Serien). Jellyfin über `searchJellyfin()` in `jellyfin/library.ts`
 (`/Items?searchTerm=`, mit dem gewählten Benutzer), Stremio über `stremio/search.ts`. Ein Treffer öffnet wie in den Spalten: Jellyfin-Film → Player, Jellyfin-Serie → Serien-Screen,
 Stremio-Titel → Stream-Auswahl. Beide Quellen laufen gleichzeitig; fällt eine aus, steht der Grund unter der Liste.

@@ -251,28 +251,41 @@ function Main({
     : stremio.status === "idle"
       ? "Nicht eingerichtet"
       : `${stremioAddonCount} Addon${stremioAddonCount === 1 ? "" : "s"}`;
+  // Die Spalte „Stremio“ ist der Einstieg (Suche, Konto & Addons); dahinter folgen die Kataloge wie auf der Stremio-Startseite.
   const stremioCategories = useMemo<XmbCategory[]>(() => {
-    if (stremio.status === "idle") return [];
-    if (stremio.columns.length === 0) {
-      return [
+    const status: XmbEntry[] =
+      stremio.status === "idle"
+        ? []
+        : stremio.columns.length > 0
+          ? []
+          : [
+              {
+                id: "st-empty/stremio",
+                title: stremio.status === "loading" ? "Lade Kataloge …" : "Keine Kataloge",
+                subtitle: stremio.problems[0] ?? (stremio.status === "loading" ? undefined : "Die Addons liefern hier nichts"),
+                description: "Konto und Addons verwaltest du unter „Konto & Addons“.",
+                hue: 20,
+              },
+            ];
+    const gateway: XmbCategory = {
+      id: "stremio",
+      label: "Stremio",
+      icon: "livetv",
+      entries: [
+        { id: "st-search", title: "Suchen …", subtitle: "Filme und Serien in Stremio und Jellyfin", description: "Sucht in den Katalogen deiner Stremio-Addons und auf deinem Jellyfin-Server.", hue: 210, action: "open-search" },
         {
-          id: "stremio-empty",
-          label: "Stremio",
-          icon: "movies",
-          entries: [
-            {
-              id: "st-empty/stremio",
-              title: stremio.status === "loading" ? "Lade Kataloge …" : "Keine Kataloge",
-              subtitle: stremio.problems[0] ?? (stremio.status === "loading" ? undefined : "Die Addons liefern hier nichts"),
-              description: "Konto und Addons verwaltest du unter Einstellungen → Stremio.",
-              hue: 20,
-            },
-          ],
+          id: "st-account",
+          title: settings?.stremio?.account ? "Konto & Addons" : "Anmelden / Addons",
+          subtitle: stremioSummary,
+          description: "Melde dich mit deinem Stremio-Konto an, damit deine Addons und der Katalog wie in Stremio erscheinen, oder trage Addons von Hand ein.",
+          hue: 20,
+          action: "open-stremio",
         },
-      ];
-    }
-    return stremio.columns.map<XmbCategory>((c) => ({ id: c.id, label: c.label, icon: c.type === "movie" ? "movies" : "series", entries: c.entries }));
-  }, [stremio.status, stremio.columns, stremio.problems]);
+        ...status,
+      ],
+    };
+    return [gateway, ...stremio.columns.map<XmbCategory>((c) => ({ id: c.id, label: c.label, icon: c.type === "movie" ? "movies" : "series", entries: c.entries }))];
+  }, [stremio.status, stremio.columns, stremio.problems, settings?.stremio?.account, stremioSummary]);
 
   const categories = useMemo<XmbCategory[]>(() => {
     const base = baseCategories.map((cat) => {
