@@ -36,6 +36,13 @@ export const PS1_BIOS: Record<string, string> = {
   "1e68c231d0896b7eadcad1d7d8e76129": "SCPH-7001 (USA)",
 };
 
+/**
+ * Direkter Link zur aktuellen PS3-Systemsoftware (4.93) auf Sonys Update-Server, wie ihn die offizielle Support-Seite
+ * verlinkt (am 2026-10-11 geprüft, rund 206 MB). Die Adresse enthält ein Datum und ändert sich bei neuen Versionen:
+ * Schlägt der Download fehl, bleibt „Link einfügen“ als Ausweg.
+ */
+export const SONY_PS3_FIRMWARE_URL = "http://dus01.ps3.update.playstation.net/update/ps3/image/us/2026_0318_a2b60b6ac1d2e49e230144345616927c/PS3UPDAT.PUP";
+
 const MiB = 1024 * 1024;
 /** Dateikopf der PS3-Firmware (PS3UPDAT.PUP): ASCII „SCEUF“. */
 const PUP_MAGIC = "5343455546";

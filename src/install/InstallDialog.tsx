@@ -11,7 +11,7 @@ import type { EmulatorsState } from "../emulators/useEmulators";
 import { biosDirOf, describeRequirement, installRequirement, missingLabels } from "../emulators/requirements";
 import type { RequirementStatus } from "../emulators/requirements";
 import type { RequirementsState } from "../emulators/useRequirements";
-import { analyzeBios, describeSize, isSonyHost, SONY_FIRMWARE_HOSTS } from "./biosCheck";
+import { analyzeBios, describeSize, isSonyHost, SONY_FIRMWARE_HOSTS, SONY_PS3_FIRMWARE_URL } from "./biosCheck";
 import { downloadCancel, downloadStart, errorText, fileFingerprint, installPlatform, onDownloadProgress } from "./backend";
 import type { PlatformInfo } from "./backend";
 import { canInstallFromGithub, formatMB, InstallCancelled, installEmulator } from "./emulatorInstall";
@@ -405,6 +405,7 @@ export function InstallDialog(props: InstallDialogProps) {
       const acts: PopupItem[] = [{ id: "file", label: "Datei von meinem Computer wählen …", detail: "Wird geprüft und im BIOS-Ordner abgelegt" }];
       if (s.state !== "missing" && s.state !== "unknown") acts.push({ id: "check", label: "Gefundene Datei prüfen", detail: tildePath(s.folderPath ?? s.path ?? "") });
       if (s.state === "in-folder" && s.req.copyTo) acts.push({ id: "copy", label: "In den Emulator übernehmen", detail: tildePath(s.folderPath ?? "") });
+      if (s.req.id === "ps3-firmware") acts.push({ id: "sony-direct", label: "Direkt von Sony laden (Version 4.93)", detail: "Offizieller Sony-Server, rund 206 MB, kostenlos" });
       if (s.req.id === "ps3-firmware") acts.push({ id: "sony", label: "Von Sony laden (Link einfügen) …", detail: "Nur offizielle Sony-Server werden akzeptiert" });
       for (const l of s.req.links) acts.push({ id: `link:${l.url}`, label: l.label, detail: "Öffnet den Browser" });
       overlay = (
@@ -431,7 +432,8 @@ export function InstallDialog(props: InstallDialogProps) {
                   setJob(null);
                   message("error", `${s.req.label} nicht übernommen`, [errorText(e)]);
                 });
-            } else if (id === "sony") push({ kind: "sony", id: s.req.id });
+            } else if (id === "sony-direct") void downloadFirmware(s, SONY_PS3_FIRMWARE_URL);
+            else if (id === "sony") push({ kind: "sony", id: s.req.id });
             else if (id.startsWith("link:")) void openExternal(id.slice(5)).catch((e) => message("error", "Seite nicht geöffnet", [errorText(e), id.slice(5)]));
           }}
           onBack={pop}
