@@ -127,21 +127,22 @@ const glyphs: Record<CategoryIconName, Glyph> = {
     ),
   },
 
-  // Spiele: Controller-Silhouette von vorn: breiter Körper, zwei lange Griffe nach unten, Einkerbung unten und oben in der Mitte.
+  // Spiele: Controller-Silhouette von vorn, exakt spiegelsymmetrisch: breiter Körper, zwei kurze Griffe nach unten.
+  // Links Steuerkreuz, rechts vier Tasten im Rhombus (Mittelachse x = 12).
   games: {
     fill: (p) => (
       <path
-        d="M4.6 5.6C6 4.5 7.8 4.6 9 5.5c1.6 1.1 4.4 1.1 6 0 1.2-.9 3-1 4.4.1 1.5 1.2 2.4 4.6 2.7 8.6.2 3-.7 5.2-2.7 5.2-1.7 0-2.6-1.7-3.4-3.8-.5-1.3-1.4-1.9-3.4-1.9h-.2c-2 0-2.9.6-3.4 1.9-.8 2.1-1.7 3.8-3.4 3.8-2 0-2.9-2.2-2.7-5.2.3-4 .5-7.4 1.7-8.6z"
+        d="M12 7.4C10.6 7.4 9.6 5.8 8 5.8C6.4 5.8 5.2 6 4.4 7C3.2 8.6 2.2 13 2 16.6C1.9 18.6 2.9 19.8 4.4 19.8C5.9 19.8 6.7 18.6 7.6 17C8.3 15.7 9.2 14.9 10.6 14.9L12 14.9C14.8 14.9 15.7 15.7 16.4 17C17.3 18.6 18.1 19.8 19.6 19.8C21.1 19.8 22.1 18.6 22 16.6C21.8 13 20.8 8.6 19.6 7C18.8 6 17.6 5.8 16 5.8C14.4 5.8 13.4 7.4 12 7.4Z"
         fill={p}
       />
     ),
     cut: (
       <>
-        <path d="M6.9 9.6v4.4M4.7 11.8h4.4" stroke={K} strokeWidth="1.7" strokeLinecap="round" />
-        <circle cx="17.2" cy="9.3" r="0.95" fill={K} />
-        <circle cx="17.2" cy="13.3" r="0.95" fill={K} />
-        <circle cx="15.2" cy="11.3" r="0.95" fill={K} />
-        <circle cx="19.2" cy="11.3" r="0.95" fill={K} />
+        <path d="M7.1 9.1v4M5.1 11.1h4" stroke={K} strokeWidth="1.6" strokeLinecap="round" />
+        <circle cx="16.9" cy="9.3" r="0.85" fill={K} />
+        <circle cx="16.9" cy="12.9" r="0.85" fill={K} />
+        <circle cx="15.1" cy="11.1" r="0.85" fill={K} />
+        <circle cx="18.7" cy="11.1" r="0.85" fill={K} />
       </>
     ),
   },
