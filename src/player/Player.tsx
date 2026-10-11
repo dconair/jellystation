@@ -465,7 +465,7 @@ export function Player({ entry, jellyfin = null, startSec = 0, playlist, choice,
       <Cues lines={st.cues} raised={visible} />
 
       <Osd
-        visible={visible}
+        visible={visible && !dialogOpen}
         headline={headline}
         paused={st.paused}
         time={st.time}

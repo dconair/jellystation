@@ -83,6 +83,7 @@ export function PauseScreen({ entry, headline, jellyfin, paused }: PauseScreenPr
     <div className={`player-pause${shown ? " is-on" : ""}`} aria-hidden={!shown}>
       {art && backdropOk && <img className="player-pause__backdrop" src={art.backdrop} alt="" onError={() => setBackdropOk(false)} />}
       <div className="player-pause__shade" />
+      <div className="player-pause__disc" aria-hidden="true" />
       <div className="player-pause__text">
         <span className="player-pause__label">Pausiert</span>
         {art && logoOk ? (

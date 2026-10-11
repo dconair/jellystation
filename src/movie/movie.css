@@ -33,7 +33,7 @@
 .movie-options {
   isolation: isolate;
   border-radius: 0.7rem;
-  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.62) 0%, rgba(var(--ui-l14), 0.72) 38%, rgba(var(--ui-l5), 0.8) 100%);
+  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.82) 0%, rgba(var(--ui-l14), 0.88) 38%, rgba(var(--ui-l5), 0.93) 100%);
   border: 1px solid rgba(var(--ui-l84), 0.24);
   box-shadow:
     0 2.4rem 5.5rem rgba(0, 0, 0, 0.45),
@@ -41,6 +41,11 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.34),
     inset 0 0 3.2rem rgba(var(--ui-l58), 0.08);
   animation: series-fade 0.55s ease both;
+}
+/* Öffnet sich eine Auswahlliste über der Fläche, tritt diese zurück: sonst scheint ihr Text durch die Liste hindurch */
+.movie-options.is-covered {
+  visibility: hidden;
+  transition: visibility 0s linear 0.18s;
 }
 /* Glanzlicht am oberen Rand */
 .movie-panel::before,
