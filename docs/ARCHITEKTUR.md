@@ -16,6 +16,7 @@ src/
   stremio/                 Stremio-Addons als zweite Quelle: Protokoll, Kataloge, Stream-Auswahl, Addon-Verwaltung
   player/                  Video-Player im PS3-Stil
   emulators/               Emulator-Katalog, Erkennung, Dialoge
+  diagnose/                Diagnose: Prüflauf, Regeln, Dialog „Diagnose“
   launcher/                Spielstart (Rust-Befehl game_launch) + Start-Overlay
   ui/                      Gemeinsame PS3-Bausteine (PsSymbol, Popup-Listen, Dialoge)
   art/                     Cover-Bilder (lokal, HTTP, generiert)
@@ -106,6 +107,29 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
 
 Shell-Plugin (`@tauri-apps/plugin-shell`): nur für `open()` (Webseiten öffnen; `plugins.shell.open` in tauri.conf.json) und
 `brew install --cask <name>` (Scope in `capabilities/emulators.json`, Pfade `/opt/homebrew/bin/brew` und `/usr/local/bin/brew`).
+
+### Diagnose (`diagnose.rs`)
+Alles lesend; die App ändert nur auf Klick. Befehle:
+
+- `diag_probe({ paths }) -> [FileProbe]` – je Pfad (gleiche Reihenfolge): `exists`, `isDir`, `isFile`, `readable`, `size`, `headHex` (erste 16 Bytes als Hex),
+  `names` (bei Ordnern, höchstens 60), `refs` (zu `.cue`/`.m3u`: genannte Dateien und ob sie daneben liegen), `quarantined` (nur macOS und nur bei `.app`), `error`.
+  Höchstens 2000 Pfade je Aufruf; Pfade mit `..` werden abgelehnt.
+- `diag_log_tail({ candidates, lines? }) -> { path, modifiedMs, lines } | null` – Ende (höchstens 192 KB) der zuletzt geänderten Datei unter den Kandidaten;
+  nur Dateien im Benutzerordner, ANSI-Codes und Steuerzeichen entfernt.
+- `diag_clear_quarantine({ path })` – `xattr -dr com.apple.quarantine` für ein vorhandenes `.app`-Paket (nur macOS). Die einzige ändernde Funktion.
+
+Frontend `src/diagnose/`:
+
+- `run.ts` `runDiagnosis(input)` prüft in dieser Reihenfolge: Anlass (Exit-Code/Signal/Ausgabe eines gescheiterten Starts, Emulator-Protokoll, Datei des Spiels),
+  Spiele-Ordner, jeder Emulator (installiert, startbar, Quarantäne), BIOS/Firmware (nutzt `checkRequirements` aus `emulators/requirements.ts`; dazu Kopfprüfung:
+  PS3-`.PUP` beginnt mit „SCEUF“, BIOS nicht nur Nullen/Einsen), alle Spieldateien der Bibliothek (lesbar, nicht leer, `.cue`-/`.m3u`-Teile vorhanden, kein Archiv,
+  passende Endung, Ordnerform bei PS3/PSP). Ergebnis: `DiagnoseReport` mit `Finding`s (`error|warn|info|ok`, Erklärung mit nächstem Schritt, optional `fix`).
+  `applyFix()` führt `copy-bios` (über `bios_copy`) und `clear-quarantine` aus; `open-emulators|open-files|open-games-dir` öffnet der Aufrufer.
+- `rules.ts` – reine Regeln: erlaubte Endungen je Emulator, Protokollpfade, Muster für typische Fehlermeldungen (BIOS/Firmware/Lizenz/Abbild/Rechte/Quarantäne/Architektur/Grafik …).
+  Die Muster sind bewusst weit gefasst, die Texte vorsichtig („vermutlich“). Es gibt **keine** Hashlisten bekannter BIOS-Dateien (nichts davon wird mitgeliefert).
+- `DiagnoseDialog.tsx` – Liste der Befunde (Probleme, Hinweise, In Ordnung), „Behebbares beheben“, „Neu prüfen“, Protokolle, „Bericht kopieren“.
+- Einstiege: Einstellungen → „Diagnose“ (`open-diagnose`) und **automatisch**, wenn ein Start scheitert (`onDiagnose` in `useGameLauncher`, Anlass = `DiagnoseContext`);
+  ohne `onDiagnose` zeigt der Starter wie bisher den Fehlerdialog.
 
 ### Spielebibliothek (`library.rs`)
 Ein einziger Spiele-Ordner genügt: Der Nutzer legt Spiele unsortiert hinein (auch in Unterordner), die App sortiert **nur virtuell**, es wird nie

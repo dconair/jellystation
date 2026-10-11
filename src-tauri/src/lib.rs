@@ -1,4 +1,5 @@
 pub mod covers;
+pub mod diagnose;
 pub mod discovery;
 pub mod emulators;
 pub mod library;
@@ -48,6 +49,9 @@ pub fn run() {
             emulators::game_kill,
             emulators::game_running,
             emulators::launch_log_tail,
+            diagnose::diag_probe,
+            diagnose::diag_log_tail,
+            diagnose::diag_clear_quarantine,
             requirements::requirements_scan,
             requirements::bios_copy,
             web::web_open,
