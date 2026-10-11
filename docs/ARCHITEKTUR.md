@@ -49,8 +49,8 @@ Das Hauptmenü (`<Xmb inputEnabled={…}>`) ignoriert jede Eingabe, solange ein 
   `rgba(var(--ui-l76), 0.4)` – keine festen Blautöne mehr. Standardwerte (Blau) stehen in `index.css`. Beim Serien-Screen tritt die Menü-Ebene zurück, das Hintergrundbild bleibt (`:has(.series-frame)` in `series.css`).
 - **Kategorie-Icons** (`src/xmb/CategoryIcon.tsx`): selbst gezeichnete Vektor-Piktogramme nach dem Vorbild der XMB (Video = Filmstreifen, Foto = Kamera, Einstellungen = Werkzeugkasten, Spiele = Gamepad …). Es liegen keine Sony-Originaldateien im Repo.
 - **PS3-Klänge** (`src/audio/ps3Sounds.ts`, Dateien in `public/sounds/ps3/`, Einstellung `soundPack`: `ps3` | `synth`): Zuordnung in `sound.ts`
-  (`SFX_AS_PS3`): Cursor-Bewegung → `snd_option`, Zurück → `snd_cancel`, Bestätigen → `snd_system_ok`, Fehler → `snd_system_ng`; dazu
-  `playSound("trophy")` (Erfolgsmeldung), `playSound("gameboot")` (Spielstart) und `startBootSound()` (coldboot). Der Kategoriewechsel bleibt synthetisch. Die Originale sind sehr leise; `psGain` hebt sie auf einen einheitlichen Pegel. `snd_error.wav` ist praktisch
+  (`SFX_AS_PS3`): Cursor-Bewegung und Kategoriewechsel → `snd_option` (auf der PS3 bytegleich mit `snd_cursor`, `snd_decide` und `snd_category_decide`), Zurück → `snd_cancel`, Bestätigen → `snd_system_ok`, Fehler → `snd_system_ng`; dazu
+  `playSound("trophy")` (Erfolgsmeldung), `playSound("gameboot")` (Spielstart) und `startBootSound()` (coldboot). Die Originale sind sehr leise; `psGain` hebt sie auf einen einheitlichen Pegel. `snd_error.wav` ist praktisch
   stumm (1,75 ms, −91 dB) und wird nicht verwendet.
 - **Herkunft/Rechte:** Die WAV-Dateien stammen aus der PS3-Systemsoftware (Sony) und liegen auf ausdrücklichen Wunsch des Projekteigentümers im Repo.
   Rechte daran liegen bei Sony. Wer sie nicht ausliefern will, löscht `public/sounds/ps3/`: Die App fällt dann automatisch auf die synthetischen Töne
