@@ -739,6 +739,7 @@ function Main({
         onPick={(entry) => {
           if (entry.stremio) openOverlay({ kind: "stremio", entry });
           else if (entry.jellyfin?.type === "Series") openSeries(entry);
+          else if (entry.jellyfin?.type === "Movie") openMovie(entry);
           else play(entry);
         }}
         onClose={close}
