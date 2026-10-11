@@ -82,7 +82,7 @@ const safeDecode = (s: string) => {
   }
 };
 
-const nameFromUrl = (url: string): string => {
+export const nameFromUrl = (url: string): string => {
   try {
     const seg = new URL(url).pathname.split("/").filter(Boolean).pop() ?? "";
     return safeDecode(seg) || url;

@@ -283,7 +283,7 @@ export function buildLibraryCategories(
           id: "games-empty-hint",
           title: "Keine Spiele gefunden",
           subtitle: `Lege Spiele einfach in ${scan.baseDir || BASE_DIR_FALLBACK} ab`,
-          description: "ISO, CHD, CUE/BIN, Spieleordner … – auch in Unterordnern. JellyStation erkennt das System selbst.",
+          description: "ISO, CHD, CUE/BIN, Spieleordner … – auch in Unterordnern. JellyStation erkennt das System selbst. Oder lade Spiele über die Spalte „Spiele laden“ von deinem eigenen Link.",
           hue: 215,
         },
       ],
