@@ -81,6 +81,7 @@
 .movie-options {
   position: relative;
   flex: 0 0 min(37rem, 36%);
+  min-width: 0; /* sonst weitet eine lange Tonspur-Bezeichnung die Fläche über den Bildschirm */
   padding: 1.1rem;
   animation-name: movie-options-in;
 }
@@ -221,6 +222,7 @@
 
 .movie-rows {
   position: relative;
+  min-width: 0;
 }
 
 .movie-bar {
@@ -254,6 +256,7 @@
   align-items: center;
   gap: 1.2rem;
   width: 100%;
+  min-width: 0;
   height: calc(var(--m-row) * 1rem);
   padding: 0 1.6rem;
   border: 0;

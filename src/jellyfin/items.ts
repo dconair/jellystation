@@ -275,7 +275,18 @@ export async function setItemPlayed(
     });
     if (legacy.ok) res = legacy;
   }
-  if (!res.ok) throw statusError(res.status, { 404: "Titel auf dem Server nicht gefunden" });
+  if (!res.ok) {
+    // Ein Server-Plugin kann nach dem Speichern mit 5xx antworten (z. B. ein Scrobbler, der beim Speichern der
+    // Benutzerdaten abstürzt), obwohl der Stand gespeichert ist: nachlesen, statt einen Fehler zu zeigen.
+    if (res.status >= 500) {
+      const now = await getItem(ctx, id, { signal }).catch((err) => {
+        if (isAbortError(err)) throw err;
+        return null;
+      });
+      if (now?.userData && now.userData.played === played) return now.userData;
+    }
+    throw statusError(res.status, { 404: "Titel auf dem Server nicht gefunden" });
+  }
   // Die Antwort enthält den neuen Stand; fehlt sie oder ist sie unlesbar, gilt, was gewünscht war.
   try {
     const d = JSON.parse(res.text) as Record<string, unknown>;
