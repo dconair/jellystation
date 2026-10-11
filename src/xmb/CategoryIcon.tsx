@@ -2,7 +2,8 @@ import { useId, type ReactNode } from "react";
 import type { CategoryIconName } from "../data/types";
 
 /*
- * Kategorie-Icons im Stil der PS3-XMB: kräftige, gefüllte Piktogramme statt dünner Linien.
+ * Kategorie-Icons nach dem Vorbild der PS3-XMB (Home-Menü, 1280×720-Referenzbild aus Sonys Kurzanleitung):
+ * flache, ruhige Silhouetten mit feinen Details (Globus und Filmstreifen als Linien, Kamera mit Objektivring).
  * Alles liegt im 24×24-Raster mit ~2 Einheiten Rand (das Leuchten braucht Platz).
  *
  * Aufbau je Icon:
@@ -22,48 +23,50 @@ interface Glyph {
 const K = "#000"; // Maskenfarbe für Aussparungen
 
 const glyphs: Record<CategoryIconName, Glyph> = {
-  // Lupe: dicker Ring mit leicht getöntem "Glas" und kräftigem Griff.
+  // Lupe: Ring mit leicht getöntem Glas und rundem Griff.
   search: {
     fill: (p) => (
       <>
-        <circle cx="9.6" cy="9.6" r="5.9" fill="none" stroke={p} strokeWidth="3.2" />
-        <circle cx="9.6" cy="9.6" r="4.3" fill={p} opacity="0.2" />
-        <path d="M14.3 14.3 20.2 20.2" fill="none" stroke={p} strokeWidth="3.6" strokeLinecap="round" />
+        <circle cx="9.8" cy="9.8" r="6" fill="none" stroke={p} strokeWidth="2.4" />
+        <circle cx="9.8" cy="9.8" r="4.8" fill={p} opacity="0.16" />
+        <path d="M14.4 14.4 20 20" fill="none" stroke={p} strokeWidth="3.2" strokeLinecap="round" />
       </>
     ),
   },
 
-  // Web: Globus mit Längen- und Breitengraden.
+  // Web (XMB „Netzwerk“): Globus aus feinen Linien: Ring, Meridian-Ellipse, Mittelachse, drei Breitenkreise.
   web: {
-    fill: (p) => <circle cx="12" cy="12" r="9.4" fill={p} />,
-    cut: (
-      <>
-        <ellipse cx="12" cy="12" rx="4" ry="9.4" fill="none" stroke={K} strokeWidth="1.5" />
-        <path d="M2.8 12h18.4M4.4 7.2h15.2M4.4 16.8h15.2" fill="none" stroke={K} strokeWidth="1.5" strokeLinecap="round" />
-      </>
+    fill: (p) => (
+      <g fill="none" stroke={p} strokeLinecap="round">
+        <circle cx="12" cy="12" r="9.2" strokeWidth="1.5" />
+        <ellipse cx="12" cy="12" rx="4.2" ry="9.2" strokeWidth="1.1" />
+        <path d="M12 2.8v18.4M2.8 12h18.4M4.2 7.6h15.6M4.2 16.4h15.6" strokeWidth="1.1" />
+      </g>
     ),
   },
 
-  // Zuletzt: Uhr mit Zeigern (Verlauf).
+  // Zuletzt: Scheibe mit Zeigern wie das Datum-und-Uhrzeit-Symbol der XMB.
   recent: {
     fill: (p) => <circle cx="12" cy="12" r="9.2" fill={p} />,
-    cut: <path d="M12 6.6V12l3.9 2.4" fill="none" stroke={K} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />,
+    cut: <path d="M12 6.4V12.2l3.7 2.3" fill="none" stroke={K} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
   },
 
-  // Video: Filmstreifen mit Lochreihen oben und unten und drei Bildfeldern, wie das Video-Symbol der XMB.
+  // Video: Filmstreifen wie in der XMB: zwei Schienen mit Lochreihe, oben und unten verbunden, offenes Bildfenster.
   movies: {
-    fill: (p) => <rect x="1.8" y="4.6" width="20.4" height="14.8" rx="2.2" fill={p} />,
+    fill: (p) => (
+      <>
+        <rect x="2.4" y="4.2" width="4.8" height="15.6" rx="0.9" fill={p} />
+        <rect x="16.8" y="4.2" width="4.8" height="15.6" rx="0.9" fill={p} />
+        <rect x="6.8" y="7.3" width="10.4" height="1.6" fill={p} />
+        <rect x="6.8" y="15.1" width="10.4" height="1.6" fill={p} />
+      </>
+    ),
     cut: (
       <>
-        {/* Perforation */}
         <path
-          d="M3.6 6.1h1.9v1.9H3.6zM7.3 6.1h1.9v1.9H7.3zM11 6.1h1.9v1.9H11zM14.7 6.1h1.9v1.9h-1.9zM18.4 6.1h1.9v1.9h-1.9zM3.6 16h1.9v1.9H3.6zM7.3 16h1.9v1.9H7.3zM11 16h1.9v1.9H11zM14.7 16h1.9v1.9h-1.9zM18.4 16h1.9v1.9h-1.9z"
+          d="M3.8 5.8h2v1.9h-2zM3.8 9.2h2v1.9h-2zM3.8 12.6h2v1.9h-2zM3.8 16h2v1.9h-2zM18.2 5.8h2v1.9h-2zM18.2 9.2h2v1.9h-2zM18.2 12.6h2v1.9h-2zM18.2 16h2v1.9h-2z"
           fill={K}
         />
-        {/* Bildfelder */}
-        <rect x="3.6" y="9.5" width="5.2" height="5" rx="0.9" fill={K} />
-        <rect x="9.4" y="9.5" width="5.2" height="5" rx="0.9" fill={K} />
-        <rect x="15.2" y="9.5" width="5.2" height="5" rx="0.9" fill={K} />
       </>
     ),
   },
@@ -82,95 +85,81 @@ const glyphs: Record<CategoryIconName, Glyph> = {
     ),
   },
 
-  // Musik: Doppelnote mit kräftigem Balken.
+  // Musik: Doppelnote ♫: zwei Hälse unter einem leicht geschwungenen Balken, Köpfe links an den Hälsen.
   music: {
     fill: (p) => (
       <>
-        <ellipse cx="7" cy="17.8" rx="3.2" ry="2.5" transform="rotate(-20 7 17.8)" fill={p} />
-        <ellipse cx="16.8" cy="15.4" rx="3.2" ry="2.5" transform="rotate(-20 16.8 15.4)" fill={p} />
-        <rect x="8.2" y="6" width="1.9" height="12" fill={p} />
-        <rect x="18" y="3.6" width="1.9" height="11.8" fill={p} />
-        <path d="M8.2 6.2 19.9 3.6V7.6L8.2 10.2z" fill={p} stroke={p} strokeWidth="0.8" strokeLinejoin="round" />
+        <ellipse cx="6.3" cy="18.2" rx="3" ry="2.3" transform="rotate(-24 6.3 18.2)" fill={p} />
+        <ellipse cx="16.7" cy="16.4" rx="3" ry="2.3" transform="rotate(-24 16.7 16.4)" fill={p} />
+        <rect x="8.2" y="5" width="1.7" height="13.2" fill={p} />
+        <rect x="18.5" y="3.4" width="1.7" height="12.8" fill={p} />
+        <path d="M8.2 4.8C12 4.2 15.6 4.8 20.2 3.4v3.4c-4.6 1.4-8.2.8-12 1.4z" fill={p} />
       </>
     ),
   },
 
-  // Fotos: Kamera mit Sucherhöcker, Blitz und Objektiv (das Foto-Symbol der XMB ist eine Kamera).
+  // Fotos: kleine Kamera, Sucherhöcker oben, großer Objektivring mit hellem Punkt in der Mitte, kein Blitz.
   photos: {
     fill: (p) => (
       <>
-        <path d="M8.2 4.2h7.6l1.2 2.4H7z" fill={p} stroke={p} strokeWidth="1" strokeLinejoin="round" />
-        <rect x="2.2" y="6.4" width="19.6" height="14" rx="2.8" fill={p} />
+        <rect x="8.6" y="4.4" width="6.8" height="4.4" rx="1.2" fill={p} />
+        <rect x="2.2" y="7" width="19.6" height="13.2" rx="2.4" fill={p} />
       </>
     ),
     cut: (
       <>
-        {/* Objektiv: ein durchscheinender Ring um die Linse */}
-        <circle cx="12" cy="13.5" r="5.4" fill={K} />
-        <circle cx="12" cy="13.5" r="3.9" fill="#fff" />
-        <circle cx="10.6" cy="12.1" r="1.1" fill={K} />
-        {/* Blitz */}
-        <rect x="17.6" y="8.2" width="2.4" height="1.6" rx="0.6" fill={K} />
+        <circle cx="12" cy="13.7" r="4.4" fill={K} />
+        <circle cx="12" cy="13.7" r="1.7" fill="#fff" />
       </>
     ),
   },
 
-  // Live-TV: Röhrenfernseher mit Hasenohr-Antenne.
+  // Live-TV: flacher Bildschirm als Rahmen mit Standfuß und zwei Funkeln oben rechts (das TV-Symbol der XMB).
   livetv: {
     fill: (p) => (
       <>
-        <path d="M12 8.4 7 3.4M12 8.4 17 3.4" fill="none" stroke={p} strokeWidth="1.8" strokeLinecap="round" />
-        <rect x="2.5" y="8.2" width="19" height="12.8" rx="2.6" fill={p} />
-        <rect x="5" y="10.7" width="10.4" height="7.8" rx="1.4" fill={p} opacity="0.22" />
-      </>
-    ),
-    cut: (
-      <>
-        <rect x="5" y="10.7" width="10.4" height="7.8" rx="1.4" fill={K} />
-        <circle cx="18.4" cy="12.6" r="1.1" fill={K} />
-        <circle cx="18.4" cy="16.6" r="1.1" fill={K} />
+        <rect x="2.7" y="7.4" width="17.4" height="12" rx="2.4" fill="none" stroke={p} strokeWidth="1.9" />
+        <rect x="5.4" y="10" width="12" height="6.8" rx="1" fill={p} opacity="0.16" />
+        <path d="M8.6 21.4h6" stroke={p} strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M20.2 1.8Q20.2 4.2 22.6 4.2Q20.2 4.2 20.2 6.6Q20.2 4.2 17.8 4.2Q20.2 4.2 20.2 1.8Z" fill={p} stroke={p} strokeWidth="0.9" strokeLinejoin="round" />
+        <path d="M15.2 2.4Q15.2 3.6 16.4 3.6Q15.2 3.6 15.2 4.8Q15.2 3.6 14 3.6Q15.2 3.6 15.2 2.4Z" fill={p} stroke={p} strokeWidth="0.7" strokeLinejoin="round" />
       </>
     ),
   },
 
-  // Spiele: Gamepad im DualShock-Stil mit D-Pad, vier Tasten und zwei Sticks.
+  // Spiele: Controller-Silhouette von vorn: breiter Körper, zwei lange Griffe nach unten, Einkerbung unten und oben in der Mitte.
   games: {
     fill: (p) => (
-      <>
-        <path
-          d="M7.6 6.6h8.8c2.6 0 4 1.1 4.8 3.6l1.5 6c.5 2.3-.5 3.9-2.6 3.9-1.5 0-2.4-.8-3.2-2.2-.5-.9-1.1-1.4-2.1-1.4H9.2c-1 0-1.6.5-2.1 1.4-.8 1.4-1.7 2.2-3.2 2.2-2.1 0-3.1-1.6-2.6-3.9l1.5-6c.8-2.5 2.2-3.6 4.8-3.6z"
-          fill={p}
-        />
-        <rect x="4.6" y="3.8" width="4.6" height="1.7" rx="0.85" fill={p} />
-        <rect x="14.8" y="3.8" width="4.6" height="1.7" rx="0.85" fill={p} />
-      </>
+      <path
+        d="M4.6 5.6C6 4.5 7.8 4.6 9 5.5c1.6 1.1 4.4 1.1 6 0 1.2-.9 3-1 4.4.1 1.5 1.2 2.4 4.6 2.7 8.6.2 3-.7 5.2-2.7 5.2-1.7 0-2.6-1.7-3.4-3.8-.5-1.3-1.4-1.9-3.4-1.9h-.2c-2 0-2.9.6-3.4 1.9-.8 2.1-1.7 3.8-3.4 3.8-2 0-2.9-2.2-2.7-5.2.3-4 .5-7.4 1.7-8.6z"
+        fill={p}
+      />
     ),
     cut: (
       <>
-        <path d="M6.6 8.7v5M4.1 11.2h5" stroke={K} strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="17.4" cy="9" r="1" fill={K} />
-        <circle cx="17.4" cy="13.2" r="1" fill={K} />
-        <circle cx="15.3" cy="11.1" r="1" fill={K} />
-        <circle cx="19.5" cy="11.1" r="1" fill={K} />
-        <circle cx="9.7" cy="14.7" r="1.35" fill={K} />
-        <circle cx="14.3" cy="14.7" r="1.35" fill={K} />
+        <path d="M6.9 9.6v4.4M4.7 11.8h4.4" stroke={K} strokeWidth="1.7" strokeLinecap="round" />
+        <circle cx="17.2" cy="9.3" r="0.95" fill={K} />
+        <circle cx="17.2" cy="13.3" r="0.95" fill={K} />
+        <circle cx="15.2" cy="11.3" r="0.95" fill={K} />
+        <circle cx="19.2" cy="11.3" r="0.95" fill={K} />
       </>
     ),
   },
 
-  // Einstellungen: Werkzeugkasten wie in der XMB.
+  // Einstellungen: Werkzeugkasten wie in der XMB: Henkel als Ring, dunkles Band quer über den Deckel, zwei Verschlüsse.
   settings: {
     fill: (p) => (
       <>
-        <path d="M8 9V6.4c0-.9.7-1.6 1.6-1.6h4.8c.9 0 1.6.7 1.6 1.6V9" fill="none" stroke={p} strokeWidth="2.2" />
-        <rect x="2.5" y="8.6" width="19" height="12.2" rx="2.4" fill={p} />
+        <rect x="7.6" y="3.6" width="8.8" height="6.4" rx="2" fill="none" stroke={p} strokeWidth="1.9" />
+        <rect x="2.2" y="8" width="19.6" height="12.4" rx="2.6" fill={p} />
       </>
     ),
     cut: (
       <>
-        <path d="M2 13.6h20" stroke={K} strokeWidth="1.1" />
-        <rect x="10" y="11.4" width="4" height="4.4" rx="1" fill={K} stroke={K} strokeWidth="1.6" />
-        <rect x="10" y="11.4" width="4" height="4.4" rx="1" fill="#fff" />
+        <rect x="1.6" y="12.1" width="20.8" height="2.4" fill={K} />
+        <rect x="5.2" y="10.8" width="3" height="5.2" rx="0.7" fill="#fff" />
+        <rect x="15.8" y="10.8" width="3" height="5.2" rx="0.7" fill="#fff" />
+        <path d="M6.7 11.6v3.6M17.3 11.6v3.6" stroke={K} strokeWidth="0.7" />
       </>
     ),
   },
@@ -211,7 +200,7 @@ export function CategoryIcon({ name, variant = "category", size, className }: Ca
         {/* Oben reines currentColor, unten zur Akzentfarbe hin abgedunkelt: der typische Glanz-Verlauf. */}
         <linearGradient id={grad} gradientUnits="userSpaceOnUse" x1="0" y1="2" x2="0" y2="22">
           <stop offset="0" stopColor="currentColor" />
-          <stop offset="1" stopColor="currentColor" style={{ stopColor: "color-mix(in srgb, currentColor 66%, rgb(var(--ui-l76)))" }} />
+          <stop offset="1" stopColor="currentColor" style={{ stopColor: "color-mix(in srgb, currentColor 80%, rgb(var(--ui-l76)))" }} />
         </linearGradient>
         <mask id={mask} maskUnits="userSpaceOnUse" x="-3" y="-3" width="30" height="30">
           <rect x="-3" y="-3" width="30" height="30" fill="#fff" />
