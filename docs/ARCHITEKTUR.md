@@ -53,6 +53,11 @@ Das Hauptmenü (`<Xmb inputEnabled={…}>`) ignoriert jede Eingabe, solange ein 
 - **Schnelle Farbwahl** (`src/prefs/AccentPicker.tsx`): △ im Serien-Screen (Übersicht und Folgen-Details) und auf der Film-Detailseite öffnet eine Liste der Akzentfarben. Beim Bewegen färbt
   sich die Oberfläche sofort um (`setUiPrefs({ accentId })`), ✕ übernimmt, ○ stellt die vorherige Farbe wieder her. Es ist dieselbe Einstellung wie Einstellungen → Anzeige & Farben → Akzentfarbe.
   Die Folgenliste des Serien-Screens und die beiden Flächen der Film-Detailseite sind Glasflächen wie die Listen der PS3 (Verlauf aus `--ui-l…`, Lichtkante oben).
+- **Oberflächen-Stil** (`interfaceStyle` in `src/prefs/uiPrefs.ts`, Einstellungen → Anzeige & Farben → Oberflächen-Stil): „Klassisch (PS3)“ ist der Standard und bleibt unverändert. „Liquid Glass“
+  setzt `data-look="glass"` an `<html>` (`UiEffects`); `src/prefs/glass.css` überschreibt dann nur Flächen: Popup-Listen, Film- und Serienseite, Kategorie-Leiste, Uhr, Hinweisleiste und Detailkarte
+  des Hauptmenüs sowie die Bedienung des Players (Titel, Uhr, Zeitleiste mit Hinweisen, Vorschau, Pause-Karte). Glas = Tönung (Lesbarkeit) + Verlauf mit Lichtkante + `backdrop-filter`. Bewusst
+  nicht hinterlegt sind die Einträge und Kategorien des Hauptmenüs (die MotionEngine bewegt sie jedes Bild). Ohne `backdrop-filter` bzw. bei „Transparenz reduzieren“ des Systems werden die
+  Flächen deckend. Die Einblend-Animationen von `.pop-overlay` und `.pop-panel` laufen im Glas-Stil mit `animation-fill-mode: backwards`, sonst bliebe der Hintergrundfilter wirkungslos.
 - **Kategorie-Icons** (`src/xmb/CategoryIcon.tsx`): selbst gezeichnete Vektor-Piktogramme nach dem Vorbild der XMB (Video = Filmstreifen, Foto = Kamera, Einstellungen = Werkzeugkasten, Spiele = Gamepad …). Es liegen keine Sony-Originaldateien im Repo.
 - **PS3-Klänge** (`src/audio/ps3Sounds.ts`, Dateien in `public/sounds/ps3/`, Einstellung `soundPack`: `ps3` | `synth`): Zuordnung in `sound.ts`
   (`SFX_AS_PS3`): Cursor-Bewegung und Kategoriewechsel → `snd_option` (auf der PS3 bytegleich mit `snd_cursor`, `snd_decide` und `snd_category_decide`), Zurück → `snd_cancel`, Bestätigen → `snd_system_ok`, Fehler → `snd_system_ng`; dazu

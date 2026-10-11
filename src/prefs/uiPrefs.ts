@@ -28,6 +28,16 @@ export const BACKGROUND_STYLES = [
 ] as const;
 export type BackgroundStyle = (typeof BACKGROUND_STYLES)[number]["id"];
 
+/**
+ * Oberflächen-Stil von Menüs, Listen und Player: "classic" ist das bisherige PS3-Design (Standard, bleibt unverändert),
+ * "glass" legt zusätzlich „Liquid Glass“ darüber – milchig durchscheinende, unscharf hinterlegte Flächen (glass.css).
+ */
+export const INTERFACE_STYLES = [
+  { id: "classic", label: "Klassisch (PS3)" },
+  { id: "glass", label: "Liquid Glass" },
+] as const;
+export type InterfaceStyle = (typeof INTERFACE_STYLES)[number]["id"];
+
 export interface UiPrefs {
   /** Bildschirmhelligkeit der App, 0.6–1.25 (1 = unverändert). */
   brightness: number;
@@ -46,6 +56,8 @@ export interface UiPrefs {
   dayNight: boolean;
   /** Hintergrund-Design. */
   backgroundStyle: BackgroundStyle;
+  /** Oberflächen-Stil (klassisch oder Liquid Glass). */
+  interfaceStyle: InterfaceStyle;
   /** Start-Animation beim Öffnen der App (Vorspann mit Klang). */
   bootAnimation: boolean;
   /** Hintergrund-Elemente (nur beim Design "JellyStation-Wellen": Wellen und Formen). */
@@ -72,6 +84,7 @@ export const DEFAULT_UI_PREFS: UiPrefs = {
   brightness: 1,
   themeId: "auto",
   backgroundStyle: "xmb",
+  interfaceStyle: "classic",
   bootAnimation: true,
   customHue: 215,
   accentId: "auto",
@@ -149,6 +162,7 @@ export function sanitizeUiPrefs(raw: unknown): UiPrefs {
     brightness: num(r.brightness, d.brightness, LIMITS.brightness.min, LIMITS.brightness.max),
     themeId: theme,
     backgroundStyle: BACKGROUND_STYLES.some((s) => s.id === r.backgroundStyle) ? (r.backgroundStyle as BackgroundStyle) : d.backgroundStyle,
+    interfaceStyle: INTERFACE_STYLES.some((s) => s.id === r.interfaceStyle) ? (r.interfaceStyle as InterfaceStyle) : d.interfaceStyle,
     customHue: Math.round(num(r.customHue, d.customHue, LIMITS.customHue.min, LIMITS.customHue.max)),
     accentId: typeof r.accentId === "string" && ACCENTS.some((a) => a.id === r.accentId) ? r.accentId : d.accentId,
     accentHue: Math.round(num(r.accentHue, d.accentHue, LIMITS.accentHue.min, LIMITS.accentHue.max)),

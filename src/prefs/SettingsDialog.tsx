@@ -3,7 +3,7 @@ import { PopupList } from "../ui/popup";
 import type { PopupItem } from "../ui/popup";
 import { MOODS } from "../audio/moods";
 import { playSfx } from "../xmb/sound";
-import { ACCENTS, BACKGROUND_STYLES, DEFAULT_UI_PREFS, LIMITS, THEMES, resetUiPrefs, setUiPrefs, useUiPrefs } from "./uiPrefs";
+import { ACCENTS, BACKGROUND_STYLES, DEFAULT_UI_PREFS, INTERFACE_STYLES, LIMITS, THEMES, resetUiPrefs, setUiPrefs, useUiPrefs } from "./uiPrefs";
 import type { AnimationMode, UiPrefs } from "./uiPrefs";
 
 export type SettingsSection = "display" | "motion" | "sound";
@@ -28,6 +28,7 @@ type Row =
   | { id: string; kind: "animations"; label: string; detail: string }
   | { id: string; kind: "mood"; label: string; detail: string }
   | { id: string; kind: "style"; label: string; detail: string }
+  | { id: string; kind: "look"; label: string; detail: string }
   | { id: string; kind: "soundPack"; label: string; detail: string }
   | { id: string; kind: "preview"; label: string; detail: string }
   | { id: string; kind: "reset"; label: string; detail: string };
@@ -45,6 +46,7 @@ const ROWS: Record<SettingsSection, Row[]> = {
   display: [
     { id: "brightness", kind: "number", key: "brightness", label: "Helligkeit", detail: "Gilt für die ganze App, auch für Filme", format: percent },
     { id: "style", kind: "style", label: "Hintergrund-Design", detail: "PS3-Original (seidiges Tuch), die bisherigen JellyStation-Wellen, Nordlicht, Sternenhimmel, Tiefsee, Neon-Gitter oder nur ein Farbverlauf" },
+    { id: "look", kind: "look", label: "Oberflächen-Stil", detail: "Klassisch: das PS3-Design · Liquid Glass: milchig durchscheinende, unscharf hinterlegte Flächen in Menüs, Listen und Player (braucht eine schnelle Grafikkarte)" },
     { id: "theme", kind: "theme", label: "Farbthema", detail: "Hintergrundfarbe – „Automatisch“ wechselt wie die PS3 mit dem Monat" },
     { id: "customHue", kind: "number", key: "customHue", label: "Eigener Farbton", detail: "Nur bei „Eigener Farbton“", format: (v) => `${Math.round(v)}°` },
     { id: "accent", kind: "accent", label: "Akzentfarbe", detail: "Farbe der Listen und Untermenüs – „Wie Farbthema“ folgt dem Hintergrund" },
@@ -105,6 +107,7 @@ export function SettingsDialog({ section, onClose, active = true, onPreviewBoot 
         else if (r.kind === "animations") trailing = `◀  ${ANIM_LABEL[prefs.animations]}  ▶`;
         else if (r.kind === "soundPack") trailing = `◀  ${prefs.soundPack === "ps3" ? "PS3-Original" : "Synthetisch"}  ▶`;
         else if (r.kind === "style") trailing = `◀  ${BACKGROUND_STYLES.find((s) => s.id === prefs.backgroundStyle)?.label ?? ""}  ▶`;
+        else if (r.kind === "look") trailing = `◀  ${INTERFACE_STYLES.find((s) => s.id === prefs.interfaceStyle)?.label ?? ""}  ▶`;
         else if (r.kind === "mood") trailing = `◀  ${MOODS.find((m) => m.id === prefs.musicMood)?.label ?? ""}  ▶`;
         const detail = r.kind === "mood" ? (MOODS.find((m) => m.id === prefs.musicMood)?.description ?? r.detail) : r.detail;
         return { id: r.id, label: r.label, detail, trailing: trailing || undefined };
@@ -137,6 +140,9 @@ export function SettingsDialog({ section, onClose, active = true, onPreviewBoot 
     } else if (row.kind === "style") {
       const at = BACKGROUND_STYLES.findIndex((s) => s.id === prefs.backgroundStyle);
       setUiPrefs({ backgroundStyle: BACKGROUND_STYLES[(at + dir + BACKGROUND_STYLES.length) % BACKGROUND_STYLES.length].id });
+    } else if (row.kind === "look") {
+      const at = INTERFACE_STYLES.findIndex((s) => s.id === prefs.interfaceStyle);
+      setUiPrefs({ interfaceStyle: INTERFACE_STYLES[(at + dir + INTERFACE_STYLES.length) % INTERFACE_STYLES.length].id });
     } else if (row.kind === "soundPack") {
       setUiPrefs({ soundPack: prefs.soundPack === "ps3" ? "synth" : "ps3" });
       previewSound();
@@ -167,6 +173,7 @@ export function SettingsDialog({ section, onClose, active = true, onPreviewBoot 
     else if (row.kind === "soundPack") setUiPrefs({ soundPack: DEFAULT_UI_PREFS.soundPack });
     else if (row.kind === "mood") setUiPrefs({ musicMood: DEFAULT_UI_PREFS.musicMood });
     else if (row.kind === "style") setUiPrefs({ backgroundStyle: DEFAULT_UI_PREFS.backgroundStyle });
+    else if (row.kind === "look") setUiPrefs({ interfaceStyle: DEFAULT_UI_PREFS.interfaceStyle });
     else if (row.kind === "animations") setUiPrefs({ animations: DEFAULT_UI_PREFS.animations });
   };
 
