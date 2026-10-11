@@ -74,9 +74,9 @@ try {
     const { ctx, page } = await open([{ id: "mock1", url: mock.manifestUrl, name: "Mock-Addon" }]);
     await sleep(1200);
     let t = await text(page);
-    check("Spalten „Stream Filme“ und „Stream Serien“", /Stream Filme/.test(t) && /Stream Serien/.test(t));
+    check("Katalog-Spalten „Testfilme“ und „Testserien“", /Testfilme/.test(t) && /Testserien/.test(t));
     check("Katalog mit Suchpflicht wird übersprungen", !mock.log.some((l) => l.includes("mock-search")));
-    // Zur Spalte „Stream Filme“ navigieren (rechts bis sie fokussiert ist).
+    // Zur Spalte „Testfilme“ navigieren (rechts bis sie fokussiert ist).
     for (let i = 0; i < 12 && !/Testfilm/.test(await text(page)); i += 1) await key(page, "ArrowRight");
     await sleep(500);
     check("Testfilm ist fokussiert", /Testfilm/.test(await text(page)));
@@ -137,17 +137,18 @@ try {
   {
     const { ctx, page } = await open([]);
     let t = await text(page);
-    check("Ohne Addons keine Stream-Spalten", !/Stream Filme/.test(t));
-    // Einstellungen-Spalte (ganz rechts), dort „Stremio-Addons“.
+    check("Ohne Addons keine Stremio-Spalten", !/Testfilme|Beliebt – Filme/.test(t));
+    // Einstellungen-Spalte (ganz rechts), dort „Stremio“.
     await key(page, "ArrowRight", 14);
     await sleep(500);
-    for (let i = 0; i < 14 && !/Stremio-Addons/.test(await page.evaluate(() => document.querySelector(".xmb-detail")?.innerText ?? "")); i += 1) await key(page, "ArrowDown");
-    check("Einstellungen enthalten „Stremio-Addons“", /Stremio-Addons/.test(await text(page)));
+    for (let i = 0; i < 14 && !/^\s*Stremio\b/.test(await page.evaluate(() => document.querySelector(".xmb-detail")?.innerText ?? "")); i += 1) await key(page, "ArrowDown");
+    check("Einstellungen enthalten „Stremio“", /Stremio/.test(await text(page)));
     await key(page, "Enter");
     await sleep(700);
     t = await text(page);
-    check("Addon-Liste mit Hinzufügen und Cinemeta-Beispiel", /Addon hinzufügen/.test(t) && /Cinemeta/.test(t));
+    check("Liste mit Konto-Anmeldung und Hinzufügen", /Addon hinzufügen/.test(t) && /Mit Stremio-Konto anmelden/.test(t));
     await page.screenshot({ path: path.join(OUT, "b1-liste.png") });
+    await key(page, "ArrowDown"); // erste Zeile ist die Konto-Anmeldung
     await key(page, "Enter");
     await sleep(500);
     const input = page.locator("input[inputmode=url]");
@@ -186,11 +187,11 @@ try {
     const { ctx, page } = await open([{ id: "cm", url: "https://v3-cinemeta.strem.io/manifest.json", name: "Cinemeta" }], cinemetaBrowser);
     await sleep(5000);
     const labelOf = () => page.evaluate(() => document.querySelector(".xmb-detail")?.innerText ?? "");
-    await key(page, "ArrowRight", 3); // Zuletzt → Filme → Serien → Stream Filme
+    await key(page, "ArrowRight", 3); // Zuletzt → Filme → Serien → erste Stremio-Spalte
     await sleep(800);
     const t = await text(page);
     const detail = await labelOf();
-    check("Cinemeta: Stream-Spalten sichtbar", /Stream Filme/.test(t), t.slice(0, 160));
+    check("Cinemeta: Katalog-Spalten sichtbar", /Beliebt – Filme/.test(t), t.slice(0, 160));
     check("Cinemeta: echte Titel mit Poster", !/Lade Kataloge|nicht erreichbar/.test(t) && detail.length > 5, detail.slice(0, 100));
     await page.screenshot({ path: path.join(OUT, "c1-cinemeta.png") });
     await ctx.close();

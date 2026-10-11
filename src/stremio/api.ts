@@ -64,15 +64,28 @@ const seg = (value: string) => encodeURIComponent(value);
 
 /* ------------------------------------------------------------------ Netz */
 
-async function send(url: string, signal: AbortSignal): Promise<Response> {
-  if (isTauri()) {
-    const { fetch } = await import("@tauri-apps/plugin-http");
-    return fetch(url, { signal, headers: { Accept: "application/json" } });
-  }
-  return window.fetch(url, { signal, headers: { Accept: "application/json" } });
+interface RequestInit2 {
+  method?: "GET" | "POST";
+  /** JSON-Körper (wird serialisiert). */
+  body?: unknown;
 }
 
-async function getJson(url: string, outer?: AbortSignal): Promise<unknown> {
+async function send(url: string, signal: AbortSignal, init: RequestInit2): Promise<Response> {
+  const opts: RequestInit = {
+    signal,
+    method: init.method ?? "GET",
+    headers: { Accept: "application/json", ...(init.body !== undefined ? { "Content-Type": "application/json" } : {}) },
+    ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+  };
+  if (isTauri()) {
+    const { fetch } = await import("@tauri-apps/plugin-http");
+    return fetch(url, opts);
+  }
+  return window.fetch(url, opts);
+}
+
+/** Ruft eine Adresse mit Zeitlimit ab und liefert Status und Text; Netzfehler werden zu einem StremioError. */
+async function fetchText(url: string, outer: AbortSignal | undefined, init: RequestInit2 = {}): Promise<{ status: number; ok: boolean; text: string }> {
   const timeout = AbortSignal.timeout(TIMEOUT_MS);
   const ctl = new AbortController();
   const abort = () => ctl.abort();
@@ -80,15 +93,8 @@ async function getJson(url: string, outer?: AbortSignal): Promise<unknown> {
   outer?.addEventListener("abort", abort);
   if (outer?.aborted) ctl.abort();
   try {
-    const res = await send(url, ctl.signal);
-    const text = await res.text();
-    if (res.status === 404) throw new StremioError("Das Addon kennt diese Anfrage nicht (404)");
-    if (!res.ok) throw new StremioError(`Das Addon meldet einen Fehler (HTTP ${res.status})`);
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new StremioError("Antwort des Addons ist kein gültiges JSON");
-    }
+    const res = await send(url, ctl.signal, init);
+    return { status: res.status, ok: res.ok, text: await res.text() };
   } catch (err) {
     if (outer?.aborted) throw abortError();
     if (err instanceof StremioError) throw err;
@@ -96,6 +102,27 @@ async function getJson(url: string, outer?: AbortSignal): Promise<unknown> {
   } finally {
     timeout.removeEventListener("abort", abort);
     outer?.removeEventListener("abort", abort);
+  }
+}
+
+async function getJson(url: string, outer?: AbortSignal): Promise<unknown> {
+  const res = await fetchText(url, outer);
+  if (res.status === 404) throw new StremioError("Das Addon kennt diese Anfrage nicht (404)");
+  if (!res.ok) throw new StremioError(`Das Addon meldet einen Fehler (HTTP ${res.status})`);
+  try {
+    return JSON.parse(res.text);
+  } catch {
+    throw new StremioError("Antwort des Addons ist kein gültiges JSON");
+  }
+}
+
+/** POST an die Stremio-API (Konto): liefert das geparste JSON auch bei HTTP-Fehlern, damit deren Meldung gelesen werden kann. */
+export async function postStremioApi(path: string, body: unknown, signal?: AbortSignal): Promise<unknown> {
+  const res = await fetchText(`https://api.strem.io/api/${path}`, signal, { method: "POST", body });
+  try {
+    return JSON.parse(res.text);
+  } catch {
+    throw new StremioError(res.ok ? "Antwort von Stremio ist kein gültiges JSON" : `Stremio meldet einen Fehler (HTTP ${res.status})`);
   }
 }
 
@@ -116,7 +143,9 @@ function parseCatalog(raw: unknown): ManifestCatalog | null {
   // Neues Format: extra: [{ name, isRequired }]; altes: extraRequired: ["search"].
   const extra = Array.isArray(o.extra) ? o.extra.map(obj).filter((e): e is Obj => !!e) : [];
   const needsExtra = extra.some((e) => e.isRequired === true) || strList(o.extraRequired).length > 0;
-  return { type: str(o.type), id: str(o.id), name: str(o.name) || str(o.id), needsExtra };
+  const searchable =
+    extra.some((e) => str(e.name) === "search") || strList(o.extraSupported).includes("search") || strList(o.extraRequired).includes("search");
+  return { type: str(o.type), id: str(o.id), name: str(o.name) || str(o.id), needsExtra, searchable };
 }
 
 export function parseManifest(json: unknown): Manifest {
@@ -152,10 +181,16 @@ export function supports(manifest: Manifest, resource: "catalog" | "meta" | "str
   return true;
 }
 
-/** Der erste Katalog ohne Pflicht-Zusatzangabe für diesen Typ (die „Startseite“ des Addons). */
-export function firstCatalog(manifest: Manifest, type: StremioType): ManifestCatalog | null {
+/** Alle Kataloge für diesen Typ, die ohne Zusatzangabe eine Liste liefern (die „Startseiten“ des Addons). */
+export function listCatalogs(manifest: Manifest, type: StremioType): ManifestCatalog[] {
+  if (!supports(manifest, "catalog", type)) return [];
+  return manifest.catalogs.filter((c) => c.type === type && !c.needsExtra);
+}
+
+/** Der erste Katalog für diesen Typ, der eine Suche versteht. */
+export function findSearchCatalog(manifest: Manifest, type: StremioType): ManifestCatalog | null {
   if (!supports(manifest, "catalog", type)) return null;
-  return manifest.catalogs.find((c) => c.type === type && !c.needsExtra) ?? null;
+  return manifest.catalogs.find((c) => c.type === type && c.searchable) ?? null;
 }
 
 /* ------------------------------------------------------------------ Katalog und Meta */
@@ -206,6 +241,13 @@ export function parseMeta(raw: unknown): Meta | null {
 /** Erste Seite eines Katalogs (Addons liefern meist bis zu 100 Einträge). */
 export async function fetchCatalog(manifestUrl: string, type: StremioType, catalogId: string, signal?: AbortSignal): Promise<Meta[]> {
   const json = obj(await getJson(resourceUrl(manifestUrl, `/catalog/${seg(type)}/${seg(catalogId)}.json`), signal));
+  const metas = Array.isArray(json?.metas) ? json.metas : [];
+  return metas.map(parseMeta).filter((m): m is Meta => !!m);
+}
+
+/** Suchtreffer eines Katalogs: `…/catalog/<typ>/<katalog>/search=<Begriff>.json`. */
+export async function fetchCatalogSearch(manifestUrl: string, type: StremioType, catalogId: string, query: string, signal?: AbortSignal): Promise<Meta[]> {
+  const json = obj(await getJson(resourceUrl(manifestUrl, `/catalog/${seg(type)}/${seg(catalogId)}/search=${seg(query)}.json`), signal));
   const metas = Array.isArray(json?.metas) ? json.metas : [];
   return metas.map(parseMeta).filter((m): m is Meta => !!m);
 }

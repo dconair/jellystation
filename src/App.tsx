@@ -44,6 +44,10 @@ import { Xmb } from "./xmb/Xmb";
 import { StremioAddonsDialog } from "./stremio/StremioAddonsDialog";
 import { StremioPicker } from "./stremio/StremioPicker";
 import { useStremioLibrary } from "./stremio/useStremioLibrary";
+import { useStremioAccountSync } from "./stremio/useStremioAccountSync";
+import { effectiveAddons } from "./stremio/addons";
+import { SearchDialog } from "./search/SearchDialog";
+import { loadSearchHistory } from "./search/history";
 
 /**
  * Start-Gatekeeper: Erst wird die gespeicherte Konfiguration geladen. Fehlt sie, wird
@@ -139,6 +143,7 @@ type Overlay =
   | { kind: "assignments" }
   | { kind: "stremio"; entry: XmbEntry }
   | { kind: "stremioAddons" }
+  | { kind: "search"; query?: string }
   | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[] };
 
 const jfConfigOf = (jellyfin: Settings["jellyfin"] | undefined) =>
@@ -165,7 +170,11 @@ function Main({
   // Hauptadresse oder (unterwegs, z. B. Tailscale) zweite Adresse – je nachdem, was gerade antwortet.
   const reachableJf = useReachableServer(settings?.jellyfin ?? null);
   const jellyfin = useJellyfinLibrary(reachableJf ?? undefined);
-  const stremio = useStremioLibrary(settings?.stremio?.addons);
+  // Eingetragene Addons plus Cinemeta (die Kataloge liefert in Stremio Cinemeta, Stream-Addons haben keine).
+  const stremioAddons = useMemo(() => effectiveAddons(settings?.stremio), [settings?.stremio]);
+  const stremio = useStremioLibrary(stremioAddons);
+  useStremioAccountSync(settings?.stremio, (next) => settings && onChangeSettings({ ...settings, stremio: next }));
+  const [searchHistory, setSearchHistory] = useState(loadSearchHistory);
   const emulators = useEmulators(settings?.emulators);
   const biosDir = settings?.biosDir ?? "";
   const requirements = useRequirements(biosDirOf(biosDir));
@@ -236,27 +245,34 @@ function Main({
   }, [requirements.statuses, requirements.loading]);
   const userName = settings?.jellyfin.userName || jellyfin.userName;
 
-  const stremioSummary = stremio.status === "idle" ? "Keine Addons" : `${settings?.stremio?.addons.length ?? 0} Addon${settings?.stremio?.addons.length === 1 ? "" : "s"}`;
+  const stremioAddonCount = settings?.stremio?.addons.length ?? 0;
+  const stremioSummary = settings?.stremio?.account
+    ? `${settings.stremio.account.email} · ${stremioAddonCount} Addon${stremioAddonCount === 1 ? "" : "s"}`
+    : stremio.status === "idle"
+      ? "Nicht eingerichtet"
+      : `${stremioAddonCount} Addon${stremioAddonCount === 1 ? "" : "s"}`;
   const stremioCategories = useMemo<XmbCategory[]>(() => {
     if (stremio.status === "idle") return [];
-    const column = (id: string, label: string, icon: "movies" | "series", entries: XmbEntry[]): XmbCategory => ({
-      id,
-      label,
-      icon,
-      entries: entries.length
-        ? entries
-        : [
+    if (stremio.columns.length === 0) {
+      return [
+        {
+          id: "stremio-empty",
+          label: "Stremio",
+          icon: "movies",
+          entries: [
             {
-              id: `st-empty/${id}`,
-              title: stremio.status === "loading" ? "Lade Kataloge …" : stremio.status === "error" ? "Addons nicht erreichbar" : "Keine Titel",
-              subtitle: stremio.problems[0] ?? (stremio.status === "loading" ? undefined : "Das Addon liefert hier keinen Katalog"),
-              description: "Addons trägst du unter Einstellungen → Stremio-Addons ein.",
+              id: "st-empty/stremio",
+              title: stremio.status === "loading" ? "Lade Kataloge …" : "Keine Kataloge",
+              subtitle: stremio.problems[0] ?? (stremio.status === "loading" ? undefined : "Die Addons liefern hier nichts"),
+              description: "Konto und Addons verwaltest du unter Einstellungen → Stremio.",
               hue: 20,
             },
           ],
-    });
-    return [column("stremio-movies", "Stream Filme", "movies", stremio.movies), column("stremio-series", "Stream Serien", "series", stremio.series)];
-  }, [stremio.status, stremio.movies, stremio.series, stremio.problems]);
+        },
+      ];
+    }
+    return stremio.columns.map<XmbCategory>((c) => ({ id: c.id, label: c.label, icon: c.type === "movie" ? "movies" : "series", entries: c.entries }));
+  }, [stremio.status, stremio.columns, stremio.problems]);
 
   const categories = useMemo<XmbCategory[]>(() => {
     const base = baseCategories.map((cat) => {
@@ -309,8 +325,11 @@ function Main({
       description: `${b.url} – öffnet in einem eigenen Fenster der App. △ löscht das Lesezeichen.`,
       hue: hueFromTitle(b.name),
     }));
+    const searchEntries = searchHistory.map<XmbEntry>((q) => ({ id: `search-q/${q}`, title: q, subtitle: "Zuletzt gesucht", hue: hueFromTitle(q) }));
     const withRecent = base.map((cat) =>
-      cat.id === "recent" && recentEntries.length > 0
+      cat.id === "search" && searchEntries.length > 0
+        ? { ...cat, entries: [...cat.entries, ...searchEntries] }
+        : cat.id === "recent" && recentEntries.length > 0
         ? { ...cat, entries: recentEntries }
         : cat.id === "web"
           ? { ...cat, entries: [...bookmarks, ...cat.entries] }
@@ -319,7 +338,7 @@ function Main({
     // Stremio-Spalten (nur mit eingetragenen Addons) und danach die Spiele-Systeme (PS1, PS2, PS3 …) direkt hinter den Serien.
     const at = withRecent.findIndex((c) => c.id === "series") + 1;
     return [...withRecent.slice(0, at), ...stremioCategories, ...library.categories, ...withRecent.slice(at)];
-  }, [stremioCategories, recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, assignmentSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
+  }, [stremioCategories, searchHistory, recentJf.entries, recentGameIds, library.categories, settings, hasJellyfinItems, jellyfin.movies, jellyfin.series, emulatorSummary, assignmentSummary, filesSummary, userName, jfConfig, alwaysTranscode, displaySummary, motionSummary, soundSummary]);
 
   /** Titel abspielen; ab einer gespeicherten Position fragt vorher ein Dialog nach Fortsetzen/Von vorn. */
   const play = useCallback(
@@ -400,6 +419,8 @@ function Main({
       else if (entry.action === "open-covers") openOverlay({ kind: "covers" });
       else if (entry.action === "open-game-assignments") openOverlay({ kind: "assignments" });
       else if (entry.action === "open-stremio") openOverlay({ kind: "stremioAddons" });
+      else if (entry.action === "open-search") openOverlay({ kind: "search" });
+      else if (entry.id.startsWith("search-q/")) openOverlay({ kind: "search", query: entry.id.slice("search-q/".length) });
       else if (entry.action === "choose-jellyfin-user") void openUsers();
       else if (entry.action === "toggle-transcode") {
         const next = !loadPrefs().alwaysTranscode;
@@ -660,7 +681,7 @@ function Main({
     layer = (
       <StremioPicker
         entry={overlay.entry}
-        addons={settings?.stremio?.addons ?? []}
+        addons={stremioAddons}
         onPlay={(entry) => openOverlay({ kind: "player", entry, startSec: 0 })}
         onClose={close}
       />
@@ -668,8 +689,23 @@ function Main({
   } else if (overlay?.kind === "stremioAddons") {
     layer = (
       <StremioAddonsDialog
-        addons={settings?.stremio?.addons ?? []}
-        onChange={(addons) => settings && onChangeSettings({ ...settings, stremio: addons.length ? { addons } : undefined })}
+        stremio={settings?.stremio}
+        onChange={(next) => settings && onChangeSettings({ ...settings, stremio: next })}
+        onClose={close}
+      />
+    );
+  } else if (overlay?.kind === "search") {
+    layer = (
+      <SearchDialog
+        initialQuery={overlay.query}
+        jellyfin={jfConfig ? { url: jfConfig.url, apiKey: jfConfig.apiKey, userId: settings?.jellyfin.userId || jellyfin.userId } : null}
+        addons={stremioAddons}
+        onSearched={setSearchHistory}
+        onPick={(entry) => {
+          if (entry.stremio) openOverlay({ kind: "stremio", entry });
+          else if (entry.jellyfin?.type === "Series") openSeries(entry);
+          else play(entry);
+        }}
         onClose={close}
       />
     );
