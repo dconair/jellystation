@@ -149,7 +149,7 @@ type Overlay =
   | { kind: "stremio"; entry: XmbEntry }
   | { kind: "stremioAddons" }
   | { kind: "search"; query?: string }
-  | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[]; choice?: MovieChoice };
+  | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[]; choice?: MovieChoice; back?: Overlay };
 
 const jfConfigOf = (jellyfin: Settings["jellyfin"] | undefined) =>
   jellyfin && jellyfin.url.trim() && jellyfin.apiKey.trim() ? jellyfin : null;
@@ -557,7 +557,8 @@ function Main({
         playlist={overlay.playlist}
         choice={overlay.choice}
         onClose={(info) => {
-          close();
+          // Von Film- oder Serienseite gestartet: dorthin zurück, sonst ins Menü.
+          openOverlay(overlay.back ?? null);
           // Neue Wiedergabestände (Balken, Haken) sofort sichtbar machen.
           if (info.entry.jellyfin) {
             jellyfin.reload();
@@ -695,7 +696,7 @@ function Main({
       <SeriesScreen
         series={overlay.series}
         jellyfin={jfConfig}
-        onPlay={(episode, playlist, startSec) => openOverlay({ kind: "player", entry: episode, startSec, playlist })}
+        onPlay={(episode, playlist, startSec) => openOverlay({ kind: "player", entry: episode, startSec, playlist, back: overlay })}
         onClose={close}
       />
     );
@@ -704,7 +705,7 @@ function Main({
       <MovieScreen
         movie={overlay.movie}
         jellyfin={jfConfig}
-        onPlay={(movie, startSec, choice) => openOverlay({ kind: "player", entry: movie, startSec, choice })}
+        onPlay={(movie, startSec, choice) => openOverlay({ kind: "player", entry: movie, startSec, choice, back: overlay })}
         onChanged={() => {
           jellyfin.reload();
           recentJf.reload();
