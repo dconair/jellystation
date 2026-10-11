@@ -87,9 +87,9 @@
   border-radius: 0.6rem;
   background: linear-gradient(
     180deg,
-    rgba(var(--ui-l28), 0.62) 0%,
-    rgba(var(--ui-l14), 0.72) 38%,
-    rgba(var(--ui-l5), 0.8) 100%
+    rgba(var(--ui-l28), 0.9) 0%,
+    rgba(var(--ui-l14), 0.94) 38%,
+    rgba(var(--ui-l5), 0.97) 100%
   );
   border: 1px solid rgba(var(--ui-l84), 0.22);
   box-shadow:

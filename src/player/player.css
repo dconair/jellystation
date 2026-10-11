@@ -614,7 +614,7 @@
   flex-direction: column;
   border-radius: 0.7rem;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.8) 0%, rgba(var(--ui-l14), 0.88) 40%, rgba(var(--ui-l5), 0.93) 100%);
+  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.92) 0%, rgba(var(--ui-l14), 0.95) 40%, rgba(var(--ui-l5), 0.98) 100%);
   border: 1px solid rgba(var(--ui-l84), 0.24);
   box-shadow:
     0 2rem 4.5rem rgba(0, 0, 0, 0.55),
@@ -766,13 +766,14 @@
   }
 }
 
-/* Pause-Bild */
+/* Pause-Bild: deckend, damit das eingefrorene Videobild nicht durch das Hintergrundbild scheint */
 .player-pause {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 3; /* über den Untertiteln (2), unter dem Bedienfeld (3, später im Dokument) */
   opacity: 0;
   pointer-events: none;
+  background: rgb(var(--ui-l5));
   transition: opacity 0.7s ease;
 }
 .player-pause.is-on {
@@ -784,14 +785,37 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.6;
 }
 .player-pause__shade {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(var(--ui-l5), 0.92) 0%, rgba(var(--ui-l5), 0.6) 48%, rgba(var(--ui-l5), 0.15) 100%),
-    linear-gradient(0deg, rgba(var(--ui-l5), 0.7) 0%, rgba(var(--ui-l5), 0) 40%);
+    linear-gradient(90deg, rgba(var(--ui-l5), 0.94) 0%, rgba(var(--ui-l5), 0.62) 46%, rgba(var(--ui-l5), 0.1) 100%),
+    linear-gradient(0deg, rgba(var(--ui-l5), 0.96) 0%, rgba(var(--ui-l5), 0.5) 22%, rgba(var(--ui-l5), 0) 42%),
+    linear-gradient(180deg, rgba(var(--ui-l5), 0.8) 0%, rgba(var(--ui-l5), 0) 24%);
+}
+/* Drehende Disc rechts: ruhiger Blickfang, auch wenn der Server kein Hintergrundbild kennt */
+.player-pause__disc {
+  position: absolute;
+  right: 9rem;
+  top: 46%;
+  width: 21rem;
+  aspect-ratio: 1;
+  margin-top: -10.5rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 22%, rgba(0, 0, 0, 0.28) 22.4% 23.2%, transparent 23.6% 100%),
+    conic-gradient(from 20deg, #e8eef9, #5d6c88, #f4f8ff, #46526b, #dfe8f7, #56637e, #f4f8ff, #46526b, #e8eef9);
+  -webkit-mask: radial-gradient(circle, transparent 0 8%, #000 8.4%);
+  mask: radial-gradient(circle, transparent 0 8%, #000 8.4%);
+  box-shadow: 0 0 4rem rgba(var(--pl-glow), 0.4);
+  opacity: 0.88;
+  animation: pl-disc 9s linear infinite;
+}
+@keyframes pl-disc {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .player-pause__text {
   position: absolute;

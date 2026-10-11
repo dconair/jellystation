@@ -456,7 +456,7 @@ export function MovieScreen({ movie, jellyfin, onPlay, onChanged, onClose, activ
               )}
             </section>
 
-            <section className="movie-options" aria-label="Optionen">
+            <section className={`movie-options${choice || picker ? " is-covered" : ""}`} aria-label="Optionen">
               <div className="movie-rows" role="menu" style={{ height: `calc(${rows.length} * var(--m-row) * 1rem)` }}>
                 <div
                   className="movie-bar"
