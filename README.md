@@ -60,7 +60,7 @@ dieselben Fokus-Animationen und Soundeffekte aus. Der Gamepad-Hook liegt in `src
 - Basisordner: wird im Setup gewählt (gespeichert in den Einstellungen); `GAMES_BASE_DIR` in `src/config/games.ts` ist nur der Standardwert.
 - Ein einziger Ordner genügt: ISOs, CHD, CUE/BIN, Spieleordner und Programme (`.app`) kommen unsortiert hinein, auch in
   beliebige Unterordner. Der Rust-Befehl `games_scan` (`src-tauri/src/library.rs`) durchsucht ihn rekursiv und erkennt das System –
-  am Inhalt (z. B. `PS3_GAME/PARAM.SFO`, `SYSTEM.CNF`, GameCube-/Wii-Disc-Kopf), sonst an Seriennummer im Dateinamen,
+  am Inhalt (z. B. `PS3_GAME/PARAM.SFO`, `sce_sys/param.sfo` + `eboot.bin` für PS4, `SYSTEM.CNF`, GameCube-/Wii-Disc-Kopf), sonst an Seriennummer im Dateinamen,
   Dateiformat (`.cso`, `.pkg`, `.rvz` …) oder einem Ordnernamen wie `PS3/`. Jedes System wird zur Kategorie „Spiele · <System>“ mit dem
   passenden Emulator; der Dateiname ohne Endung ist der Titel. Dateien werden **nie verschoben**.
 - „Spiele · Nicht zugeordnet“ sammelt, was sich nicht sicher erkennen lässt. ✕ öffnet die Zuordnung (mit Vorschlag), △ ändert
@@ -82,7 +82,9 @@ generative Hintergrundmusik. Übersicht für Nutzer: [docs/ANLEITUNG-MAC.md](doc
 ## Emulatoren (macOS)
 
 - Katalog: `src/emulators/catalog.ts` (+ `emulators.json` für das Installationsskript). PS1 → DuckStation, PS2 → PCSX2, PS3 → RPCS3,
-  PSP → PPSSPP, GameCube/Wii → Dolphin.
+  PS4 → shadPS4, PSP → PPSSPP, GameCube/Wii → Dolphin. PS4-Spiele sind entschlüsselte Spieleordner (`eboot.bin` + `sce_sys/`); gestartet wird
+  die `eboot.bin` (`shadPS4 -g <Ordner>/eboot.bin -f true`). Der Katalogeintrag und die Download-Muster für shadPS4 sind noch nicht gegen
+  echte Releases geprüft.
 - `scripts/install-emulators.sh` (auch Teil von `setup-mac.sh`; `jellystation --emulators`) erkennt und installiert sie
   (Homebrew bzw. GitHub, SHA-256, ohne sudo) und legt `~/JellyStation/Games/<System>` und `~/JellyStation/BIOS` an.
 - Gestartet wird über den Rust-Befehl `game_launch` (kein fester Shell-Scope); die XMB bleibt offen und zeigt „Läuft“.

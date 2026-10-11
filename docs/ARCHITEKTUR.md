@@ -129,7 +129,7 @@ Frontend `src/diagnose/`:
 - `run.ts` `runDiagnosis(input)` prüft in dieser Reihenfolge: Anlass (Exit-Code/Signal/Ausgabe eines gescheiterten Starts, Emulator-Protokoll, Datei des Spiels),
   Spiele-Ordner, jeder Emulator (installiert, startbar, Quarantäne), BIOS/Firmware (nutzt `checkRequirements` aus `emulators/requirements.ts`; dazu Kopfprüfung:
   PS3-`.PUP` beginnt mit „SCEUF“, BIOS nicht nur Nullen/Einsen), alle Spieldateien der Bibliothek (lesbar, nicht leer, `.cue`-/`.m3u`-Teile vorhanden, kein Archiv,
-  passende Endung, Ordnerform bei PS3/PSP). Ergebnis: `DiagnoseReport` mit `Finding`s (`error|warn|info|ok`, Erklärung mit nächstem Schritt, optional `fix`).
+  passende Endung, Ordnerform bei PS3/PS4/PSP). Ergebnis: `DiagnoseReport` mit `Finding`s (`error|warn|info|ok`, Erklärung mit nächstem Schritt, optional `fix`).
   `applyFix()` führt `copy-bios` (über `bios_copy`) und `clear-quarantine` aus; `open-emulators|open-files|open-games-dir` öffnet der Aufrufer.
 - `rules.ts` – reine Regeln: erlaubte Endungen je Emulator, Protokollpfade, Muster für typische Fehlermeldungen (BIOS/Firmware/Lizenz/Abbild/Rechte/Quarantäne/Architektur/Grafik …).
   Die Muster sind bewusst weit gefasst, die Texte vorsichtig („vermutlich“). Es gibt **keine** Hashlisten bekannter BIOS-Dateien (nichts davon wird mitgeliefert).
@@ -144,14 +144,14 @@ etwas verschoben, umbenannt oder entpackt.
 - `games_scan({ dir }) -> { root, games: [ScannedGame], images: [relPfad], truncated, unreadable }` – durchsucht `dir` rekursiv (Tiefe 12, höchstens 20 000 Spiele;
   versteckte Einträge, Papierkörbe und Verknüpfungen auf Ordner werden übersprungen) und erkennt das System jedes Spiels.
   `ScannedGame`: `path` (absolut), `rel` (relativ zum Spiele-Ordner, stabiler Schlüssel), `name`, `kind` (`file` | `folder` | `bundle`), `ext`, `size`,
-  `system` (`PS1` `PS2` `PS3` `PSP` `GameCube` `Wii` oder `null`), `how` (`content` | `serial` | `format` | `folder` | `size` | `none`), `uncertain`,
+  `system` (`PS1` `PS2` `PS3` `PS4` `PSP` `GameCube` `Wii` oder `null`), `how` (`content` | `serial` | `format` | `folder` | `size` | `none`), `uncertain`,
   `guess` (Vorschlag bei `null`), `serial`, `title` (aus `PARAM.SFO`/Disc-Kopf), `reason` (Begründung, für die Beschreibung im Menü).
 - **Reihenfolge der Erkennung** (sicher → vage), das erste Ergebnis gilt:
-  1. *Inhalt* (nur die ersten Sektoren werden gelesen, `covers/embedded.rs`): `PS3_GAME/PARAM.SFO` oder `PS3_DISC.SFB` → PS3, `PSP_GAME/PARAM.SFO` und `EBOOT.PBP` → PSP,
+  1. *Inhalt* (nur die ersten Sektoren werden gelesen, `covers/embedded.rs`): `PS3_GAME/PARAM.SFO` oder `PS3_DISC.SFB` → PS3, `PSP_GAME/PARAM.SFO` und `EBOOT.PBP` → PSP, Ordner mit `eboot.bin` und `sce_sys/param.sfo` (Titelnummer `CUSA…`, die Vita hat denselben Aufbau mit `PCS…`) → PS4,
      `SYSTEM.CNF` mit `BOOT2` → PS2, mit `BOOT` → PS1, Disc-Kopf mit GameCube-/Wii-Kennung (auch in `.rvz`, `.wia`, `.wbfs`, `.ciso`). Entpackte Spieleordner (`PS3_GAME/`, installierte PS3-Spiele,
      `PSP_GAME/`) sind **ein** Spiel und werden nicht weiter durchsucht.
-  2. *Seriennummer im Dateinamen*, nur wo das Präfix eindeutig ist (PS3: `BLUS`, `BCES`, `NPUB` …; PSP: `ULES`, `UCUS`, `NPUZ` …). PS1 und PS2 teilen sich ihre Präfixe (`SLUS`, `SCES` …), dort entscheidet nur der Inhalt.
-  3. *Dateiformat*: `.cso` → PSP, `.pkg` (Kopf `\x7fPKG`, Typ 1) → PS3, ELF-Maschine PowerPC64 → PS3, `.dol`/`.gcz`/`.gcm` → GameCube. Ein PowerPC- oder MIPS-ELF ist nicht eindeutig (nur Vorschlag).
+  2. *Seriennummer im Dateinamen*, nur wo das Präfix eindeutig ist (PS3: `BLUS`, `BCES`, `NPUB` …; PSP: `ULES`, `UCUS`, `NPUZ` …; PS4: `CUSA` …). PS1 und PS2 teilen sich ihre Präfixe (`SLUS`, `SCES` …), dort entscheidet nur der Inhalt.
+  3. *Dateiformat*: `.cso` → PSP, `.pkg` (Kopf `\x7fPKG`, Typ 1) → PS3, `.pkg` (Kopf `\x7fCNT`) → PS4, ELF-Maschine PowerPC64 → PS3, `.dol`/`.gcz`/`.gcm` → GameCube. Ein PowerPC- oder MIPS-ELF ist nicht eindeutig (nur Vorschlag).
   4. *Ordnername* irgendwo über der Datei (`PS3`, `PlayStation 2 Spiele`, `Wii-Spiele` …) – die alte Struktur `<System>/<Spiel>` funktioniert unverändert. Ein Inhalt, der etwas anderes sagt, geht vor.
   5. *Größe* bei CHD (MAME-Kopf v5): CD-CHD über 800 MB ist keine PS1 → PS2, DVD-CHD über 1,9 GB ist keine PSP → PS2. Eine kleine CD-CHD gilt als PS1, aber `uncertain` (Menü: „vermutet“).
   Bleibt nichts übrig, ist `system` `null`: Das Spiel erscheint unter „Nicht zugeordnet“.
@@ -194,7 +194,7 @@ Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`).
   `online: false` ruft nichts im Netz ab. `error` ist gesetzt, wenn nur ein Netzproblem die Suche verhindert hat (kein „nicht gefunden“).
   `retry: true` ignoriert den Merker „nicht gefunden“ (Knopf „Jetzt nach fehlenden Covern suchen“).
 - Eingebettet (`covers/iso.rs`, `embedded.rs`): ISO 9660 nur lesend (2048-Byte-Sektoren, auch rohe 2352-Byte-Abbilder Mode 1/Mode 2 Form 1),
-  nie komplett gelesen. PS3: `PS3_GAME/ICON0.PNG` (320x176, Querformat) und `PARAM.SFO`; PSP: `PSP_GAME/ICON0.PNG`; PS1/PS2: `SYSTEM.CNF`
+  nie komplett gelesen. PS3: `PS3_GAME/ICON0.PNG` (320x176, Querformat) und `PARAM.SFO`; PSP: `PSP_GAME/ICON0.PNG`; PS4: `sce_sys/icon0.png` und `param.sfo` im Spieleordner; PS1/PS2: `SYSTEM.CNF`
   (Seriennummer für die Suche). Auch entpackte Spielordner. Verschlüsselte PS3-Abbilder (ungültige PNG-Signatur) weichen auf Online aus.
 - Online (`matching.rs`): libretro-Thumbnails `https://thumbnails.libretro.com/<System>/Named_Boxarts|Named_Snaps|Named_Titles/<Titel>.png`.
   Die Dateiliste je System wird einmal geholt (30 Tage im Cache); Fuzzy-Abgleich (Normalisierung, Token-Jaccard + Levenshtein, Schwelle,

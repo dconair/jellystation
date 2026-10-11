@@ -28,7 +28,7 @@ PORT=""
 
 mkdir -p "$SCRATCH"
 trap 'stop_server' EXIT   # der Mock-Server wird auch bei Abbruch (z. B. "| head") nicht liegen gelassen
-[ -f "$FIX/rpcs3-arm64.zip" ] || bash "$T_ROOT/make-fixtures.sh" "$FIX" >/dev/null
+[ -f "$FIX/rpcs3-arm64.zip" ] && [ -f "$FIX/shadps4-mac.zip" ] || bash "$T_ROOT/make-fixtures.sh" "$FIX" >/dev/null
 
 # ------------------------------------------------------------------ Prüfungen ----
 
@@ -224,12 +224,14 @@ stop_server() {
 requests() { grep -v '^listening' "$W/srv/requests.log" 2>/dev/null || true; }
 n_requests() { requests | grep -cF -- "$1" || true; }
 
-# Standard-Routen: RPCS3 (arm64- und x64-Repo) mit je einem passenden Archiv, DuckStation-Direktlink
+# Standard-Routen: RPCS3 (arm64- und x64-Repo) mit je einem passenden Archiv, shadPS4 (ein Repo für beide), DuckStation-Direktlink
 std_routes() {
   route_json "GET /repos/RPCS3/rpcs3-binaries-mac-arm64/releases/latest" \
     "$(release build-arm "$(asset rpcs3-v0.0.34-1_macos_arm64.zip rpcs3-arm64.zip)" "$(asset rpcs3-v0.0.34-1_macos_arm64.zip.sha256 dummy.txt)")"
   route_json "GET /repos/RPCS3/rpcs3-binaries-mac/releases/latest" \
     "$(release build-x64 "$(asset rpcs3-v0.0.34-1_macos_x64.zip rpcs3-x64.zip)")"
+  route_json "GET /repos/shadps4-emu/shadPS4/releases/latest" \
+    "$(release v.0.12.0 "$(asset shadps4-win64-qt-0.12.0.zip dummy.txt)" "$(asset shadps4-macos-sdl-0.12.0.zip dummy.txt)" "$(asset shadps4-macos-qt-0.12.0.zip shadps4-mac.zip)")"
   route_downloads
 }
 
@@ -242,7 +244,8 @@ apps_list() { ls -A "${1:-$W/apps}" 2>/dev/null | tr '\n' ' '; }
 # RPCS3-Download auf eine Datei des Mock-Servers legen (nach start_server aufrufen)
 rpcs3_url() { T_ENV+=("JELLYSTATION_URL_RPCS3=$SERVER_URL/dl/$1"); }
 mkapp() { mkdir -p "$1/Contents/MacOS"; printf '<key>CFBundleShortVersionString</key><string>%s</string>\n' "${2:-1}" > "$1/Contents/Info.plist"; [ -z "${3:-}" ] || { mkdir -p "$1/Contents/Resources"; echo "$3" > "$1/Contents/Resources/tag.txt"; }; }
-casks_present() { mkapp "$W/apps/PCSX2.app" 1; mkapp "$W/apps/PPSSPP.app" 1; mkapp "$W/apps/Dolphin.app" 1; }
+# Die Casks (Homebrew) sind schon da – dazu shadPS4, damit Tests, die nur RPCS3 und DuckStation betreffen, unverändert bleiben
+casks_present() { mkapp "$W/apps/PCSX2.app" 1; mkapp "$W/apps/PPSSPP.app" 1; mkapp "$W/apps/Dolphin.app" 1; mkapp "$W/apps/shadPS4.app" 1; }
 leftovers() { find "$W/apps" "$W/uapps" -name '.*jellystation*' 2>/dev/null | tr '\n' ' '; }
 mounts_open() { ls -A "$W/state/mounted" 2>/dev/null | wc -l | tr -d ' '; }
 

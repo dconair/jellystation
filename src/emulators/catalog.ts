@@ -4,7 +4,9 @@
  *
  * Die Startargumente stammen aus der Kommandozeilen-Dokumentation der Emulatoren (Stand Oktober 2026 gegen
  * den Quellcode der jeweiligen Hauptzweige geprüft: RPCS3 rpcs3.cpp, DuckStation qthost.cpp, PCSX2 QtHost.cpp,
- * PPSSPP Core/CmdLine.cpp, Dolphin CommandLineParse.cpp). Weichen sie in einer neueren Version ab, genügt es,
+ * PPSSPP Core/CmdLine.cpp, Dolphin CommandLineParse.cpp). shadPS4 (main.cpp, Optionen -g/--game und -f/--fullscreen) ist
+ * ungeprüft, weil das Projekt schnell weiterentwickelt wird und aus der Entwicklungsumgebung nur das eigene Repository
+ * erreichbar ist. Weichen sie in einer neueren Version ab, genügt es,
  * hier die passende `buildArgs`-Funktion anzupassen.
  *
  * ids, systems, appPattern, bundleIds, brewCask und downloadUrl müssen mit src/emulators/emulators.json
@@ -126,6 +128,30 @@ export const EMULATORS: EmulatorDef[] = [
     brewCask: "dolphin",
     downloadUrl: "https://dolphin-emu.org/download/",
   },
+  {
+    id: "shadps4",
+    name: "shadPS4",
+    consoles: "PlayStation 4",
+    systems: ["ps4", "playstation4"],
+    folders: ["PS4"],
+    appPattern: "^shadPS4.*\\.app$",
+    bundleIds: [],
+    buildArgs: (gamePath) => {
+      if (extOf(gamePath) === "pkg") {
+        // .pkg ist bei shadPS4 ein Installationspaket (Datei → Pakete installieren) und lässt sich nicht direkt starten.
+        return {
+          args: [],
+          note: "Installationspaket: In shadPS4 über „Datei → Pakete installieren (PKG)“ einspielen, danach den Spieleordner (mit eboot.bin) in den Spiele-Ordner legen.",
+        };
+      }
+      // Gestartet wird die eboot.bin; ein Spieleordner (so legt ihn der Scan ab) bekommt sie angehängt.
+      const eboot = /(^|[\\/])eboot\.bin$/i.test(gamePath) ? gamePath : `${gamePath.replace(/[\\/]+$/, "")}/eboot.bin`;
+      return { args: ["-g", eboot, "-f", "true"] };
+    },
+    downloadUrl: "https://shadps4.net/",
+    setupNote:
+      "shadPS4 spielt entschlüsselte PS4-Spiele (Ordner mit eboot.bin). Manche Spiele brauchen Systemmodule aus der Firmware der eigenen PS4 (Ordner „sys_modules“ im Datenordner von shadPS4); ein Vulkan-1.3-fähiger Grafiktreiber ist Pflicht.",
+  },
 ];
 
 /** "PlayStation 3", "ps_3" → "playstation3" / "ps3": klein, ohne Leer-, Binde- und Unterstriche. */
@@ -145,7 +171,7 @@ export function emulatorForSystem(system: string): EmulatorDef | undefined {
 export const isAppBundle = (path: string) => /\.app\/?$/i.test(path);
 
 /**
- * Ordnernamen aller unterstützten Systeme für Meldungen, z. B. ["PS1", "PS2", "PS3", "PSP", "GameCube", "Wii"].
+ * Ordnernamen aller unterstützten Systeme für Meldungen, z. B. ["PS1", "PS2", "PS3", "PS4", "PSP", "GameCube", "Wii"].
  * PlayStation-Namen stehen vorn (natürlich sortiert), der Rest folgt in der Reihenfolge des Katalogs.
  */
 export function supportedFolderNames(): string[] {

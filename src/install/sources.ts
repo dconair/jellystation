@@ -91,6 +91,13 @@ const WINDOWS: Record<string, InstallSpec> = {
     allowedHosts: GITHUB_HOSTS,
     exePattern: "^rpcs3\\.exe$",
   },
+  // shadPS4 bietet je Version eine Qt- und eine SDL-Ausgabe; die SDL-Ausgabe wird ausgeschlossen, damit immer dieselbe gewählt wird.
+  shadps4: {
+    sources: [{ repo: "shadps4-emu/shadPS4", arch: "any", releasesPath: "latest" }],
+    rules: { include: ["win", "\\.zip$"], exclude: ["sdl", ...NOT_AN_ARCHIVE] },
+    allowedHosts: GITHUB_HOSTS,
+    exePattern: "^shadps4\\.exe$",
+  },
   duckstation: {
     sources: [{ repo: "stenzek/duckstation", arch: "any", releasesPath: "tags/latest" }],
     rules: { include: ["windows", "\\.zip$"], exclude: NOT_AN_ARCHIVE },

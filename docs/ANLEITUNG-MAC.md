@@ -140,6 +140,7 @@ Die Einstellungen liegen dort im Klartext – **auch der API-Key**.
 | PS1 | DuckStation | Download von GitHub |
 | PS2 | PCSX2 | Homebrew (`pcsx2`) |
 | PS3 | RPCS3 | Download von GitHub |
+| PS4 | shadPS4 | Download von GitHub |
 | PSP | PPSSPP | Homebrew (`ppsspp-emulator`) |
 | GameCube / Wii | Dolphin | Homebrew (`dolphin`) |
 
@@ -157,6 +158,7 @@ Manche Emulatoren starten ohne zusätzliche Dateien nicht. Die App prüft das **
 | PS1 (DuckStation) | PS1-BIOS (z. B. `scph1001.bin`, 512 KB) | von der eigenen Konsole sichern |
 | PS2 (PCSX2) | PS2-BIOS (`scph*.bin`/`.rom0`, ca. 4 MB) | von der eigenen Konsole sichern (Anleitung bei PCSX2) |
 | PS3 (RPCS3) | PS3-Firmware `PS3UPDAT.PUP` (ca. 200 MB) | offiziell kostenlos bei Sony (Link in der App) |
+| PS4 (shadPS4) | kein BIOS; einzelne Spiele brauchen Systemmodule (`sys_modules`) aus der Firmware der eigenen PS4 | selbst sichern, wird nicht mitgeliefert |
 | PSP, GameCube/Wii | nichts | – |
 
 BIOS-Dateien werden **nicht** mitgeliefert und **nicht** heruntergeladen (urheberrechtlich geschützt) – dafür gibt es nur
@@ -176,6 +178,7 @@ installieren lassen, die Download-Seite öffnen, einen Pfad von Hand wählen ode
 Spiel anwählen und ✕ / `Enter`: Ein Start-Bildschirm erscheint, der Emulator öffnet sich, das Menü bleibt im Hintergrund und
 zeigt „Läuft“. Fehlt der Emulator oder bricht der Start sofort ab, erscheint stattdessen ein Dialog mit der Ursache.
 `.pkg` ist bei RPCS3 ein Installationspaket: erst in RPCS3 über *File → Install .pkg* installieren.
+PS4-Spiele (shadPS4) liegen als entschlüsselter Spieleordner mit `eboot.bin` und `sce_sys/` im Spiele-Ordner; `.pkg` spielst du zuerst in shadPS4 ein.
 Ohne Spiele-Ordner zeigt die App Demo-Spiele; ein Start läuft dann nur zur Probe durch (ohne Prozess).
 
 ## 5a. Filme und Serien abspielen (Jellyfin)
@@ -224,7 +227,7 @@ Die App probiert beim Start, nach Netzwechsel und beim Zurückkehren in die App 
 | --- | --- |
 | **Zuletzt** | Startseite: angefangene Filme und Folgen aus Jellyfin (mit Fortschrittsbalken), die nächsten Folgen deiner Serien und zuletzt gespielte Spiele. ✕ spielt direkt weiter. |
 | **Filme / Serien** | Serien öffnen einen Bildschirm wie bei Netflix: Weiterschauen-Knopf, **Staffel-Auswahl** (✕ öffnet die Liste, L1/R1 wechseln direkt), Folgenliste der gewählten Staffel. ✕ auf einer Folge öffnet die **Detailseite** (großes Bild, volle Beschreibung, Abspielen/Fortsetzen/Von vorn, als gesehen markieren). |
-| **Spiele · PS1/PS2/PS3/…** | Pro erkanntem System eine Spalte, egal wie die Dateien im Spiele-Ordner liegen; **Cover** kommen automatisch (siehe unten). Was sich nicht sicher erkennen lässt, steht unter **Nicht zugeordnet**: ✕ öffnet die Zuordnung, △ ändert das System jedes Spiels. |
+| **Spiele · PS1/PS2/PS3/PS4/…** | Pro erkanntem System eine Spalte, egal wie die Dateien im Spiele-Ordner liegen; **Cover** kommen automatisch (siehe unten). Was sich nicht sicher erkennen lässt, steht unter **Nicht zugeordnet**: ✕ öffnet die Zuordnung, △ ändert das System jedes Spiels. |
 | **Web** | Eigene Lesezeichen (✕ öffnet in einem App-Fenster, △ löscht). Downloads landen im Ordner `Downloads` deines Spiele-Ordners; danach fragt die App, ob die Datei in den Spiele-Ordner soll (das System wird dann automatisch erkannt). Es sind **keine Seiten vorinstalliert** – lade nur, was du besitzt oder legal beziehen darfst. Fremdseiten lassen sich nur mit Maus/Tastatur bedienen. |
 | **Einstellungen** | Server (Adresse/Schlüssel ändern), Spiele-Ordner, Emulatoren, BIOS & Firmware, Jellyfin-Benutzer, Wiedergabe, **Anzeige & Farben**, **Cover & Grafiken**, **Animationen**, **Ton & Musik**, Einrichtung, Über. |
 

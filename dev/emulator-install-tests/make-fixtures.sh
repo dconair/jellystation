@@ -43,6 +43,7 @@ build rpcs3-new.zip a3 RPCS3.app rpcs3 0.0.35 rpcs3-new net.rpcs3.rpcs3
 build rpcs3-versioned-name.zip a4 RPCS3-v0.0.34.app rpcs3 0.0.34 rpcs3-versioned net.rpcs3.rpcs3
 build rpcs3-wrongname.zip a5 Foo.app foo 1.0 wrongname com.example.foo
 build rpcs3-bundleid.zip a9 Seltsamer-Name.app rpcs3 0.0.34 rpcs3-bundleid net.rpcs3.rpcs3
+build shadps4-mac.zip a11 shadPS4.app shadps4 0.12.0 shadps4-github
 build duckstation-mac-release.zip a6 DuckStation.app duckstation 0.1-100 duck-direct org.duckstation.duckstation
 build duckstation-gh.zip a7 DuckStation.app duckstation 0.1-200 duck-github org.duckstation.duckstation
 build duckstation-x64.zip a8 DuckStation.app duckstation 0.1-300 duck-x64 org.duckstation.duckstation

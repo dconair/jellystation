@@ -6,6 +6,7 @@ pub enum Platform {
     Ps1,
     Ps2,
     Ps3,
+    Ps4,
     Psp,
     GameCube,
     Wii,
@@ -18,6 +19,7 @@ impl Platform {
             Platform::Ps1 => "Sony - PlayStation",
             Platform::Ps2 => "Sony - PlayStation 2",
             Platform::Ps3 => "Sony - PlayStation 3",
+            Platform::Ps4 => "Sony - PlayStation 4",
             Platform::Psp => "Sony - PlayStation Portable",
             Platform::GameCube => "Nintendo - GameCube",
             Platform::Wii => "Nintendo - Wii",
@@ -31,6 +33,7 @@ impl Platform {
             Platform::Ps1 => "PS1",
             Platform::Ps2 => "PS2",
             Platform::Ps3 => "PS3",
+            Platform::Ps4 => "PS4",
             Platform::Psp => "PSP",
             Platform::GameCube => "GameCube",
             Platform::Wii => "Wii",
@@ -50,12 +53,25 @@ impl Platform {
             }
             "ps2" | "playstation2" | "sonyplaystation2" => Some(Platform::Ps2),
             "ps3" | "playstation3" | "sonyplaystation3" => Some(Platform::Ps3),
+            "ps4" | "playstation4" | "sonyplaystation4" => Some(Platform::Ps4),
             "psp" | "playstationportable" | "sonyplaystationportable" => Some(Platform::Psp),
             "gc" | "ngc" | "gamecube" | "nintendogamecube" => Some(Platform::GameCube),
             "wii" | "nintendowii" => Some(Platform::Wii),
             _ => None,
         }
     }
+}
+
+/// Titelnummern (vier Buchstaben) der PS4-Spiele: `CUSA` überall, die übrigen in Asien. Die Vita (`PCSA`, `PCSE` …)
+/// und die PS3 teilen sich keines davon.
+const PS4_PREFIXES: &[&str] = &["CUSA", "PCAS", "PCJS", "PCKS", "PLAS", "PLJS", "PLJM", "PLKS"];
+
+/// Ist das die Titelnummer eines PS4-Spiels (`CUSA00419`)? Groß-/Kleinschreibung egal, mit oder ohne Bindestrich.
+pub fn is_ps4_title_id(id: &str) -> bool {
+    let id = id.trim();
+    id.get(..4).is_some_and(|prefix| {
+        PS4_PREFIXES.iter().any(|p| p.eq_ignore_ascii_case(prefix))
+    }) && id[4..].trim_start_matches(['-', '_']).chars().take(5).filter(char::is_ascii_digit).count() == 5
 }
 
 /// Ordnername im Cache: nur Kleinbuchstaben, Ziffern und `-`, nie leer – damit sich aus einem Systemnamen
@@ -95,6 +111,9 @@ mod tests {
             ("Sony - PlayStation 2", Platform::Ps2),
             ("PS3", Platform::Ps3),
             ("playstation3", Platform::Ps3),
+            ("PS4", Platform::Ps4),
+            ("PlayStation 4", Platform::Ps4),
+            ("Sony - PlayStation 4", Platform::Ps4),
             ("PSP", Platform::Psp),
             ("PlayStation Portable", Platform::Psp),
             ("GameCube", Platform::GameCube),
@@ -115,6 +134,7 @@ mod tests {
             Platform::Ps1,
             Platform::Ps2,
             Platform::Ps3,
+            Platform::Ps4,
             Platform::Psp,
             Platform::GameCube,
             Platform::Wii,
@@ -128,9 +148,21 @@ mod tests {
         assert_eq!(Platform::Ps1.libretro_dir(), "Sony - PlayStation");
         assert_eq!(Platform::Ps2.libretro_dir(), "Sony - PlayStation 2");
         assert_eq!(Platform::Ps3.libretro_dir(), "Sony - PlayStation 3");
+        assert_eq!(Platform::Ps4.libretro_dir(), "Sony - PlayStation 4");
         assert_eq!(Platform::Psp.libretro_dir(), "Sony - PlayStation Portable");
         assert_eq!(Platform::GameCube.libretro_dir(), "Nintendo - GameCube");
         assert_eq!(Platform::Wii.libretro_dir(), "Nintendo - Wii");
+    }
+
+    #[test]
+    fn titelnummern_der_ps4() {
+        for id in ["CUSA00419", "cusa00419", "CUSA-00419", "PCAS00012", "CUSA00419_00"] {
+            assert!(is_ps4_title_id(id), "{id}");
+        }
+        // PS3, PSP, Vita, zu kurz, zu wenige Ziffern
+        for id in ["BLUS30443", "ULES00821", "PCSE00120", "CUSA", "CUSA123", "", "ÄÖÜÄ12345"] {
+            assert!(!is_ps4_title_id(id), "{id}");
+        }
     }
 
     #[test]

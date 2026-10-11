@@ -74,6 +74,13 @@ fn pkg(kind: u16, content_id: &str) -> Vec<u8> {
     head
 }
 
+fn pkg_ps4(content_id: &str) -> Vec<u8> {
+    let mut head = vec![0u8; 0x100];
+    head[..4].copy_from_slice(&[0x7f, b'C', b'N', b'T']);
+    head[0x40..0x40 + content_id.len()].copy_from_slice(content_id.as_bytes());
+    head
+}
+
 fn elf(machine: u16, big_endian: bool) -> Vec<u8> {
     let mut head = vec![0u8; 0x40];
     head[..4].copy_from_slice(&[0x7f, b'E', b'L', b'F']);
@@ -388,4 +395,53 @@ fn ordnernamen_mit_system_im_text() {
     ] {
         assert_eq!(platform_of_folder(name), expected, "{name}");
     }
+}
+
+#[test]
+fn ps4_spieleordner_pakete_und_seriennummern() {
+    let tmp = TempDir::new("lib-ps4");
+    let root = tmp.path();
+    let sfo_ps4 = sfo(&[("TITLE", Sfo::Text("Bloodborne")), ("TITLE_ID", Sfo::Text("CUSA03173"))]);
+    // entpackter Spielordner (so legt ihn shadPS4 ab) – das Innere taucht nicht auf
+    write(root, "Bloodborne/eboot.bin", &[0x7f, b'E', b'L', b'F']);
+    write(root, "Bloodborne/sce_sys/param.sfo", &sfo_ps4);
+    write(root, "Bloodborne/sce_module/libc.prx", &[0u8; 8]);
+    write(root, "Bloodborne/Daten/tief.iso", &ps2_iso());
+    // Update-Ordner neben dem Spiel ist kein eigenes Spiel
+    write(root, "Bloodborne-UPDATE/eboot.bin", &[0x7f, b'E', b'L', b'F']);
+    write(root, "Bloodborne-UPDATE/sce_sys/param.sfo", &sfo_ps4);
+    // Vita-Ordner mit demselben Aufbau, aber Vita-Titelnummer: kein PS4-Spielordner (nur die lose eboot.bin bleibt, ohne System)
+    write(root, "Vita Spiel/eboot.bin", &[0u8; 8]);
+    write(
+        root,
+        "Vita Spiel/sce_sys/param.sfo",
+        &sfo(&[("TITLE", Sfo::Text("Gravity Rush")), ("TITLE_ID", Sfo::Text("PCSF00021"))]),
+    );
+    // Installationspaket und Dateiname mit Titelnummer
+    write(root, "paket.pkg", &pkg_ps4("UP9000-CUSA00419_00-ABCDEFGHIJKLMNOP"));
+    write(root, "Spiel [CUSA12345].chd", &[0u8; 64]);
+
+    let out = scan(root, None).unwrap();
+    let rels: Vec<&str> = out.games.iter().map(|g| g.rel.as_str()).collect();
+    assert_eq!(rels, vec!["Bloodborne", "paket.pkg", "Spiel [CUSA12345].chd", "Vita Spiel/eboot.bin"]);
+    assert_eq!(system_of(&out, "Vita Spiel/eboot.bin"), None);
+    let game = find(&out, "Bloodborne");
+    assert_eq!((game.kind, game.system.as_deref(), game.how), ("folder", Some("PS4"), "content"));
+    assert_eq!(game.title.as_deref(), Some("Bloodborne"));
+    assert_eq!(game.serial.as_deref(), Some("CUSA03173"));
+    let pkg = find(&out, "paket.pkg");
+    assert_eq!((pkg.system.as_deref(), pkg.how), (Some("PS4"), "format"));
+    assert_eq!(pkg.serial.as_deref(), Some("CUSA-00419"));
+    let named = find(&out, "Spiel [CUSA12345].chd");
+    assert_eq!((named.system.as_deref(), named.how), (Some("PS4"), "serial"));
+}
+
+#[test]
+fn ordner_ps4_ordnet_unerkannte_dateien_zu() {
+    let tmp = TempDir::new("lib-ps4-folder");
+    let root = tmp.path();
+    write(root, "PlayStation 4/Spiel.chd", &[0u8; 64]);
+    let out = scan(root, None).unwrap();
+    let game = find(&out, "PlayStation 4/Spiel.chd");
+    assert_eq!((game.system.as_deref(), game.how), (Some("PS4"), "folder"));
 }

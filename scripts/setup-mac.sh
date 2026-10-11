@@ -14,7 +14,7 @@
 # Danach startet und aktualisiert alles der Befehl "jellystation" (siehe scripts/install-launcher.sh).
 #
 # Beim Vorbereiten (--prepare) und beim vollen Lauf folgt nach den npm-Paketen der Schritt "Emulatoren und Ordner"
-# (scripts/install-emulators.sh --yes): RPCS3, DuckStation, PCSX2, PPSSPP und Dolphin werden installiert, soweit das
+# (scripts/install-emulators.sh --yes): RPCS3, shadPS4, DuckStation, PCSX2, PPSSPP und Dolphin werden installiert, soweit das
 # automatisch geht, und ~/JellyStation/Games/<System> sowie ~/JellyStation/BIOS werden angelegt – danach fehlen nur noch
 # die Spiele (und BIOS/Firmware). Ein Fehler dort bricht die Einrichtung nicht ab. Mit --install-missing wird dafür bei
 # Bedarf auch Homebrew installiert. JELLYSTATION_EMULATORS=skip schaltet den Schritt ebenfalls ab.

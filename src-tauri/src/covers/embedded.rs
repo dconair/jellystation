@@ -1,6 +1,7 @@
 //! Grafiken und Namen, die im Spiel selbst stecken.
 //!
 //! - PS3: `PS3_GAME/ICON0.PNG` (320×176) und `PARAM.SFO` (TITLE, TITLE_ID)
+//! - PS4: `sce_sys/icon0.png` (512×512) und `sce_sys/param.sfo` (TITLE, TITLE_ID `CUSA…`) im Spielordner
 //! - PSP: `PSP_GAME/ICON0.PNG` (144×80) und `PARAM.SFO` (TITLE, DISC_ID); auch in `EBOOT.PBP`
 //! - PS1/PS2: `SYSTEM.CNF` ergibt die Seriennummer (kein Bild auf der Disc)
 //! - GameCube/Wii: Spiel-ID und interner Name aus dem Disc-Kopf (kein Bild)
@@ -15,7 +16,7 @@ use std::path::{Path, PathBuf};
 
 use super::image::validate_png;
 use super::iso::{self, CnfKind, Image};
-use super::system::Platform;
+use super::system::{is_ps4_title_id, Platform};
 
 /// Größte akzeptierte Grafik im Spiel (echte `ICON0.PNG` sind unter 200 KB).
 const MAX_ICON: u32 = 4 * 1024 * 1024;
@@ -106,6 +107,21 @@ fn from_volume(volume: &mut dyn Volume) -> Embedded {
     let sfo_of = |volume: &mut dyn Volume, prefix: &str| {
         volume.read(&format!("{prefix}PARAM.SFO"), MAX_TEXT)
     };
+
+    // PS4: Ordner sce_sys neben der eboot.bin. Die Vita hat denselben Ordner, aber Titelnummern wie PCSE00120.
+    if let Some(sfo) = sfo_of(volume, "sce_sys/") {
+        return match iso::sfo_value(&sfo, "TITLE_ID").filter(|id| is_ps4_title_id(id)) {
+            Some(id) => Embedded {
+                icon: volume
+                    .read("sce_sys/ICON0.PNG", MAX_ICON)
+                    .filter(|png| validate_png(png).is_some()),
+                title: iso::sfo_value(&sfo, "TITLE"),
+                serial: Some(id),
+                platform: Some(Platform::Ps4),
+            },
+            None => Embedded::default(),
+        };
+    }
 
     // PS3: Ordner PS3_GAME im Abbild; bei einem Ordner darf es auch PS3_GAME selbst sein
     for (prefix, platform, id_key) in [
@@ -451,6 +467,42 @@ mod tests {
         assert_eq!(found.icon.as_deref(), Some(icon.as_slice()));
         assert_eq!(found.serial.as_deref(), Some("NPUA80001"));
         assert_eq!(found.platform, Some(Platform::Ps3));
+    }
+
+    #[test]
+    fn entpackter_ps4_ordner() {
+        let tmp = TempDir::new("ps4");
+        let icon = png(512, 512, 4);
+        write(&tmp, "Spiel/eboot.bin", b"\x7fELF");
+        write(&tmp, "Spiel/sce_sys/icon0.png", &icon);
+        write(
+            &tmp,
+            "Spiel/sce_sys/param.sfo",
+            &sfo(&[
+                ("TITLE", Sfo::Text("Bloodborne")),
+                ("TITLE_ID", Sfo::Text("CUSA03173")),
+            ]),
+        );
+        let found = extract(&tmp.join("Spiel"));
+        assert_eq!(found.icon.as_deref(), Some(icon.as_slice()));
+        assert_eq!(found.title.as_deref(), Some("Bloodborne"));
+        assert_eq!(found.serial.as_deref(), Some("CUSA03173"));
+        assert_eq!(found.platform, Some(Platform::Ps4));
+    }
+
+    #[test]
+    fn vita_ordner_mit_sce_sys_ist_kein_ps4_spiel() {
+        let tmp = TempDir::new("vita");
+        write(&tmp, "Spiel/eboot.bin", b"\x7fELF");
+        write(
+            &tmp,
+            "Spiel/sce_sys/param.sfo",
+            &sfo(&[
+                ("TITLE", Sfo::Text("Vita-Spiel")),
+                ("TITLE_ID", Sfo::Text("PCSE00120")),
+            ]),
+        );
+        assert_eq!(extract(&tmp.join("Spiel")), Embedded::default());
     }
 
     #[test]

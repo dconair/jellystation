@@ -4,7 +4,7 @@
 # shellcheck disable=SC1091,SC2034,SC2012,SC2119,SC2120,SC2088,SC2002,SC2016,SC2015,SC2010  # Testhilfen: Variablen werden dateiübergreifend genutzt
 . "$(dirname "$0")/lib.sh"
 
-all_apps() { local a; for a in RPCS3 DuckStation PCSX2 PPSSPPSDL Dolphin; do mkapp "$W/apps/$a.app" 1; done; }
+all_apps() { local a; for a in RPCS3 DuckStation PCSX2 PPSSPPSDL Dolphin shadPS4; do mkapp "$W/apps/$a.app" 1; done; }
 # curl, das nur den Homebrew-Installer abfängt (alles andere geht an das echte curl) – ersetzt den Symlink, ändert nie die Vorlage
 fake_homebrew_curl() {
   rm -f "$W/bin/curl"
@@ -14,17 +14,17 @@ fake_homebrew_curl() {
 inst_calls() { count_in "$W/state/calls.log" "$1"; }
 marker() { cat "$HOME_W/.jellystation/emulators.check" 2>/dev/null; }
 
-echo "== jellystation --status: Zeile \"Emulatoren: n/5 installiert\", ändert nichts =="
+echo "== jellystation --status: Zeile \"Emulatoren: n/6 installiert\", ändert nichts =="
 int_world j1; T_ENV+=("JELLYSTATION_DRY_RUN=1")
 snap="$(snapshot "$W/home")$(snapshot "$W/apps")"
-runj --status; rc_is 0; has "Emulatoren: 0/5 installiert (es fehlen: RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin)"
+runj --status; rc_is 0; has "Emulatoren: 0/6 installiert (es fehlen: RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin, shadPS4)"
 eq "$(snapshot "$W/home")$(snapshot "$W/apps")" "$snap" "--status ändert nichts (keine Merkdatei, keine Ordner)"
 mkapp "$W/apps/RPCS3.app" 1; mkapp "$W/apps/PCSX2.app" 1; mkapp "$W/apps/Dolphin.app" 1
-runj --status; has "Emulatoren: 3/5 installiert (es fehlen: DuckStation, PPSSPP)"
-all_apps; runj --status; has "Emulatoren: 5/5 installiert"; hasnt "es fehlen"
+runj --status; has "Emulatoren: 3/6 installiert (es fehlen: DuckStation, PPSSPP, shadPS4)"
+all_apps; runj --status; has "Emulatoren: 6/6 installiert"; hasnt "es fehlen"
 echo "-- auch ohne Verbindung zu GitHub bleibt die Zeile --"
 git -C "$PROJ" remote set-url origin "file://$W/gibt-es-nicht.git"
-runj --status; has "Emulatoren: 5/5 installiert"
+runj --status; has "Emulatoren: 6/6 installiert"
 git -C "$PROJ" remote set-url origin "file://$ORIGIN"
 echo "-- nicht auf dem Mac / mit skip: keine Zeile --"
 T_ENV+=("JELLYSTATION_EMULATORS=skip"); runj --status; hasnt "Emulatoren"
@@ -34,7 +34,7 @@ runj --status; rc_is 0; hasnt "Emulatoren"
 echo "== Standardlauf: alles da → still (nur die Zeile im Banner) =="
 int_world j2; T_ENV+=("JELLYSTATION_DRY_RUN=1"); all_apps
 runj --no-update; rc_is 0
-has "Emulatoren: 5/5 installiert"; hasnt "==> Emulatoren"; hasnt "fehlen"; hasnt "install-emulators"
+has "Emulatoren: 6/6 installiert"; hasnt "==> Emulatoren"; hasnt "fehlen"; hasnt "install-emulators"
 eq "$(find "$HOME_W" -name '.jellystation' | wc -l | tr -d ' ')" "0" "keine Merkdatei angelegt"
 echo "-- Schnelligkeit: die stille Prüfung dauert unter 1 Sekunde --"
 t0=$(date +%s%N); for _ in 1 2 3 4 5; do runj --no-update >/dev/null; done; t1=$(date +%s%N)
@@ -46,7 +46,7 @@ echo "  (Hinweis: gemessen mit Attrappen unter Linux; auf dem Mac kommen Node-St
 echo "== fehlt etwas, noch nie versucht → Versuch (Trockenlauf zeigt ihn nur an) =="
 int_world j3; T_ENV+=("JELLYSTATION_DRY_RUN=1"); mkapp "$W/apps/RPCS3.app" 1
 runj --no-update; rc_is 0
-has "==> Emulatoren"; has "Es fehlen: DuckStation, PCSX2, PPSSPP, Dolphin"; has "[Trockenlauf] würde ausführen: bash $PROJ/scripts/install-emulators.sh"
+has "==> Emulatoren"; has "Es fehlen: DuckStation, PCSX2, PPSSPP, Dolphin, shadPS4"; has "[Trockenlauf] würde ausführen: bash $PROJ/scripts/install-emulators.sh"
 absent "$HOME_W/.jellystation/emulators.check" "Trockenlauf schreibt keine Merkdatei"
 eq "$(inst_calls brew)" "0" "nichts installiert"
 runj --no-update --emulators -y --update-emulators; has "install-emulators.sh --yes --update"
@@ -55,7 +55,7 @@ echo "== echter Lauf: Versuch installiert, Merkdatei wird geschrieben, danach st
 int_world j4; std_routes; start_server; ds_override; T_ENV+=("JELLYSTATION_DRY_RUN=0")
 mkdir -p "$PROJ/node_modules"; bash "$PROJ/scripts/jellystation.sh" --mark-deps 2>/dev/null
 runj --no-update -y
-rc_is 0; has "==> Emulatoren"; has "Fertig: 5 von 5 Emulatoren sind installiert."; has "Emulatoren: 5/5 installiert"
+rc_is 0; has "==> Emulatoren"; has "Fertig: 6 von 6 Emulatoren sind installiert."; has "Emulatoren: 6/6 installiert"
 file_has "$W/npm.log" "npm run tauri dev" "danach wird die App gestartet"
 exists "$W/apps/RPCS3.app"; file_has "$HOME_W/.jellystation/emulators.check" "result=ok" "Merkdatei: ok"; file_has "$HOME_W/.jellystation/emulators.check" "missing=" "Merkdatei: nichts fehlt"
 reqs="$(n_requests GET)"
@@ -65,7 +65,7 @@ echo "== Versuch scheitert teilweise: Merkdatei, danach nur noch eine Erinnerung
 int_world j5; std_routes; start_server; unlink_stub brew; T_ENV+=("JELLYSTATION_DRY_RUN=0")
 mkdir -p "$PROJ/node_modules"; bash "$PROJ/scripts/jellystation.sh" --mark-deps 2>/dev/null
 ds_override; runj --no-update -y
-rc_is 0; has "2 von 5 Emulatoren sind installiert."; file_has "$HOME_W/.jellystation/emulators.check" "result=offen" "Merkdatei: offen"
+rc_is 0; has "3 von 6 Emulatoren sind installiert."; file_has "$HOME_W/.jellystation/emulators.check" "result=offen" "Merkdatei: offen"
 file_has "$HOME_W/.jellystation/emulators.check" "missing=pcsx2,ppsspp,dolphin" "Merkdatei: fehlende IDs"
 file_has "$W/npm.log" "npm run tauri dev" "App startet trotzdem"
 reqs="$(n_requests GET)"; calls="$(wc -l < "$W/state/calls.log")"
@@ -79,7 +79,7 @@ printf 'time=%s\nresult=offen\nmissing=dolphin\n' "$(date +%s)" > "$HOME_W/.jell
 runj --no-update; has "Emulatoren fehlen noch: Dolphin – nachholen mit  jellystation --emulators, von Hand: https://dolphin-emu.org/download/"
 
 echo "== wann erneut versucht wird: nach 24 Stunden, bei neu fehlendem Emulator, bei Uhrsprung =="
-int_world j6; T_ENV+=("JELLYSTATION_DRY_RUN=1"); mkapp "$W/apps/RPCS3.app" 1; mkapp "$W/apps/DuckStation.app" 1
+int_world j6; T_ENV+=("JELLYSTATION_DRY_RUN=1"); mkapp "$W/apps/RPCS3.app" 1; mkapp "$W/apps/DuckStation.app" 1; mkapp "$W/apps/shadPS4.app" 1
 set_marker 3600 offen "pcsx2,ppsspp,dolphin"
 runj --no-update; hasnt "==> Emulatoren"; has "Emulatoren fehlen noch: PCSX2, PPSSPP, Dolphin"; hasnt "würde ausführen: bash"
 set_marker 86300 offen "pcsx2,ppsspp,dolphin"; runj --no-update; hasnt "==> Emulatoren"   # knapp unter 24 Stunden
@@ -91,7 +91,7 @@ printf 'quatsch\n' > "$HOME_W/.jellystation/emulators.check"; runj --no-update; 
 printf 'time=abc\nmissing=pcsx2,ppsspp,dolphin\n' > "$HOME_W/.jellystation/emulators.check"; runj --no-update; has "==> Emulatoren"
 
 echo "== --emulators erzwingt, --no-emulators und skip lassen aus =="
-int_world j7; T_ENV+=("JELLYSTATION_DRY_RUN=1"); mkapp "$W/apps/RPCS3.app" 1
+int_world j7; T_ENV+=("JELLYSTATION_DRY_RUN=1"); mkapp "$W/apps/RPCS3.app" 1; mkapp "$W/apps/shadPS4.app" 1
 set_marker 60 offen "duckstation,pcsx2,ppsspp,dolphin"
 runj --no-update; hasnt "==> Emulatoren"
 runj --no-update --emulators; has "==> Emulatoren"; has "würde ausführen: bash"
@@ -162,7 +162,7 @@ echo "-- --prepare: 3 Schritte, der letzte richtet die Emulatoren ein --"
 std_routes; start_server; ds_override
 runs --prepare
 rc_is 0; has "1/3 Voraussetzungen prüfen"; has "2/3 npm-Pakete installieren"; has "3/3 Emulatoren und Ordner"; has "Vorbereitung abgeschlossen: Werkzeuge, Pakete und Emulatoren sind bereit"
-has "Fertig: 5 von 5 Emulatoren sind installiert."; hasnt "==> 4/"; exists "$W/apps/RPCS3.app"; exists "$HOME_W/JellyStation/Games/PS2"
+has "Fertig: 6 von 6 Emulatoren sind installiert."; hasnt "==> 4/"; exists "$W/apps/RPCS3.app"; exists "$HOME_W/JellyStation/Games/PS2"
 file_has "$W/npm.log" "npm ci" "npm ci lief vor den Emulatoren"
 echo "-- erneut: nichts mehr zu tun --"
 runs --prepare; rc_is 0; has "Nichts zu tun"
@@ -183,7 +183,7 @@ file_has "$W/npm.log" "npm run tauri dev" "dev gestartet"
 echo "-- das Ergebnis wird für \"jellystation\" gemerkt: kein sofortiger zweiter Versuch --"
 int_world s11; unlink_stub brew; std_routes; start_server; ds_override     # Cask-Emulatoren scheitern
 runs --prepare
-rc_is 0; has "2 von 5 Emulatoren sind installiert."
+rc_is 0; has "3 von 6 Emulatoren sind installiert."
 file_has "$HOME_W/.jellystation/emulators.check" "result=offen" "Merkdatei: offen"; file_has "$HOME_W/.jellystation/emulators.check" "missing=pcsx2,ppsspp,dolphin" "Merkdatei: fehlende IDs"
 T_ENV+=("JELLYSTATION_DRY_RUN=1"); runj --no-update
 has "Emulatoren fehlen noch: PCSX2, PPSSPP, Dolphin"; hasnt "==> Emulatoren"; hasnt "würde ausführen: bash"
@@ -238,7 +238,7 @@ T_ENV+=("JELLYSTATION_DIR=$W/home/Ziel/JellyStation" "SHELL=/bin/zsh")
 SUT="$SEED/scripts/bootstrap.sh"; run; SUT=""
 rc_is 0; has "1/4 Mac und git prüfen"; has "2/4 JellyStation herunterladen"; has "3/4 Werkzeuge, Pakete, Emulatoren und Ordner vorbereiten (kann einige Minuten dauern)"
 has "1/3 Voraussetzungen prüfen"; has "3/3 Emulatoren und Ordner"; has "4/4 Befehl \"jellystation\" einrichten"; has "Fertig! Öffne ein neues Terminal-Fenster"
-has "Spiele kommen in $HOME_W/JellyStation/Games/<System>/"; has "BIOS und Firmware gehören nicht zum Lieferumfang"
+has "Spiele kommen einfach in $HOME_W/JellyStation/Games/ (auch unsortiert)"; has "BIOS und Firmware gehören nicht zum Lieferumfang"
 exists "$W/apps/RPCS3.app" "Emulator durch bootstrap installiert"; exists "$HOME_W/JellyStation/Games/PS3"
 echo "-- Zielordner mit altem setup-mac.sh (ohne Emulator-Schritt): Hinweis, aber kein Abbruch --"
 int_world b2; rm -rf "$PROJ"

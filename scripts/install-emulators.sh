@@ -3,14 +3,14 @@
 #
 #   bash scripts/install-emulators.sh [Optionen]
 #
-# Ohne Optionen: zeigt in einer Tabelle, welche Emulatoren da sind (RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin),
+# Ohne Optionen: zeigt in einer Tabelle, welche Emulatoren da sind (RPCS3, shadPS4, DuckStation, PCSX2, PPSSPP, Dolphin),
 # installiert die fehlenden und legt die Ordner ~/JellyStation/Games/<System> und ~/JellyStation/BIOS an.
 # Spiele (und BIOS/Firmware) bringst du selbst mit – sie werden weder mitgeliefert noch heruntergeladen.
 #
 #   --check          nur prüfen, ändert nichts (auch keine Ordner). Exit-Code 0 = alles da, 1 = etwas fehlt
 #   -y, --yes        ohne Rückfrage installieren
 #   --update         bereits installierte Emulatoren auf den neuesten Stand bringen (fehlende werden mit installiert)
-#   --only a,b       nur diese Emulatoren (rpcs3, duckstation, pcsx2, ppsspp, dolphin)
+#   --only a,b       nur diese Emulatoren (rpcs3, shadps4, duckstation, pcsx2, ppsspp, dolphin)
 #   --skip a,b       diese Emulatoren auslassen
 #   --no-folders     keine Ordner für Spiele und BIOS anlegen
 #   -q, --quiet      leise: bei "alles da" keine Ausgabe
