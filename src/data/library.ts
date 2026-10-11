@@ -122,6 +122,10 @@ export const categories: XmbCategory[] = [
       { ...entry("st-games", "Spiele-Ordner", "Nicht gewählt", 90, "Der eine Ordner, in den du alle Spiele legst (ISO, CHD, Spieleordner …) – JellyStation erkennt das System selbst."), action: "open-games-dir" },
       { ...entry("st-assign", "Spiele-Zuordnung", "Von dir geänderte Systeme", 110, "Zeigt Spiele, die du von Hand einem System zugeordnet oder ausgeblendet hast, und setzt sie zurück."), action: "open-game-assignments" },
       {
+        ...entry("st-install", "Einrichtung & Downloads", "Emulatoren, BIOS, eigene Spiele-Quellen", 60, "Richtet ein leeres System Schritt für Schritt ein: Emulatoren aus den offiziellen GitHub-Seiten laden, BIOS und Firmware ablegen und prüfen, Spiele von deinen eigenen Adressen in den Spiele-Ordner laden."),
+        action: "open-install",
+      },
+      {
         ...entry("st-emu", "Emulatoren", "Installieren, finden, Pfad wählen", 20, "Zeigt, welche Emulatoren gefunden wurden, und hilft beim Installieren."),
         action: "open-emulators",
       },
