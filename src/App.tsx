@@ -41,7 +41,7 @@ import { BootAnimation } from "./boot/BootAnimation";
 import { getUiPrefs, initUiPrefs, THEMES, useUiPrefs } from "./prefs/uiPrefs";
 import { coversAuto, loadSettings, saveSettings } from "./settings/settings";
 import type { Settings } from "./settings/settings";
-import { SetupWizard } from "./setup/SetupWizard";
+import { SETUP_STEP, SetupWizard } from "./setup/SetupWizard";
 import { Xmb } from "./xmb/Xmb";
 import { StremioAddonsDialog } from "./stremio/StremioAddonsDialog";
 import { StremioPicker } from "./stremio/StremioPicker";
@@ -425,8 +425,8 @@ function Main({
   const onActivate = useCallback(
     (entry: XmbEntry, category: XmbCategory, notify: (text: string) => void) => {
       if (entry.action === "run-setup") onRunSetup();
-      else if (entry.action === "open-server-settings") openOverlay({ kind: "setupStep", step: 0 });
-      else if (entry.action === "open-games-dir") openOverlay({ kind: "setupStep", step: 1 });
+      else if (entry.action === "open-server-settings") openOverlay({ kind: "setupStep", step: SETUP_STEP.jellyfin });
+      else if (entry.action === "open-games-dir") openOverlay({ kind: "setupStep", step: SETUP_STEP.games });
       else if (entry.action === "open-about") openOverlay({ kind: "about" });
       else if (entry.action === "open-emulators") openOverlay({ kind: "emulators" });
       else if (entry.action === "open-requirements") openOverlay({ kind: "files" });
@@ -784,7 +784,7 @@ function Main({
         context={overlay.context}
         onOpenEmulators={(focusId) => openOverlay({ kind: "emulators", focusId })}
         onOpenFiles={(focusEmulatorId) => openOverlay({ kind: "files", focusEmulatorId })}
-        onOpenGamesDir={() => openOverlay({ kind: "setupStep", step: 1 })}
+        onOpenGamesDir={() => openOverlay({ kind: "setupStep", step: SETUP_STEP.games })}
         onChanged={() => {
           void emulators.refresh();
           void requirements.refresh();

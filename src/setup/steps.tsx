@@ -12,6 +12,10 @@ import type { FoundServer } from "../jellyfin/discover";
 import { normalizeServerUrl } from "../jellyfin/testConnection";
 import type { ConnectionResult } from "../jellyfin/testConnection";
 import { countBySystem, scanGamesDir } from "../library/scanGames";
+import { fetchAccountAddons, stremioLogin, stremioLogout } from "../stremio/account";
+import { mergeAccountAddons, newAddonId } from "../stremio/addons";
+import { fetchManifest, normalizeAddonUrl } from "../stremio/api";
+import type { StremioSettings } from "../stremio/types";
 import { isTauri } from "../platform";
 import { CHECKS } from "./checks";
 import type { CheckResult } from "./checks";
@@ -24,6 +28,179 @@ export interface Draft {
   gamesDir: string;
   /** BIOS-/Firmware-Ordner; leer = Standard (~/JellyStation/BIOS). */
   biosDir: string;
+  /** Stremio-Konto und -Addons (leer = nicht eingerichtet). */
+  stremio?: StremioSettings;
+}
+
+/* ---------- Stremio ---------- */
+
+type StatusLine = { state: "idle" | "busy" | "ok" | "fail"; text: string };
+
+interface StremioStepProps {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+}
+
+/**
+ * Optionaler Schritt: Stremio-Konto anmelden (lädt die Addons des Kontos, auch Cinemeta für die Kataloge) und/oder
+ * ein Addon von Hand eintragen. Das Passwort geht nur an Stremio und wird nicht gespeichert.
+ */
+export function StremioStep({ draft, onChange }: StremioStepProps) {
+  const stremio = draft.stremio;
+  const account = stremio?.account;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [addonUrl, setAddonUrl] = useState("");
+  const [login, setLogin] = useState<StatusLine>({ state: "idle", text: "" });
+  const [add, setAdd] = useState<StatusLine>({ state: "idle", text: "" });
+  const abort = useRef<AbortController | null>(null);
+  useEffect(() => () => abort.current?.abort(), []);
+
+  const doLogin = async () => {
+    if (login.state === "busy") return;
+    if (!email.trim() || !password) return setLogin({ state: "fail", text: "Bitte E-Mail-Adresse und Passwort eintragen" });
+    const ctl = new AbortController();
+    abort.current = ctl;
+    setLogin({ state: "busy", text: "Melde an …" });
+    try {
+      const acc = await stremioLogin(email.trim(), password, ctl.signal);
+      const list = await fetchAccountAddons(acc.authKey, ctl.signal);
+      if (ctl.signal.aborted) return;
+      onChange({ stremio: { account: acc, addons: mergeAccountAddons(stremio?.addons ?? [], list) } });
+      setPassword("");
+      setLogin({ state: "ok", text: `Angemeldet – ${list.length} Addon${list.length === 1 ? "" : "s"} aus dem Konto geladen` });
+    } catch (err) {
+      if (ctl.signal.aborted) return;
+      setLogin({ state: "fail", text: err instanceof Error ? err.message : "Stremio nicht erreichbar" });
+    }
+  };
+
+  const doLogout = () => {
+    if (!account) return;
+    void stremioLogout(account.authKey);
+    const addons = (stremio?.addons ?? []).filter((a) => !a.fromAccount);
+    onChange({ stremio: addons.length ? { addons } : undefined });
+    setLogin({ state: "idle", text: "" });
+  };
+
+  const doAdd = async () => {
+    if (add.state === "busy") return;
+    const url = normalizeAddonUrl(addonUrl);
+    if (!url) return setAdd({ state: "fail", text: "Bitte eine gültige Adresse eintragen (https://…/manifest.json)" });
+    if (stremio?.addons.some((a) => a.url === url)) return setAdd({ state: "fail", text: "Dieses Addon ist schon eingetragen" });
+    const ctl = new AbortController();
+    abort.current = ctl;
+    setAdd({ state: "busy", text: "Prüfe …" });
+    try {
+      const manifest = await fetchManifest(url, ctl.signal);
+      if (ctl.signal.aborted) return;
+      onChange({ stremio: { ...(account ? { account } : {}), addons: [...(stremio?.addons ?? []), { id: newAddonId(), url, name: manifest.name.slice(0, 80) }] } });
+      setAddonUrl("");
+      setAdd({ state: "ok", text: `„${manifest.name}“ hinzugefügt` });
+    } catch (err) {
+      if (ctl.signal.aborted) return;
+      setAdd({ state: "fail", text: err instanceof Error ? err.message : "Addon nicht erreichbar" });
+    }
+  };
+
+  /** Enter im Feld führt die Aktion des Felds aus (statt den Schritt zu wechseln), sobald etwas eingetragen ist. */
+  const enter = (ready: boolean, run: () => void) => (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" || !ready) return;
+    e.preventDefault();
+    e.stopPropagation();
+    run();
+  };
+
+  const names = (stremio?.addons ?? []).map((a) => a.name);
+  return (
+    <>
+      <h2>Stremio verbinden (optional)</h2>
+      <p className="setup-lead">
+        Mit deinem Stremio-Konto erscheinen Kataloge und Streams deiner Addons im Menü, Suche inklusive. Du kannst den Schritt überspringen und
+        später unter <em>Einstellungen → Stremio</em> nachholen.
+      </p>
+
+      <div className="setup-form">
+        {account ? (
+          <div className="setup-field">
+            <span>Konto</span>
+            <div className="setup-input-row">
+              <div className="setup-result is-ok" role="status">
+                {account.email}
+              </div>
+              <button type="button" className="ps-btn" onClick={doLogout}>
+                Abmelden
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <label className="setup-field">
+              <span>Stremio-E-Mail</span>
+              <input
+                type="email"
+                inputMode="email"
+                spellCheck={false}
+                autoCapitalize="off"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            <label className="setup-field">
+              <span>Passwort</span>
+              <div className="setup-input-row">
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={enter(!!email.trim() && !!password, () => void doLogin())}
+                />
+                <button type="button" className="ps-btn" disabled={login.state === "busy"} onClick={() => void doLogin()}>
+                  Anmelden
+                </button>
+              </div>
+            </label>
+          </>
+        )}
+        {login.text && (
+          <div className={`setup-result is-${login.state === "fail" ? "fail" : login.state}`} role="status">
+            {login.text}
+          </div>
+        )}
+
+        <label className="setup-field">
+          <span>Addon von Hand hinzufügen (optional)</span>
+          <div className="setup-input-row">
+            <input
+              type="text"
+              inputMode="url"
+              spellCheck={false}
+              autoCapitalize="off"
+              placeholder="https://…/manifest.json"
+              value={addonUrl}
+              onChange={(e) => setAddonUrl(e.target.value)}
+              onKeyDown={enter(!!addonUrl.trim(), () => void doAdd())}
+            />
+            <button type="button" className="ps-btn" disabled={add.state === "busy"} onClick={() => void doAdd()}>
+              Hinzufügen
+            </button>
+          </div>
+        </label>
+        {add.text && (
+          <div className={`setup-result is-${add.state === "fail" ? "fail" : add.state}`} role="status">
+            {add.text}
+          </div>
+        )}
+
+        <div className={`setup-result is-${names.length ? "ok" : "idle"}`} role="status">
+          {names.length ? `Eingerichtet: ${names.join(", ")}` : "Noch nichts eingerichtet"}
+        </div>
+      </div>
+      <p className="setup-lead">Streams spielt die App nur ab, wenn sie direkte Links liefern (z. B. Addons mit Debrid-Dienst). Nutze nur Inhalte, die du legal ansehen darfst.</p>
+    </>
+  );
 }
 
 /* ---------- Schritt 1: Jellyfin ---------- */
