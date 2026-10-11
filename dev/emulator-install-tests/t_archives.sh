@@ -31,7 +31,7 @@ fresh a5b; start_server; arch_run rpcs3-bundleid.zip
 rc_is 0; exists "$W/apps/RPCS3.app" "unbekannter Dateiname, aber richtige Bundle-ID → als RPCS3.app installiert"; absent "$W/apps/Seltsamer-Name.app"
 fresh a5c; start_server; arch_run rpcs3-two-apps.zip
 rc_is 0; eq "$(tag_of "$W/apps/RPCS3.app")" "main" "der Emulator, nicht Updater/Deinstallierer/Helfer"
-eq "$(apps_list)" "Dolphin.app PCSX2.app PPSSPP.app RPCS3.app " "nur eine App installiert"
+eq "$(apps_list)" "Dolphin.app PCSX2.app PPSSPP.app RPCS3.app shadPS4.app " "nur eine App installiert"
 fresh a6; start_server; arch_run rpcs3-macosx.zip
 rc_is 0; eq "$(tag_of "$W/apps/RPCS3.app")" "rpcs3-macosx" "echtes Paket statt __MACOSX-Eintrag, auch aus einem Unterordner"
 
@@ -108,6 +108,6 @@ eq "$(tag_of "$W/apps/RPCS3.app")" "rpcs3-arm64" "alte Version unverändert"; eq
 upd_world u3
 run --update --only rpcs3
 rc_is 0; has "RPCS3 aktualisiert"; eq "$(tag_of "$W/apps/RPCS3.app")" "rpcs3-new" "neue Version"; eq "$(leftovers)" "" "keine Reste"
-eq "$(apps_list)" "Dolphin.app PCSX2.app PPSSPP.app RPCS3.app " "genau diese Apps"
+eq "$(apps_list)" "Dolphin.app PCSX2.app PPSSPP.app RPCS3.app shadPS4.app " "genau diese Apps"
 
 finish

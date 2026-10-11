@@ -15,6 +15,8 @@ import type { DiagnoseContext, DiagnoseGame, Finding, FixAction } from "./types"
 /** Endungen, die der Emulator laut Dokumentation direkt öffnet (klein geschrieben, ohne Punkt). */
 export const GAME_EXTENSIONS: Record<string, readonly string[]> = {
   rpcs3: ["iso", "bin", "self", "elf", "sfb", "pkg"],
+  // shadPS4 startet die eboot.bin eines entschlüsselten Spiels; .pkg sind Installationspakete (nur zum Einspielen, nicht zum Starten).
+  shadps4: ["bin", "pkg"],
   duckstation: ["cue", "bin", "img", "iso", "chd", "pbp", "ecm", "mds", "exe", "psexe", "psf", "m3u"],
   pcsx2: ["iso", "bin", "img", "mdf", "nrg", "chd", "cso", "zso", "gz", "dump", "elf", "m3u"],
   ppsspp: ["iso", "cso", "zso", "pbp", "elf", "prx", "chd", "bin"],
@@ -48,6 +50,11 @@ export const EMULATOR_LOGS: Record<string, readonly string[]> = {
     "~/Library/Application Support/rpcs3/log/RPCS3.log",
     "~/.config/rpcs3/RPCS3.log",
   ],
+  shadps4: [
+    "~/Library/Application Support/shadPS4/log/shad_log.txt",
+    "~/AppData/Roaming/shadPS4/log/shad_log.txt",
+    "~/.local/share/shadPS4/log/shad_log.txt",
+  ],
   duckstation: [
     "~/Library/Application Support/DuckStation/duckstation.log",
     "~/Library/Application Support/DuckStation/logs/duckstation.log",
@@ -65,6 +72,19 @@ export const EMULATOR_LOGS: Record<string, readonly string[]> = {
     "~/Library/Application Support/Dolphin/Logs/dolphin.log",
   ],
 };
+
+/**
+ * Protokollpfade eines Emulators. shadPS4 läuft unter Windows meist „portabel“: Sein Datenordner „user“ liegt dann neben
+ * der Programmdatei, deshalb kommt deren Ordner (aus dem bekannten Programmpfad) als erster Kandidat hinzu.
+ */
+export function emulatorLogPaths(emulatorId: string, appPath?: string | null): string[] {
+  const fixed = EMULATOR_LOGS[emulatorId] ?? [];
+  if (emulatorId === "shadps4" && appPath && /\.exe$/i.test(appPath)) {
+    const dir = appPath.replace(/[\\/][^\\/]*$/, "");
+    if (dir && dir !== appPath) return [`${dir}/user/log/shad_log.txt`, ...fixed];
+  }
+  return [...fixed];
+}
 
 /* ------------------------------------------------------------------ Muster in der Ausgabe */
 
@@ -110,6 +130,33 @@ export const OUTPUT_RULES: readonly OutputRule[] = [
     detail: () =>
       "RPCS3 braucht einmalig die offizielle PS3-Firmware (PS3UPDAT.PUP von Sony). Spiele starten erst, wenn sie in RPCS3 eingespielt ist: Datei → Firmware installieren.",
     fix: openFiles("BIOS & Firmware"),
+  },
+  {
+    id: "ps4-modules",
+    test: /(sys_modules|libSce\w+|\.sprx)[^\n]{0,80}(not found|missing|could ?n[o']t|cannot|failed|unable)|(not found|missing|could ?n[o']t|cannot|failed|unable)[^\n]{0,80}(sys_modules|libSce\w+|\.sprx)/i,
+    emulators: ["shadps4"],
+    level: "warn",
+    title: "PS4-Systemmodule fehlen",
+    detail: () =>
+      "Dieses Spiel lädt Systemmodule (.sprx), die shadPS4 nicht selbst mitbringt. Sie stammen aus der Firmware der eigenen PS4 und gehören in den Ordner „sys_modules“ im Datenordner von shadPS4 – JellyStation liefert und lädt sie nicht.",
+  },
+  {
+    id: "ps4-encrypted",
+    test: /(fself|encrypted|not decrypted|undecrypted|decrypt)[^\n]{0,80}(unsupported|not supported|cannot|can'?t|fail|error|unable)|(unsupported|cannot|can'?t|fail|error|unable)[^\n]{0,80}(fself|encrypted|decrypt)/i,
+    emulators: ["shadps4"],
+    level: "error",
+    title: "PS4-Spiel ist verschlüsselt",
+    detail: () =>
+      "shadPS4 startet nur entschlüsselte Spiele (Ordner mit eboot.bin aus einem Dump der eigenen PS4 bzw. aus einem eingespielten Paket). Installationspakete (.pkg) werden zuerst in shadPS4 eingespielt (Datei → Pakete installieren).",
+  },
+  {
+    id: "vulkan13",
+    test: /(vulkan|physical device|gpu)[^\n]{0,80}(1\.3|no suitable|not suitable|unsuitable|doesn'?t support|does not support|missing (required )?(extension|feature))|(no suitable|unsupported|missing required)[^\n]{0,40}(vulkan|physical device)/i,
+    emulators: ["shadps4"],
+    level: "error",
+    title: "Grafikkarte oder Treiber reichen für shadPS4 nicht",
+    detail: () =>
+      "shadPS4 braucht eine Grafikkarte mit Vulkan 1.3 und einen aktuellen Treiber. Aktualisiere den Grafiktreiber (NVIDIA, AMD oder Intel) und starte neu; sehr alte Karten genügen nicht.",
   },
   {
     id: "license",
@@ -312,6 +359,7 @@ export function gameIssues(path: string, def: EmulatorDef | null, p: FileProbe):
     const names = new Set(p.names.map((n) => n.toLowerCase()));
     if (def.id === "rpcs3" && !names.has("ps3_game") && !names.has("usrdir") && !names.has("param.sfo")) out.push({ code: "folder-shape" });
     if (def.id === "ppsspp" && !names.has("psp_game") && !names.has("eboot.pbp")) out.push({ code: "folder-shape" });
+    if (def.id === "shadps4" && !(names.has("eboot.bin") && names.has("sce_sys"))) out.push({ code: "folder-shape" });
   }
   return out;
 }
@@ -372,7 +420,9 @@ const ISSUE_TEXT: Record<GameIssueCode, IssueText> = {
     detail: (def) =>
       def?.id === "ppsspp"
         ? "Im Ordner fehlen PSP_GAME bzw. EBOOT.PBP. Entpackte PSP-Spiele brauchen genau diese Struktur."
-        : "Im Ordner fehlen PS3_GAME bzw. USRDIR. Ein entpacktes PS3-Spiel braucht genau diese Struktur; lege die Dateien ohne zusätzlichen Zwischenordner ab.",
+        : def?.id === "shadps4"
+          ? "Im Ordner fehlen eboot.bin bzw. sce_sys. Ein PS4-Spiel braucht beides direkt im Spieleordner; lege die Dateien ohne zusätzlichen Zwischenordner ab."
+          : "Im Ordner fehlen PS3_GAME bzw. USRDIR. Ein entpacktes PS3-Spiel braucht genau diese Struktur; lege die Dateien ohne zusätzlichen Zwischenordner ab.",
   },
 };
 

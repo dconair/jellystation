@@ -14,7 +14,7 @@ import type { EmulatorStatus } from "../emulators/status";
 import { isTauri } from "../platform";
 import { diagClearQuarantine, diagLogTail, diagProbe } from "./backend";
 import type { FileProbe } from "./backend";
-import { EMULATOR_LOGS, analyzeOutput, baseOf, biosHeadProblem, explainExit, findingForGame, findingForGames, gameIssues } from "./rules";
+import { analyzeOutput, baseOf, biosHeadProblem, emulatorLogPaths, explainExit, findingForGame, findingForGames, gameIssues } from "./rules";
 import type { GameIssue, GameIssueCode } from "./rules";
 import type { DiagnoseGame, DiagnoseInput, DiagnoseReport, Finding, Fix, Level, ReportLog } from "./types";
 
@@ -309,8 +309,9 @@ export async function runDiagnosis(input: DiagnoseInput): Promise<DiagnoseReport
     for (const f of analyzeOutput(lines, rc, "out")) add(f);
 
     // Das eigene Protokoll des Emulators, falls es von diesem Start stammt.
-    if (ctxDef && EMULATOR_LOGS[ctxDef.id]) {
-      const tail = await safe("Protokoll des Emulators", () => diagLogTail([...EMULATOR_LOGS[ctxDef.id]], 150), add);
+    const logPaths = ctxDef ? emulatorLogPaths(ctxDef.id, rc.appPath) : [];
+    if (ctxDef && logPaths.length > 0) {
+      const tail = await safe("Protokoll des Emulators", () => diagLogTail(logPaths, 150), add);
       if (tail && tail.lines.length > 0) {
         logs.push({ title: `Protokoll von ${ctxDef.name} (${tildePath(tail.path)})`, lines: tail.lines });
         const fresh = tail.modifiedMs > 0 && at - tail.modifiedMs < FRESH_LOG_MS;

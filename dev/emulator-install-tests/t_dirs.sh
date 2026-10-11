@@ -18,7 +18,7 @@ has "ist für dich nicht beschreibbar – die Emulatoren kommen nach $W/uapps"; 
 for app in RPCS3 DuckStation PCSX2 PPSSPPSDL Dolphin; do exists "$W/uapps/$app.app" "$app.app im Ausweichordner"; done
 eq "$(ls -A "$W/apps" | wc -l | tr -d ' ')" "0" "der schreibgeschützte Ordner bleibt leer"
 file_has "$W/state/calls.log" "brew install --cask --appdir=$W/uapps pcsx2" "Homebrew bekommt den Ausweichordner (--appdir)"
-has "Fertig: 5 von 5 Emulatoren sind installiert."
+has "Fertig: 6 von 6 Emulatoren sind installiert."
 run
 rc_is 0; has "Nichts zu tun"; has "$W/uapps/RPCS3.app" 
 run --check; rc_is 0
@@ -55,7 +55,7 @@ HOME_W="$W/Benutzer Ordner/ich"; mkdir -p "$HOME_W"; rm -rf "$W/apps"; mkdir -p 
 T_ENV+=("JELLYSTATION_APPS_DIR=$W/Meine Apps" "JELLYSTATION_USER_APPS_DIR=$W/Meine Apps 2")
 std_routes; start_server; ds_override
 run --yes
-rc_is 0; has "Fertig: 5 von 5 Emulatoren sind installiert."
+rc_is 0; has "Fertig: 6 von 6 Emulatoren sind installiert."
 for app in RPCS3 DuckStation PCSX2 PPSSPPSDL Dolphin; do exists "$W/Meine Apps/$app.app" "$app.app (Pfad mit Leerzeichen)"; done
 exists "$HOME_W/JellyStation/Games/PS3" "Spiele-Ordner unter Benutzerordner mit Leerzeichen"
 exists "$HOME_W/JellyStation/BIOS/PCSX2/README.txt" "BIOS-Hinweis"

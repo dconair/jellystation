@@ -12,7 +12,7 @@
 #   jellystation -y, --yes     Rückfragen automatisch mit "Ja" beantworten
 #   jellystation -h, --help    diese Hilfe
 #
-# Bei jedem Start prüft JellyStation kurz, ob die Emulatoren (RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin) installiert
+# Bei jedem Start prüft JellyStation kurz, ob die Emulatoren (RPCS3, shadPS4, DuckStation, PCSX2, PPSSPP, Dolphin) installiert
 # sind, und sagt nur etwas, wenn welche fehlen. Was nicht automatisch installiert werden konnte, wird höchstens alle
 # 24 Stunden erneut versucht (Merkdatei ~/.jellystation/emulators.check); dazwischen erinnert eine Zeile daran.
 #

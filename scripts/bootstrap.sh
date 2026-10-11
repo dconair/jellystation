@@ -6,7 +6,7 @@
 # Das Skript
 #   1. prüft macOS und sorgt für git (startet bei Bedarf die Installation der Xcode Command Line Tools),
 #   2. lädt JellyStation nach ~/JellyStation (oder aktualisiert den vorhandenen Ordner),
-#   3. installiert fehlende Werkzeuge und Pakete und richtet die Emulatoren (RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin)
+#   3. installiert fehlende Werkzeuge und Pakete und richtet die Emulatoren (RPCS3, shadPS4, DuckStation, PCSX2, PPSSPP, Dolphin)
 #      samt Ordnern ~/JellyStation/Games/<System> und ~/JellyStation/BIOS ein (scripts/setup-mac.sh --install-missing --prepare),
 #   4. richtet den Befehl "jellystation" ein (scripts/install-launcher.sh).
 # Danach genügt in einem neuen Terminal-Fenster:  jellystation

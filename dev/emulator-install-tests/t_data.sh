@@ -23,8 +23,8 @@ expect_bad() { # <Name> <JS> <Text in der Meldung>
 
 echo "== echte Datei =="
 new_world d0
-run --validate-data; rc_is 0; has "Daten in Ordnung: 5 Emulatoren"
-run --check --porcelain; rc_is 1; has "total=5"
+run --validate-data; rc_is 0; has "Daten in Ordnung: 6 Emulatoren"
+run --check --porcelain; rc_is 1; has "total=6"
 echo "== unbekannte Zusatzfelder und Kommentare stören nicht =="
 new_world d00; mutate 'j._neu = "x"; j.emulators[0].extra = {a: 1}; j.emulators[0]._comment = ["a","b"]'
 run --validate-data; rc_is 0
@@ -75,7 +75,7 @@ if unshare -m true 2>/dev/null; then
   run --help; rc_is 0; has "Emulatoren prüfen, installieren"
   run --check --porcelain; rc_is 3
   MASK_LINKS="/usr/local/bin/node=$(command -v node)"   # Node.js nur im Homebrew-Ordner (nicht im PATH): wird gefunden
-  run --check --porcelain; rc_is 1; has "total=5"
+  run --check --porcelain; rc_is 1; has "total=6"
   MASK_LINKS=""
 else
   echo "  (übersprungen: unshare -m nicht möglich)"
@@ -84,7 +84,7 @@ fi
 echo "== Abgleich mit dem App-Katalog (dev/check-emulator-data.mjs) =="
 cd "$REPO_DIR" || exit 1
 OUT="$(node dev/check-emulator-data.mjs 2>&1)"; RC=$?
-rc_is 0; has "stimmen überein (5 Emulatoren, 6 Systemordner)"
+rc_is 0; has "stimmen überein (6 Emulatoren, 7 Systemordner)"
 new_world c1
 mutate 'j.emulators[0].appPattern = "^RPCS3\\.app$"'
 OUT="$(node dev/check-emulator-data.mjs "$W/data.json" 2>&1)"; RC=$?

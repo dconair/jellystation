@@ -74,7 +74,9 @@ try {
     assert.equal(src.installSpec("rpcs3", "windows", "x86_64").exePattern, "^rpcs3\\.exe$");
     assert.equal(src.installSpec("dolphin", "windows", "x86_64"), null);
     assert.equal(src.installSpec("rpcs3", "linux", "x86_64"), null);
-    for (const os of ["macos", "windows"]) for (const e of ["rpcs3", "duckstation", "pcsx2"]) {
+    assert.deepEqual(src.installSpec("shadps4", "macos", "arm64").sources.map((s) => s.repo), ["shadps4-emu/shadPS4"]);
+    assert.equal(src.installSpec("shadps4", "windows", "x86_64").exePattern, "^shadps4\\.exe$");
+    for (const os of ["macos", "windows"]) for (const e of ["rpcs3", "shadps4", "duckstation", "pcsx2"]) {
       const s = src.installSpec(e, os, "x86_64");
       if (s) for (const re of [...s.rules.include, ...s.rules.exclude]) new RegExp(re, "i");
     }
@@ -86,6 +88,12 @@ try {
     const dk = src.installSpec("duckstation", "windows", "x86_64");
     const d = gh.pickAsset([{ tag_name: "latest", assets: [asset("duckstation-windows-x64-release.zip"), asset("duckstation-windows-arm64-release.zip"), asset("duckstation-mac-release.zip")] }], dk.rules, "any", "x86_64", src.ARCH_HINTS, src.EXTENSION_ORDER);
     assert.equal(d.asset.name, "duckstation-windows-x64-release.zip");
+    const sp = src.installSpec("shadps4", "windows", "x86_64");
+    const sh = gh.pickAsset([{ tag_name: "v.0.12.0", assets: [asset("shadps4-linux-qt-0.12.0.zip"), asset("shadps4-win64-sdl-0.12.0.zip"), asset("shadps4-win64-qt-0.12.0.zip"), asset("shadps4-macos-qt-0.12.0.zip")] }], sp.rules, "any", "x86_64", src.ARCH_HINTS, src.EXTENSION_ORDER);
+    assert.equal(sh.asset.name, "shadps4-win64-qt-0.12.0.zip", "Qt-Ausgabe für Windows, nicht SDL/Linux/Mac");
+    const sm = src.installSpec("shadps4", "macos", "arm64");
+    const shMac = gh.pickAsset([{ tag_name: "v.0.12.0", assets: [asset("shadps4-win64-qt-0.12.0.zip"), asset("shadps4-macos-sdl-0.12.0.zip"), asset("shadps4-macos-qt-0.12.0.zip")] }], sm.rules, "any", "arm64", src.ARCH_HINTS, src.EXTENSION_ORDER);
+    assert.equal(shMac.asset.name, "shadps4-macos-qt-0.12.0.zip");
     const p2 = src.installSpec("pcsx2", "windows", "x86_64");
     const p = gh.pickAsset([{ tag_name: "v2", assets: [asset("pcsx2-v2.0.0-windows-x64-Qt.7z"), asset("pcsx2-v2.0.0-windows-x64-Qt-symbols.7z"), asset("pcsx2-v2.0.0-macos-Qt.tar.xz")] }], p2.rules, "any", "x86_64", src.ARCH_HINTS, src.EXTENSION_ORDER);
     assert.equal(p.asset.name, "pcsx2-v2.0.0-windows-x64-Qt.7z");

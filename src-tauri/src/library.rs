@@ -5,11 +5,12 @@
 //! verschieben, umzubenennen oder zu entpacken. Die Einsortierung geschieht nur virtuell im Menü.
 //!
 //! Reihenfolge der Erkennung (von sicher nach vage):
-//! 1. **Inhalt**: `PS3_GAME/PARAM.SFO` bzw. `PS3_DISC.SFB` (PS3), `PSP_GAME/PARAM.SFO` und `EBOOT.PBP` (PSP),
+//! 1. **Inhalt**: `PS3_GAME/PARAM.SFO` bzw. `PS3_DISC.SFB` (PS3), `sce_sys/param.sfo` mit `eboot.bin` (PS4-Spieleordner),
+//!    `PSP_GAME/PARAM.SFO` und `EBOOT.PBP` (PSP),
 //!    `SYSTEM.CNF` mit `BOOT2` (PS2) oder `BOOT` (PS1), Disc-Kopf mit GameCube-/Wii-Kennung – in ISO-Abbildern,
 //!    CUE/BIN, `.rvz`/`.wia`/`.wbfs`/`.ciso` und entpackten Spieleordnern (Lesen nur der ersten Sektoren).
 //! 2. **Seriennummer im Dateinamen** (`[BLUS30443]`, `ULES-00821`), soweit sie nur zu einem System passt.
-//! 3. **Dateiformat**: `.cso` (PSP), `.pkg` (Kopf), ELF-Maschine (PowerPC64 = PS3), `.dol`, `.gcz` …
+//! 3. **Dateiformat**: `.cso` (PSP), `.pkg` (Kopf: PS3 oder PS4), ELF-Maschine (PowerPC64 = PS3), `.dol`, `.gcz` …
 //! 4. **Ordnername** irgendwo über der Datei (`PS3/`, `PlayStation 2 Spiele/` …) – die alte Ordnerstruktur
 //!    funktioniert also weiter.
 //! 5. **Größe** bei CHD-Abbildern (eine CD-CHD über 800 MB ist keine PS1, eine DVD-CHD über 2 GB keine PSP).
@@ -39,7 +40,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::covers::embedded::{self, Embedded};
 use crate::covers::iso;
-use crate::covers::system::Platform;
+use crate::covers::system::{is_ps4_title_id, Platform};
 use crate::requirements::expand;
 
 /// Dateiendungen (klein geschrieben), die als Spiel gelten. `app` gilt nur für Ordner (macOS-Pakete).
@@ -79,7 +80,7 @@ pub struct ScannedGame {
     /// Endung in Kleinbuchstaben ohne Punkt (leer bei Ordnern).
     pub ext: String,
     pub size: u64,
-    /// Erkanntes System (`PS1` `PS2` `PS3` `PSP` `GameCube` `Wii`); `None` = nicht zuordenbar. Bei `bundle` leer.
+    /// Erkanntes System (`PS1` `PS2` `PS3` `PS4` `PSP` `GameCube` `Wii`); `None` = nicht zuordenbar. Bei `bundle` leer.
     pub system: Option<String>,
     /// Woran das System erkannt wurde: `content` | `serial` | `format` | `folder` | `size` | `none`.
     pub how: &'static str,
@@ -157,6 +158,7 @@ fn le32(b: &[u8], at: usize) -> u32 {
 fn from_embedded(found: Embedded) -> Sniff {
     let note = match found.platform {
         Some(Platform::Ps3) => "PS3-Spielstruktur (PS3_GAME / PARAM.SFO)",
+        Some(Platform::Ps4) => "PS4-Spielstruktur (eboot.bin / sce_sys / param.sfo)",
         Some(Platform::Psp) => "PSP-Spielstruktur (PSP_GAME / PARAM.SFO)",
         Some(Platform::Ps2) => "SYSTEM.CNF mit BOOT2 (PlayStation 2)",
         Some(Platform::Ps1) => "SYSTEM.CNF mit BOOT (PlayStation 1)",
@@ -192,11 +194,24 @@ fn from_disc_header(head: &[u8], note: &str) -> Option<Sniff> {
     })
 }
 
-/// PS3-Installationspaket: Kopf `\x7fPKG`, Typ 1 = PS3; die Content-ID enthält die Titelnummer.
+/// Installationspaket: Kopf `\x7fPKG` (PS3, Typ 1 = PS3, sonst PSP/Vita) oder `\x7fCNT` (PS4); die Content-ID enthält
+/// die Titelnummer.
 fn sniff_pkg(path: &Path) -> Sniff {
     let Some(head) = read_at(path, 0, 0x60) else {
         return Sniff::default();
     };
+    if head[..4] == [0x7f, b'C', b'N', b'T'] {
+        // PS4: Content-ID (`UP9000-CUSA00419_00-…`) bei 0x40
+        let content_id = read_at(path, 0x40, 0x24)
+            .map(|raw| {
+                let end = raw.iter().position(|b| *b == 0).unwrap_or(raw.len());
+                String::from_utf8_lossy(&raw[..end]).into_owned()
+            })
+            .unwrap_or_default();
+        let mut sniff = by_format(Platform::Ps4, "PS4-Installationspaket (.pkg)");
+        sniff.serial = serial_in(&content_id);
+        return sniff;
+    }
     if head[..4] != [0x7f, b'P', b'K', b'G'] {
         return Sniff::default();
     }
@@ -387,6 +402,8 @@ fn platform_of_serial(serial: &str) -> Option<Platform> {
         Some(Platform::Ps3)
     } else if PSP_PREFIXES.contains(&prefix.as_str()) {
         Some(Platform::Psp)
+    } else if is_ps4_title_id(serial) {
+        Some(Platform::Ps4)
     } else {
         None
     }
@@ -521,7 +538,20 @@ fn slashed(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
-/// Ist `dir` ein entpacktes Spiel (PS3-Disc-Ordner, installiertes PS3-Spiel, PSP-Ordner)?
+/// Hat `dir` den Aufbau eines PS4-Spiels (`eboot.bin` und `sce_sys` mit einer `param.sfo`, deren Titelnummer zur PS4
+/// gehört)? Die Vita nutzt denselben Aufbau, hat aber andere Titelnummern.
+fn is_ps4_folder(dir: &Path, names: &HashSet<String>) -> bool {
+    names.contains("eboot.bin") && names.contains("sce_sys") && embedded::extract(dir).platform == Some(Platform::Ps4)
+}
+
+/// Ordner, die shadPS4 neben ein PS4-Spiel legt (`CUSA00419-UPDATE`, `…-patch`): Sie enthalten ebenfalls eine
+/// `eboot.bin`, sind aber kein eigenes Spiel und starten allein nicht.
+fn is_ps4_update_folder(dir: &Path, names: &HashSet<String>) -> bool {
+    let name = file_name(dir).to_ascii_lowercase();
+    (name.ends_with("-update") || name.ends_with("-patch")) && is_ps4_folder(dir, names)
+}
+
+/// Ist `dir` ein entpacktes Spiel (PS3-Disc-Ordner, installiertes PS3-Spiel, PS4-Spielordner, PSP-Ordner)?
 /// `names` sind die kleingeschriebenen Namen der Einträge in `dir`.
 fn is_game_folder(dir: &Path, names: &HashSet<String>) -> bool {
     let child = |name: &str, path: &str| -> bool {
@@ -544,6 +574,9 @@ fn is_game_folder(dir: &Path, names: &HashSet<String>) -> bool {
         if names.contains(sub) && real(sub).is_some_and(|n| child(&n, "param.sfo")) {
             return true;
         }
+    }
+    if is_ps4_folder(dir, names) {
+        return true;
     }
     names.contains("param.sfo")
         && (names.contains("ps3_disc.sfb")
@@ -578,6 +611,9 @@ impl Walk {
                 files.push((name, path));
             }
             // Verknüpfungen auf Ordner werden nicht verfolgt (Schleifen)
+        }
+        if depth > 0 && is_ps4_update_folder(dir, &names) {
+            return;
         }
         if depth > 0 && is_game_folder(dir, &names) {
             self.push(Unit {

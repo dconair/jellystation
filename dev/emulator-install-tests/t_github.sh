@@ -14,7 +14,7 @@ has "RPCS3 wurde nicht installiert: GitHub begrenzt gerade die Anfragen (Rate-Li
 has "RPCS3 → https://rpcs3.net/download"
 absent "$W/apps/RPCS3.app"; exists "$W/apps/DuckStation.app" "DuckStation trotzdem installiert"
 eq "$(n_requests '/repos/RPCS3/')" "1" "nach Rate-Limit keine weiteren Anfragen"
-has "4 von 5 Emulatoren sind installiert."
+has "5 von 6 Emulatoren sind installiert."
 
 echo "== API 403 ohne Rate-Limit-Text =="
 new_world g403b; casks_present

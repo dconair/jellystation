@@ -9,7 +9,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 0
 fi
 
-PROMPT="Fehlende Emulatoren jetzt installieren: RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin? [J/n]"
+PROMPT="Fehlende Emulatoren jetzt installieren: RPCS3, DuckStation, PCSX2, PPSSPP, Dolphin, shadPS4? [J/n]"
 tty_world() { new_world "$1"; std_routes; start_server; ds_override; T_ENV+=("TERM=xterm-256color"); }
 
 echo "== Rückfrage: Nein =="
@@ -22,22 +22,22 @@ eq "$(ls -A "$W/tmp" | wc -l | tr -d ' ')" "0" "kein Temp-Ordner angelegt"
 echo "== Rückfrage: Enter = Ja =="
 tty_world y2
 run_tty "[J/n]" "\n"
-rc_is 0; has "$PROMPT"; has "Fertig: 5 von 5 Emulatoren sind installiert."
+rc_is 0; has "$PROMPT"; has "Fertig: 6 von 6 Emulatoren sind installiert."
 file_has "$W/state/curl.log" "--progress-bar" "mit Terminal: Fortschrittsbalken"
 echo "== Rückfrage: j / Ja / N =="
-tty_world y3; run_tty "[J/n]" "j\n"; has "Fertig: 5 von 5"
-tty_world y4; run_tty "[J/n]" "Ja\n"; has "Fertig: 5 von 5"
+tty_world y3; run_tty "[J/n]" "j\n"; has "Fertig: 6 von 6"
+tty_world y4; run_tty "[J/n]" "Ja\n"; has "Fertig: 6 von 6"
 tty_world y5; run_tty "[J/n]" "N\n"; has "Übersprungen"; eq "$(find "$W/apps" -mindepth 1 | wc -l | tr -d ' ')" "0" "N = Nein"
 tty_world y6; run_tty "[J/n]" "quatsch\n"; has "Übersprungen"
 echo "== --yes: keine Rückfrage =="
 tty_world y7
 run_tty "" "" --yes
-rc_is 0; hasnt "[J/n]"; has "Fertig: 5 von 5"
+rc_is 0; hasnt "[J/n]"; has "Fertig: 6 von 6"
 echo "== nichts fehlt: keine Rückfrage; --check: keine Rückfrage =="
 tty_world y8
 run_tty "" "" --yes >/dev/null
 run_tty "" ""; rc_is 0; hasnt "[J/n]"; has "Nichts zu tun"
-tty_world y9; run_tty "" "" --check; rc_is 1; hasnt "[J/n]"; has "Es fehlen 5 von 5"
+tty_world y9; run_tty "" "" --check; rc_is 1; hasnt "[J/n]"; has "Es fehlen 6 von 6"
 echo "== Farben: mit Terminal ja, mit NO_COLOR nein =="
 tty_world y10; run_tty "" "" --yes --only rpcs3
 printf '%s' "$OUT" | grep -q $'\033\\[' && ok_ "mit Terminal: Farben" || no_ "keine Farben im Terminal"
@@ -51,10 +51,10 @@ file_has "$W/state/curl.log" "-sS" "ohne Terminal: leise"
 echo "== nur stdout ist ein Terminal (stdin = /dev/null) oder nur stdin: nicht fragen, sondern Ja =="
 tty_world y13
 run_tty_sh '"$@" < /dev/null'
-rc_is 0; hasnt "[J/n]"; has "Fertig: 5 von 5"
+rc_is 0; hasnt "[J/n]"; has "Fertig: 6 von 6"
 tty_world y14
 run_tty_sh '"$@" | cat'
-rc_is 0; hasnt "[J/n]"; has "Fertig: 5 von 5"
+rc_is 0; hasnt "[J/n]"; has "Fertig: 6 von 6"
 
 echo "== Strg+C an der Rückfrage =="
 tty_world y15

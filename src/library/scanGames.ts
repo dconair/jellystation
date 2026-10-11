@@ -9,7 +9,7 @@ import { isTauri } from "../platform";
  */
 
 /** Die Systeme, die ein Spiel haben kann (Namen wie im Emulator-Katalog, siehe src/emulators/catalog.ts). */
-export const GAME_SYSTEMS = ["PS1", "PS2", "PS3", "PSP", "GameCube", "Wii"] as const;
+export const GAME_SYSTEMS = ["PS1", "PS2", "PS3", "PS4", "PSP", "GameCube", "Wii"] as const;
 export type GameSystem = (typeof GAME_SYSTEMS)[number];
 
 /** Wert in `settings.gameSystems`: Spiel nicht anzeigen. */
