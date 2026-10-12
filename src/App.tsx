@@ -44,6 +44,7 @@ import { coversAuto, loadSettings, saveSettings } from "./settings/settings";
 import type { Settings } from "./settings/settings";
 import { SETUP_STEP, SetupWizard } from "./setup/SetupWizard";
 import { Xmb } from "./xmb/Xmb";
+import { ConnectionsDialog } from "./connections/ConnectionsDialog";
 import { StremioAddonsDialog } from "./stremio/StremioAddonsDialog";
 import { StremioPicker } from "./stremio/StremioPicker";
 import { useStremioLibrary } from "./stremio/useStremioLibrary";
@@ -148,6 +149,7 @@ type Overlay =
   | { kind: "assignments" }
   | { kind: "stremio"; entry: XmbEntry }
   | { kind: "stremioAddons" }
+  | { kind: "connections" }
   | { kind: "search"; query?: string }
   | { kind: "player"; entry: XmbEntry; startSec: number; playlist?: XmbEntry[]; choice?: MovieChoice; back?: Overlay };
 
@@ -356,7 +358,7 @@ function Main({
             ...cat,
             entries: cat.entries.map((e) =>
               e.id === "st1"
-                ? { ...e, subtitle: settings?.jellyfin.url || "Nicht eingerichtet" }
+                ? { ...e, subtitle: `Jellyfin: ${settings?.jellyfin.url ? hostOf(settings.jellyfin.url) : "nicht eingerichtet"} · Stremio: ${stremioSummary}` }
                 : e.id === "st-games" && settings?.gamesDir
                   ? { ...e, subtitle: settings.gamesDir }
                   : e.action === "open-emulators"
@@ -493,6 +495,7 @@ function Main({
       else if (entry.action === "open-covers") openOverlay({ kind: "covers" });
       else if (entry.action === "open-game-assignments") openOverlay({ kind: "assignments" });
       else if (entry.action === "open-stremio") openOverlay({ kind: "stremioAddons" });
+      else if (entry.action === "open-connections") openOverlay({ kind: "connections" });
       else if (entry.action === "open-search") openOverlay({ kind: "search" });
       else if (entry.id.startsWith("search-q/")) openOverlay({ kind: "search", query: entry.id.slice("search-q/".length) });
       else if (entry.action === "choose-jellyfin-user") void openUsers();
@@ -777,6 +780,8 @@ function Main({
         onClose={close}
       />
     );
+  } else if (overlay?.kind === "connections" && settings) {
+    layer = <ConnectionsDialog settings={settings} onChangeSettings={onChangeSettings} onClose={close} />;
   } else if (overlay?.kind === "stremioAddons") {
     layer = (
       <StremioAddonsDialog

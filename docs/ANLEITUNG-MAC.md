@@ -86,7 +86,7 @@ Den Key legst du in Jellyfin unter *Dashboard → API-Schlüssel* an.
 ![Schritt 1](images/setup-1-jellyfin.png)
 
 **Stremio (optional)** · direkt nach Jellyfin: mit deinem Stremio-Konto anmelden, dann erscheinen Kataloge, Streams deiner Addons und die Suche im Menü.
-Das Passwort wird nicht gespeichert. Mit △ überspringst du den Schritt, nachholen geht unter *Einstellungen → Stremio*.
+Das Passwort wird nicht gespeichert. Mit △ überspringst du den Schritt, nachholen geht unter *Einstellungen → Verbindungen*.
 
 **Schritt 2 – Spiele-Ordner** · **Ordner wählen …** öffnet den echten macOS-Dialog. Es genügt **ein einziger Ordner**: Lege ISOs und Spieldateien
 einfach hinein, auch unsortiert oder in Unterordnern – die App erkennt das System selbst. Liegt der Ordner in *Dokumente*, *Schreibtisch* oder auf einem externen Laufwerk, fragt macOS einmalig
@@ -204,7 +204,7 @@ L1/R1 ±30 s · L2/R2 vorherige/nächste Folge. Tastatur: Leertaste/Enter, Esc, 
 ### Unterwegs (Tailscale)
 
 Die automatische Server-Suche funktioniert nur im selben WLAN (UDP-Broadcast läuft nicht durch Tailscale). Unterwegs braucht
-die App eine feste Adresse: Trage unter **Einstellungen → Server** bei „Zweite Adresse für unterwegs“ die Tailscale-Adresse
+die App eine feste Adresse: Trage unter **Einstellungen → Verbindungen → Jellyfin** bei „Zweite Adresse für unterwegs“ die Tailscale-Adresse
 deines Servers ein, z. B. `http://100.x.y.z:8096` oder `http://servername.tailnet.ts.net:8096` (Standard-Port von Jellyfin ist 8096).
 Die App probiert beim Start, nach Netzwechsel und beim Zurückkehren in die App selbst, welche der beiden Adressen antwortet
 (Heimadresse hat Vorrang). Eine private LAN-Adresse wie `192.168.x.x` geht über Tailscale nur, wenn der Server dort als

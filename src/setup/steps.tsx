@@ -117,7 +117,7 @@ export function StremioStep({ draft, onChange }: StremioStepProps) {
       <h2>Stremio verbinden (optional)</h2>
       <p className="setup-lead">
         Mit deinem Stremio-Konto erscheinen Kataloge und Streams deiner Addons im Menü, Suche inklusive. Du kannst den Schritt überspringen und
-        später unter <em>Einstellungen → Stremio</em> nachholen.
+        später unter <em>Einstellungen → Verbindungen</em> nachholen.
       </p>
 
       <div className="setup-form">
