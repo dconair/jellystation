@@ -119,7 +119,10 @@ export const categories: XmbCategory[] = [
     label: "Einstellungen",
     icon: "settings",
     entries: [
-      { ...entry("st1", "Server", "Verbindung verwalten", 225, "Jellyfin-Adresse und API-Schlüssel ändern und die Verbindung testen."), action: "open-server-settings" },
+      {
+        ...entry("st1", "Verbindungen", "Jellyfin und Stremio", 225, "Alle Dienste an einer Stelle: Jellyfin-Adresse und API-Schlüssel, Stremio-Konto und Addons. Zeigt, ob jede Verbindung klappt, und woran es hakt."),
+        action: "open-connections",
+      },
       { ...entry("st-games", "Spiele-Ordner", "Nicht gewählt", 90, "Der eine Ordner, in den du alle Spiele legst (ISO, CHD, Spieleordner …) – JellyStation erkennt das System selbst."), action: "open-games-dir" },
       { ...entry("st-assign", "Spiele-Zuordnung", "Von dir geänderte Systeme", 110, "Zeigt Spiele, die du von Hand einem System zugeordnet oder ausgeblendet hast, und setzt sie zurück."), action: "open-game-assignments" },
       {
@@ -141,10 +144,6 @@ export const categories: XmbCategory[] = [
       {
         ...entry("st2", "Jellyfin-Benutzer", "Wer schaut?", 255, "Wählt den Jellyfin-Benutzer für Wiedergabestatus und „Weiterschauen“."),
         action: "choose-jellyfin-user",
-      },
-      {
-        ...entry("st-stremio", "Stremio", "Konto, Addons, Kataloge", 20, "Melde dich mit deinem Stremio-Konto an oder trage Addons ein. Die Kataloge erscheinen als eigene Spalten hinter den Serien; ein Titel zeigt dir die Streams deiner Addons. Addons bringst du selbst mit."),
-        action: "open-stremio",
       },
       {
         ...entry("st-transcode", "Wiedergabe", "Direkt, wenn möglich", 175, "Wählt, ob der Player Dateien direkt abspielt oder der Jellyfin-Server alles umwandelt (HLS). „Immer umwandeln“ hilft bei Formaten, die dein Mac nicht abspielen kann."),

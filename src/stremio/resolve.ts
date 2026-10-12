@@ -59,6 +59,8 @@ export async function findStreams(
     result.playable.push(...part.playable);
     result.skipped += part.skipped;
   }
+  // Streams, die sehr wahrscheinlich laufen, zuerst (stabil: sonst bleibt die Reihenfolge der Addons).
+  result.playable.sort((a, b) => Number(a.risky) - Number(b.risky));
   return result;
 }
 

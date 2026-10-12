@@ -99,7 +99,7 @@ export async function loadStremioLibrary(addons: readonly StremioAddonCfg[], sig
     problems.push(
       parts.some((p) => p.hasCatalogs)
         ? "Die Kataloge sind leer"
-        : "Keine Kataloge erreichbar – Internetverbindung prüfen oder unter Einstellungen → Stremio anmelden",
+        : "Keine Kataloge erreichbar – Internetverbindung prüfen oder unter Einstellungen → Verbindungen anmelden",
     );
   }
   return { columns, problems };

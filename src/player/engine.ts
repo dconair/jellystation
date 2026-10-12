@@ -142,14 +142,26 @@ function describeSource(plan: PlaybackPlan | null): string {
   return parts.length ? `Quelle: ${parts.join(" · ")} (${METHOD_LABEL[plan.method]})` : "";
 }
 
-function faultFromMedia(code: number, plan: PlaybackPlan | null): PlayerFault {
+function faultFromMedia(code: number, plan: PlaybackPlan | null, technical = ""): PlayerFault {
   const src = describeSource(plan);
-  const extra = src ? [src] : [];
+  const extra = [...(src ? [src] : []), ...(technical ? [`Technisch: ${technical}`] : [])];
   if (code === 2) {
     return {
       title: "Verbindung unterbrochen",
       lines: ["Die Übertragung vom Server ist abgebrochen.", "Prüfe das Netzwerk und versuche es erneut.", ...extra],
       retryable: true,
+    };
+  }
+  if (plan?.mediaSourceId === "stremio" && (code === 3 || code === 4)) {
+    // Ohne Jellyfin gibt es hier nichts zum Umwandeln: nur ein anderer Stream hilft.
+    return {
+      title: "Stream nicht abspielbar",
+      lines: [
+        "Dieses Fenster kann Bild oder Ton dieses Streams nicht wiedergeben (häufig HEVC/x265, DTS oder Dolby-Ton in MKV).",
+        "Wähle einen anderen Stream, am besten H.264 mit AAC (MP4).",
+        ...extra,
+      ],
+      retryable: false,
     };
   }
   if (code === 3) {
@@ -376,6 +388,10 @@ export class PlayerEngine {
       let plan: PlaybackPlan;
       if (this.demo) {
         plan = entry.stremio ? makeStremioPlan(entry, this.pendingStart) : makeDemoPlan(entry, this.pendingStart);
+        // „Immer umwandeln“ gilt auch für Stremio-Streams (ohne ffmpeg bleibt es beim direkten Abspielen).
+        if (entry.stremio && loadPrefs().alwaysTranscode) {
+          plan = await plan.replan({ forceTranscode: true, startSec: this.pendingStart, signal: work.signal }).catch(() => plan);
+        }
       } else {
         const ref = entry.jellyfin;
         if (!ref) throw new JfError("Kein Jellyfin-Titel", "protocol");
@@ -422,7 +438,8 @@ export class PlayerEngine {
    */
   private async autoFallback(gen: number, pos: number): Promise<boolean> {
     const plan = this.plan;
-    if (!plan || this.demo || this.autoStep >= 2) return false;
+    // Stremio-Streams haben keinen Server, lassen sich aber lokal mit ffmpeg umwandeln (stremio/plan.ts).
+    if (!plan || (this.demo && plan.mediaSourceId !== "stremio") || this.autoStep >= 2) return false;
     if (this.autoStep === 1 && plan.method !== "DirectStream") return false;
     const reencode = this.autoStep === 1;
     this.autoStep += 1;
@@ -565,8 +582,12 @@ export class PlayerEngine {
             rewriteUrl: ctx && !ctx.viaProxy ? (u) => mediaUrl(ctx, u) : undefined,
             onFatal: (f) => {
               if (gen !== this.gen) return;
-              if (this.attachFail) this.attachFail({ fault: faultFromHls(f, plan) });
-              else this.fail(faultFromHls(f, plan));
+              // Ein Medienfehler im HLS-Strom heißt meist: Bild- oder Tonformat geht hier nicht (z. B. HEVC, AC-3).
+              // Dann hilft die nächste Stufe der Umwandlung, wie bei einem Fehler im <video> selbst.
+              const fault = faultFromHls(f, plan);
+              const unsupported = f.kind === "media";
+              if (this.attachFail) this.attachFail({ fault, unsupported });
+              else this.failOrFallback(fault, unsupported, gen);
             },
           }).then(
             (handle) => {
@@ -732,24 +753,30 @@ export class PlayerEngine {
   private onVideoError() {
     // Leeren der Quelle (removeAttribute + load) löst selbst einen Fehler aus: nur echte Quellen zählen.
     if (!this.sourceActive) return;
-    const code = this.video.error?.code ?? 0;
+    const err = this.video.error;
+    const code = err?.code ?? 0;
     if (code === 1) return; // MEDIA_ERR_ABORTED: von uns ausgelöst
     const unsupported = code === 3 || code === 4;
+    const fault = faultFromMedia(code, this.plan, err?.message?.trim() ?? "");
     if (this.attachFail) {
-      this.attachFail({ fault: faultFromMedia(code, this.plan), unsupported });
+      this.attachFail({ fault, unsupported });
       return;
     }
     // hls.js meldet seine Fehler selbst (und versucht, sie zu beheben).
     if (this.hls) return;
-    const gen = this.gen;
-    const pos = this.video.currentTime || this.lastPos;
-    if (unsupported) {
-      void this.autoFallback(gen, pos).then((handled) => {
-        if (!handled && gen === this.gen) this.fail(faultFromMedia(code, this.plan));
-      });
+    this.failOrFallback(fault, unsupported, this.gen);
+  }
+
+  /** Zeigt den Fehlerdialog – bei einem Formatfehler erst, wenn auch die automatische Umwandlung nicht mehr hilft. */
+  private failOrFallback(fault: PlayerFault, unsupported: boolean, gen: number) {
+    if (!unsupported) {
+      this.fail(fault);
       return;
     }
-    this.fail(faultFromMedia(code, this.plan));
+    const pos = this.video.currentTime || this.lastPos;
+    void this.autoFallback(gen, pos).then((handled) => {
+      if (!handled && gen === this.gen) this.fail(fault);
+    });
   }
 
   /** Zeigt den Fehlerdialog; die Wiedergabe wird angehalten. */

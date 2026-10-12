@@ -83,6 +83,21 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
   absolute URLs des Servers und root-relative Pfade (`/videos/…`) zeigen danach auf den Proxy. Nur GET/HEAD/OPTIONS.
 - `media_proxy_stop()` – beendet den Server.
 
+### Lokales Umwandeln mit ffmpeg (`transcode.rs`)
+Für Stremio-Streams, die das WebView nicht abspielt (HEVC, DTS, MKV …) und für die kein Jellyfin-Server umwandeln kann.
+ffmpeg gehört nicht zur App: Es wird im PATH und an üblichen Orten gesucht (Windows: WinGet-Links, Scoop, Chocolatey,
+`C:\ffmpeg`; macOS: Homebrew), `JELLYSTATION_FFMPEG` überschreibt das.
+
+- `transcode_start({ url }) -> { url, durationSec, video, audio }` – prüft die Quelle (nur http/https, `ffmpeg -i` liest
+  Dauer und Codecs) und startet einen HTTP-Server auf `127.0.0.1` (zufälliger Token im Pfad). Er liefert eine VOD-Wiedergabeliste
+  mit 6-Sekunden-Segmenten (`/t/TOKEN/index.m3u8`, `segN.ts`); jedes Segment wandelt erst beim Abruf ein eigener ffmpeg-Aufruf
+  in H.264 (höchstens 1080p) und Stereo-AAC um, mit den Zeitstempeln der Quelle. Dadurch klappen Springen und Fortsetzen
+  ohne Vorab-Umwandlung. Ein neuer Aufruf ersetzt den laufenden Strom. Fehler `ffmpeg_missing`: ffmpeg nicht gefunden.
+- `transcode_stop()` – beendet den Server.
+
+Im Player: `makeStremioPlan(...).replan({ forceTranscode: true })` (`src/stremio/plan.ts`, `transcode.ts`) liefert den
+lokalen HLS-Plan; die Engine nutzt ihn als automatische Rückfallstufe bei Formatfehlern und bei „Immer umwandeln“.
+
 ### Server-Suche (`discovery.rs`)
 - `jellyfin_discover({ waitMs? }) -> [{ address, id, name }]` – UDP-Broadcast „who is JellyfinServer?“ an Port 7359; jeder Server einmal.
   Der Setup-Assistent sucht beim Öffnen automatisch (nur Desktop-App) und übernimmt einen einzelnen Fund.
@@ -249,7 +264,7 @@ Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`).
 ## Stremio (`src/stremio/`)
 
 Zweite Quelle neben Jellyfin: „Streaming auf Abruf“ über das offene Addon-Protokoll (https://github.com/Stremio/stremio-addon-sdk).
-Die App bringt **keine** Addons mit und empfiehlt keine. Der Nutzer meldet sich unter Einstellungen → „Stremio“ mit seinem Stremio-Konto an
+Die App bringt **keine** Addons mit und empfiehlt keine. Der Nutzer meldet sich unter Einstellungen → „Verbindungen“ → Stremio mit seinem Stremio-Konto an
 (lädt dessen Addons) und/oder trägt Addon-Adressen von Hand ein (`stremio://` und fehlendes `/manifest.json` werden ergänzt, Prüfung per Manifest-Abruf).
 Gespeichert wird `settings.stremio: { addons: [{ id, url, name, fromAccount? }], account?: { email, authKey } }` – **nie das Passwort**.
 
@@ -269,6 +284,7 @@ von Cinemeta wird nur gemeldet, wenn sonst nichts da ist. Ohne Konto und ohne Ad
 - `search.ts` – Suche in allen Addons, deren Katalog `search` versteht (Cinemeta tut das); gleiche Titel erscheinen einmal.
 - `setup/steps.tsx` → `StremioStep` – derselbe Login und Addon-Eintrag als optionaler Schritt 2 des Setup-Assistenten (Schrittnummern: `SETUP_STEP` in `SetupWizard.tsx`).
 - `api.ts` – Netz: In Tauri erst das HTTP-Plugin, scheitert es, das Fetch des Fensters (Rückfall). Netzfehler nennen den Rechner und die technische Ursache („api.strem.io ist nicht erreichbar (…)“). Adressen werden toleriert (`stremio://`, eingefügte `…/configure`-Seite, Anführungszeichen); `parseManifest` füllt fehlenden Namen/ID aus dem jeweils anderen und kommt auch ohne `resources` aus, wenn Kataloge da sind.
+- `src/connections/ConnectionsDialog.tsx` – „Einstellungen → Verbindungen“ (Aktion `open-connections`): eine Zeile je Dienst (Jellyfin, Stremio) mit Statuspunkt und Meldung. Beim Öffnen werden beide geprüft (`testJellyfinAddresses`, `stremio/check.ts` → `checkStremio`: Kontoschlüssel gültig, von Hand eingetragene Addons antworten); ✕ öffnet die Einrichtung (`SetupWizard` mit `onlyStep` bzw. `StremioAddonsDialog`) und kehrt danach zur Liste zurück, △ prüft erneut. Die alten Einträge „Server“ und „Stremio“ in den Einstellungen sind darin aufgegangen.
 - `StremioAddonsDialog.tsx` – Konto-Login/-Abmeldung/-Neuladen, Addon-Liste, Addon von Hand hinzufügen oder (△) entfernen. Konto-Addons verwaltet man in Stremio selbst.
 - `StremioPicker.tsx` – Film: Streams aller Addons mit passendem Typ/ID abfragen → Liste → Player. Serie: Meta laden → Staffeln → Folgen → Streams.
   ○ geht je eine Stufe zurück. `resolve.ts` fragt die Addons gleichzeitig ab; ein stummes Addon hält die anderen nicht auf.
