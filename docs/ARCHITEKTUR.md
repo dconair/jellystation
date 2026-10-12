@@ -239,7 +239,7 @@ Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`).
 ## Stremio (`src/stremio/`)
 
 Zweite Quelle neben Jellyfin: „Streaming auf Abruf“ über das offene Addon-Protokoll (https://github.com/Stremio/stremio-addon-sdk).
-Die App bringt **keine** Addons mit und empfiehlt keine. Der Nutzer meldet sich unter Einstellungen → „Stremio“ mit seinem Stremio-Konto an
+Die App bringt **keine** Addons mit und empfiehlt keine. Der Nutzer meldet sich unter Einstellungen → „Verbindungen“ → Stremio mit seinem Stremio-Konto an
 (lädt dessen Addons) und/oder trägt Addon-Adressen von Hand ein (`stremio://` und fehlendes `/manifest.json` werden ergänzt, Prüfung per Manifest-Abruf).
 Gespeichert wird `settings.stremio: { addons: [{ id, url, name, fromAccount? }], account?: { email, authKey } }` – **nie das Passwort**.
 
@@ -259,6 +259,7 @@ von Cinemeta wird nur gemeldet, wenn sonst nichts da ist. Ohne Konto und ohne Ad
 - `search.ts` – Suche in allen Addons, deren Katalog `search` versteht (Cinemeta tut das); gleiche Titel erscheinen einmal.
 - `setup/steps.tsx` → `StremioStep` – derselbe Login und Addon-Eintrag als optionaler Schritt 2 des Setup-Assistenten (Schrittnummern: `SETUP_STEP` in `SetupWizard.tsx`).
 - `api.ts` – Netz: In Tauri erst das HTTP-Plugin, scheitert es, das Fetch des Fensters (Rückfall). Netzfehler nennen den Rechner und die technische Ursache („api.strem.io ist nicht erreichbar (…)“). Adressen werden toleriert (`stremio://`, eingefügte `…/configure`-Seite, Anführungszeichen); `parseManifest` füllt fehlenden Namen/ID aus dem jeweils anderen und kommt auch ohne `resources` aus, wenn Kataloge da sind.
+- `src/connections/ConnectionsDialog.tsx` – „Einstellungen → Verbindungen“ (Aktion `open-connections`): eine Zeile je Dienst (Jellyfin, Stremio) mit Statuspunkt und Meldung. Beim Öffnen werden beide geprüft (`testJellyfinAddresses`, `stremio/check.ts` → `checkStremio`: Kontoschlüssel gültig, von Hand eingetragene Addons antworten); ✕ öffnet die Einrichtung (`SetupWizard` mit `onlyStep` bzw. `StremioAddonsDialog`) und kehrt danach zur Liste zurück, △ prüft erneut. Die alten Einträge „Server“ und „Stremio“ in den Einstellungen sind darin aufgegangen.
 - `StremioAddonsDialog.tsx` – Konto-Login/-Abmeldung/-Neuladen, Addon-Liste, Addon von Hand hinzufügen oder (△) entfernen. Konto-Addons verwaltet man in Stremio selbst.
 - `StremioPicker.tsx` – Film: Streams aller Addons mit passendem Typ/ID abfragen → Liste → Player. Serie: Meta laden → Staffeln → Folgen → Streams.
   ○ geht je eine Stufe zurück. `resolve.ts` fragt die Addons gleichzeitig ab; ein stummes Addon hält die anderen nicht auf.
