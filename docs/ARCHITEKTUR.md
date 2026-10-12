@@ -258,6 +258,7 @@ von Cinemeta wird nur gemeldet, wenn sonst nichts da ist. Ohne Konto und ohne Ad
   hinter den Serien („Beliebt – Filme“, „Empfohlen – Serien“ …). Davor steht die Einstiegsspalte „Stremio“ (immer sichtbar): „Suchen …“ und „Konto & Addons“. Einträge tragen `entry.stremio` (`StremioRef`).
 - `search.ts` – Suche in allen Addons, deren Katalog `search` versteht (Cinemeta tut das); gleiche Titel erscheinen einmal.
 - `setup/steps.tsx` → `StremioStep` – derselbe Login und Addon-Eintrag als optionaler Schritt 2 des Setup-Assistenten (Schrittnummern: `SETUP_STEP` in `SetupWizard.tsx`).
+- `api.ts` – Netz: In Tauri erst das HTTP-Plugin, scheitert es, das Fetch des Fensters (Rückfall). Netzfehler nennen den Rechner und die technische Ursache („api.strem.io ist nicht erreichbar (…)“). Adressen werden toleriert (`stremio://`, eingefügte `…/configure`-Seite, Anführungszeichen); `parseManifest` füllt fehlenden Namen/ID aus dem jeweils anderen und kommt auch ohne `resources` aus, wenn Kataloge da sind.
 - `StremioAddonsDialog.tsx` – Konto-Login/-Abmeldung/-Neuladen, Addon-Liste, Addon von Hand hinzufügen oder (△) entfernen. Konto-Addons verwaltet man in Stremio selbst.
 - `StremioPicker.tsx` – Film: Streams aller Addons mit passendem Typ/ID abfragen → Liste → Player. Serie: Meta laden → Staffeln → Folgen → Streams.
   ○ geht je eine Stufe zurück. `resolve.ts` fragt die Addons gleichzeitig ab; ein stummes Addon hält die anderen nicht auf.

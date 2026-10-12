@@ -36,7 +36,7 @@ const num = (v: unknown): number | undefined => {
  * `/manifest.json` wird ergänzt. null = keine brauchbare http(s)-Adresse.
  */
 export function normalizeAddonUrl(input: string): string | null {
-  let text = input.trim();
+  let text = input.trim().replace(/^[<"'“„]+|[>"'”“]+$/g, "").trim();
   if (!text) return null;
   if (/^stremio:\/\//i.test(text)) text = `https://${text.slice("stremio://".length)}`;
   else if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) text = `https://${text}`;
@@ -48,7 +48,8 @@ export function normalizeAddonUrl(input: string): string | null {
   }
   if ((url.protocol !== "https:" && url.protocol !== "http:") || !url.hostname) return null;
   url.hash = "";
-  const path = url.pathname.replace(/\/+$/, "");
+  // Wer die „Konfigurieren“-Seite eines Addons kopiert (…/configure), meint dessen manifest.json.
+  const path = url.pathname.replace(/\/+$/, "").replace(/\/configure$/i, "");
   url.pathname = /\/manifest\.json$/i.test(path) ? path : `${path}/manifest.json`;
   return url.toString();
 }
@@ -71,17 +72,43 @@ interface RequestInit2 {
 }
 
 async function send(url: string, signal: AbortSignal, init: RequestInit2): Promise<Response> {
+  const headers: Record<string, string> = init.body !== undefined ? { "Content-Type": "application/json" } : { Accept: "application/json" };
   const opts: RequestInit = {
     signal,
     method: init.method ?? "GET",
-    headers: { Accept: "application/json", ...(init.body !== undefined ? { "Content-Type": "application/json" } : {}) },
+    headers,
     ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
   };
   if (isTauri()) {
-    const { fetch } = await import("@tauri-apps/plugin-http");
-    return fetch(url, opts);
+    // Erst über das HTTP-Plugin (Rust, kein CORS); scheitert es (Proxy, TLS, Plugin), versucht es noch das Fetch des Fensters.
+    try {
+      const { fetch } = await import("@tauri-apps/plugin-http");
+      return await fetch(url, opts);
+    } catch (err) {
+      if (signal.aborted) throw err;
+      try {
+        return await window.fetch(url, opts);
+      } catch {
+        throw err;
+      }
+    }
   }
   return window.fetch(url, opts);
+}
+
+/** Der Rechnername einer Adresse für Fehlertexte. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
+/** Technische Ursache eines abgelehnten fetch (Tauri liefert Text, der Browser einen TypeError), gekürzt für die Anzeige. */
+function detailOf(err: unknown): string {
+  const text = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  return text.replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").trim().slice(0, 140);
 }
 
 /** Ruft eine Adresse mit Zeitlimit ab und liefert Status und Text; Netzfehler werden zu einem StremioError. */
@@ -98,7 +125,12 @@ async function fetchText(url: string, outer: AbortSignal | undefined, init: Requ
   } catch (err) {
     if (outer?.aborted) throw abortError();
     if (err instanceof StremioError) throw err;
-    throw new StremioError(timeout.aborted ? "Zeitüberschreitung – Addon antwortet nicht" : "Addon nicht erreichbar");
+    const host = hostOf(url);
+    if (timeout.aborted) throw new StremioError(`Zeitüberschreitung – ${host} antwortet nicht`);
+    const detail = detailOf(err);
+    // Im Browser meldet fetch bei fehlendem CORS-Header, Netzfehler und Blocker nur „Failed to fetch“ – die Desktop-App hat dieses Problem nicht.
+    const hint = isTauri() ? "Internetverbindung, VPN oder Firewall prüfen" : "im Browser kann auch CORS blockieren – die Desktop-App hat das Problem nicht";
+    throw new StremioError(`${host} ist nicht erreichbar (${detail ? `${detail}; ` : ""}${hint})`);
   } finally {
     timeout.removeEventListener("abort", abort);
     outer?.removeEventListener("abort", abort);
@@ -112,7 +144,7 @@ async function getJson(url: string, outer?: AbortSignal): Promise<unknown> {
   try {
     return JSON.parse(res.text);
   } catch {
-    throw new StremioError("Antwort des Addons ist kein gültiges JSON");
+    throw new StremioError(/^\s*<(!doctype|html)/i.test(res.text) ? "Die Adresse liefert eine Webseite statt der manifest.json" : "Antwort des Addons ist kein gültiges JSON");
   }
 }
 
@@ -150,24 +182,38 @@ function parseCatalog(raw: unknown): ManifestCatalog | null {
 
 export function parseManifest(json: unknown): Manifest {
   const o = obj(json);
-  if (!o || !str(o.id) || !str(o.name) || !Array.isArray(o.resources)) {
+  const catalogs = (Array.isArray(o?.catalogs) ? o.catalogs : []).map(parseCatalog).filter((c): c is ManifestCatalog => !!c);
+  // Ältere Addons nennen keine `resources`: dann liefern sie Kataloge samt Infos.
+  const rawResources = Array.isArray(o?.resources) ? o.resources : catalogs.length ? ["catalog", "meta"] : null;
+  const id = str(o?.id) || str(o?.name);
+  const name = str(o?.name) || str(o?.id);
+  if (!o || !id || !name || !rawResources) {
     throw new StremioError("Das ist kein Stremio-Addon (Manifest unvollständig)");
   }
   const idPrefixes = strList(o.idPrefixes);
   return {
-    id: str(o.id),
-    name: str(o.name),
+    id,
+    name,
     ...(str(o.description) ? { description: str(o.description) } : {}),
     ...(str(o.version) ? { version: str(o.version) } : {}),
     types: strList(o.types),
     ...(idPrefixes.length ? { idPrefixes } : {}),
-    resources: o.resources.map(parseResource).filter((r): r is ManifestResource => !!r),
-    catalogs: (Array.isArray(o.catalogs) ? o.catalogs : []).map(parseCatalog).filter((c): c is ManifestCatalog => !!c),
+    resources: rawResources.map(parseResource).filter((r): r is ManifestResource => !!r),
+    catalogs,
   };
 }
 
 export async function fetchManifest(manifestUrl: string, signal?: AbortSignal): Promise<Manifest> {
-  return parseManifest(await getJson(manifestUrl, signal));
+  let json: unknown;
+  try {
+    json = await getJson(manifestUrl, signal);
+  } catch (err) {
+    if (err instanceof StremioError && /\(404\)/.test(err.message)) {
+      throw new StremioError("Unter dieser Adresse gibt es kein Addon (404) – kopiere den Link über „Installieren“ → „Link kopieren“ der Addon-Seite");
+    }
+    throw err;
+  }
+  return parseManifest(json);
 }
 
 /** Kann das Addon diese Ressource für Typ und ID liefern? (Manifest-Regeln: Ressource, sonst oberste Ebene.) */
