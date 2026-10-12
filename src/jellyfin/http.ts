@@ -121,10 +121,12 @@ export async function jfRaw(auth: JfAuth, path: string, init: JfRequestInit = {}
     if (init.signal?.aborted) throw abortError();
     if (err instanceof JfError) throw err;
     const timedOut = link.timedOut();
-    throw new JfError(
-      timedOut ? "Zeitüberschreitung – Server nicht erreichbar" : "Server nicht erreichbar",
-      timedOut ? "timeout" : "network",
-    );
+    // Der technische Grund (z. B. „connection refused“, „dns error“, „not allowed on the configured scope“) steht in der
+    // Meldung, damit sich ein Tailscale-/Firewall-/Proxy-Problem von einem App-Fehler unterscheiden lässt.
+    const detail = (err instanceof Error ? err.message : typeof err === "string" ? err : "").trim().replace(/\s+/g, " ").slice(0, 160);
+    console.warn(`Jellyfin: Anfrage an ${auth.base} fehlgeschlagen –`, err);
+    const base = timedOut ? "Zeitüberschreitung – Server nicht erreichbar" : "Server nicht erreichbar";
+    throw new JfError(!timedOut && detail ? `${base} (${detail})` : base, timedOut ? "timeout" : "network");
   } finally {
     link.dispose();
   }
