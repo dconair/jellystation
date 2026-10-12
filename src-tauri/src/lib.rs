@@ -7,6 +7,7 @@ pub mod library;
 pub mod hashing;
 pub mod media_proxy;
 pub mod requirements;
+pub mod transcode;
 pub mod web;
 
 #[cfg(test)]
@@ -34,6 +35,8 @@ pub fn run() {
         // Lokaler Medien-Proxy für <video>/hls.js (Anmeldung, http im LAN) – media_proxy.rs
         .manage(media_proxy::MediaProxy::default())
         // Automatische Spiele-Cover (eingebettet + libretro-Thumbnails, mit Cache) – covers.rs
+        // Lokales Umwandeln von Stream-Adressen mit ffmpeg (Stremio) – transcode.rs
+        .manage(transcode::Transcode::default())
         .manage(covers::Covers::default())
         // Downloads (Emulatoren, Firmware, Spiele von eigenen Adressen) mit Fortschritt und Abbruch – downloads.rs
         .manage(downloads::Downloads::default())
@@ -47,6 +50,8 @@ pub fn run() {
             discovery::jellyfin_discover,
             media_proxy::media_proxy_start,
             media_proxy::media_proxy_stop,
+            transcode::transcode_start,
+            transcode::transcode_stop,
             emulators::emulator_find,
             emulators::emulator_inspect,
             emulators::game_launch,

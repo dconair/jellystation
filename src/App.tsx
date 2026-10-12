@@ -374,7 +374,7 @@ function Main({
                     : e.action === "open-requirements"
                       ? { ...e, subtitle: filesSummary }
                     : e.action === "toggle-transcode"
-                      ? { ...e, subtitle: alwaysTranscode ? "Immer vom Server umwandeln" : "Direkt, wenn möglich" }
+                      ? { ...e, subtitle: alwaysTranscode ? "Immer umwandeln" : "Direkt, wenn möglich" }
                     : e.action === "open-stremio"
                       ? { ...e, subtitle: stremioSummary }
                     : e.action === "choose-jellyfin-user"
@@ -500,7 +500,7 @@ function Main({
         const next = !loadPrefs().alwaysTranscode;
         savePrefs({ alwaysTranscode: next ? true : undefined });
         setAlwaysTranscode(next);
-        notify(next ? "Der Server wandelt jetzt immer um" : "Dateien werden direkt abgespielt, wenn möglich");
+        notify(next ? "Titel werden jetzt immer umgewandelt" : "Dateien werden direkt abgespielt, wenn möglich");
       }
       else if (entry.action === "add-bookmark") openOverlay({ kind: "bookmarkAdd" });
       else if (entry.id.startsWith("bm/")) {

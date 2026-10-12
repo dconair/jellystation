@@ -83,6 +83,21 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
   absolute URLs des Servers und root-relative Pfade (`/videos/…`) zeigen danach auf den Proxy. Nur GET/HEAD/OPTIONS.
 - `media_proxy_stop()` – beendet den Server.
 
+### Lokales Umwandeln mit ffmpeg (`transcode.rs`)
+Für Stremio-Streams, die das WebView nicht abspielt (HEVC, DTS, MKV …) und für die kein Jellyfin-Server umwandeln kann.
+ffmpeg gehört nicht zur App: Es wird im PATH und an üblichen Orten gesucht (Windows: WinGet-Links, Scoop, Chocolatey,
+`C:\ffmpeg`; macOS: Homebrew), `JELLYSTATION_FFMPEG` überschreibt das.
+
+- `transcode_start({ url }) -> { url, durationSec, video, audio }` – prüft die Quelle (nur http/https, `ffmpeg -i` liest
+  Dauer und Codecs) und startet einen HTTP-Server auf `127.0.0.1` (zufälliger Token im Pfad). Er liefert eine VOD-Wiedergabeliste
+  mit 6-Sekunden-Segmenten (`/t/TOKEN/index.m3u8`, `segN.ts`); jedes Segment wandelt erst beim Abruf ein eigener ffmpeg-Aufruf
+  in H.264 (höchstens 1080p) und Stereo-AAC um, mit den Zeitstempeln der Quelle. Dadurch klappen Springen und Fortsetzen
+  ohne Vorab-Umwandlung. Ein neuer Aufruf ersetzt den laufenden Strom. Fehler `ffmpeg_missing`: ffmpeg nicht gefunden.
+- `transcode_stop()` – beendet den Server.
+
+Im Player: `makeStremioPlan(...).replan({ forceTranscode: true })` (`src/stremio/plan.ts`, `transcode.ts`) liefert den
+lokalen HLS-Plan; die Engine nutzt ihn als automatische Rückfallstufe bei Formatfehlern und bei „Immer umwandeln“.
+
 ### Server-Suche (`discovery.rs`)
 - `jellyfin_discover({ waitMs? }) -> [{ address, id, name }]` – UDP-Broadcast „who is JellyfinServer?“ an Port 7359; jeder Server einmal.
   Der Setup-Assistent sucht beim Öffnen automatisch (nur Desktop-App) und übernimmt einen einzelnen Fund.

@@ -388,6 +388,10 @@ export class PlayerEngine {
       let plan: PlaybackPlan;
       if (this.demo) {
         plan = entry.stremio ? makeStremioPlan(entry, this.pendingStart) : makeDemoPlan(entry, this.pendingStart);
+        // „Immer umwandeln“ gilt auch für Stremio-Streams (ohne ffmpeg bleibt es beim direkten Abspielen).
+        if (entry.stremio && loadPrefs().alwaysTranscode) {
+          plan = await plan.replan({ forceTranscode: true, startSec: this.pendingStart, signal: work.signal }).catch(() => plan);
+        }
       } else {
         const ref = entry.jellyfin;
         if (!ref) throw new JfError("Kein Jellyfin-Titel", "protocol");
@@ -434,7 +438,8 @@ export class PlayerEngine {
    */
   private async autoFallback(gen: number, pos: number): Promise<boolean> {
     const plan = this.plan;
-    if (!plan || this.demo || this.autoStep >= 2) return false;
+    // Stremio-Streams haben keinen Server, lassen sich aber lokal mit ffmpeg umwandeln (stremio/plan.ts).
+    if (!plan || (this.demo && plan.mediaSourceId !== "stremio") || this.autoStep >= 2) return false;
     if (this.autoStep === 1 && plan.method !== "DirectStream") return false;
     const reencode = this.autoStep === 1;
     this.autoStep += 1;
