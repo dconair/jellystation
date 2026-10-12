@@ -307,6 +307,9 @@ export async function fetchMeta(manifestUrl: string, type: StremioType, id: stri
 
 /* ------------------------------------------------------------------ Streams */
 
+/** Formate, die ein Browser-Fenster (WebView) oft nicht abspielt: HEVC/x265, DTS, TrueHD, Dolby Vision. */
+const HARD_FORMATS = /\b(hevc|x\.?265|h\.?265|dts(?:-hd)?|truehd|atmos|dolby[ .-]?vision|dovi)\b/i;
+
 /**
  * Wandelt die Stream-Liste eines Addons um. Abspielbar ist nur eine direkte http(s)-Adresse ohne besondere Header;
  * Torrent (`infoHash`), YouTube (`ytId`), externe Seiten und Nzb/Archive zählt der Rückgabewert als übersprungen.
@@ -324,13 +327,15 @@ export function parseStreams(raw: unknown, addonId: string, addonName: string): 
       skipped += 1;
       continue;
     }
+    const name = str(o.name).replace(/\s*\n\s*/g, " ");
+    const description = (str(o.description) || str(o.title)).replace(/\s*\n\s*/g, " · ");
     playable.push({
       addonId,
       addonName,
       url,
-      name: str(o.name).replace(/\s*\n\s*/g, " "),
-      description: (str(o.description) || str(o.title)).replace(/\s*\n\s*/g, " · "),
-      risky: hints?.notWebReady === true,
+      name,
+      description,
+      risky: hints?.notWebReady === true || HARD_FORMATS.test(`${name} ${description}`),
     });
   }
   return { playable, skipped };
