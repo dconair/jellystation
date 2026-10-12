@@ -11,6 +11,7 @@ import { emulatorFind, emulatorInspect, errorText } from "./backend";
 import type { FindMatch, FindSpec, InspectResult } from "./backend";
 import { EMULATORS } from "./catalog";
 import type { EmulatorDef } from "./catalog";
+import { rememberEmulatorApp } from "./requirements";
 import { freshStatus, uncheckedStatus } from "./status";
 import type { EmulatorStatus } from "./status";
 
@@ -83,7 +84,7 @@ export const LOCATION_ADVICE = "Verschiebe die App am besten in den Ordner „Pr
  * Bestimmt den Status eines Emulators. `override` ist der gewählte Pfad, `matches` die Treffer der automatischen
  * Suche (beste zuerst), `searchError` der Grund, falls die Suche selbst scheiterte.
  */
-async function resolveStatus(
+async function resolveStatusRaw(
   def: EmulatorDef,
   override: string | undefined,
   matches: readonly FindMatch[],
@@ -142,6 +143,18 @@ async function resolveStatus(
     };
   }
   return { ...status, error: autoError ?? searchError };
+}
+
+/** Wie `resolveStatusRaw`, merkt sich aber das gefundene Programm (BIOS-/Firmware-Prüfung sucht neben der .exe). */
+async function resolveStatus(
+  def: EmulatorDef,
+  override: string | undefined,
+  matches: readonly FindMatch[],
+  searchError: string | null,
+): Promise<EmulatorStatus> {
+  const status = await resolveStatusRaw(def, override, matches, searchError);
+  rememberEmulatorApp(def.id, status.valid ? status.path : null);
+  return status;
 }
 
 const specOf = (def: EmulatorDef): FindSpec => ({ id: def.id, appPattern: def.appPattern, bundleIds: def.bundleIds });

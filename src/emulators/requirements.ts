@@ -38,11 +38,15 @@ export interface Requirement {
   maxSize?: number;
   /** Pfade relativ zu den Emulator-Ordnern, an denen man eine fertig eingerichtete Datei erkennt. */
   markers?: string[];
-  /** Datenordner des Emulators (Dateien liegen dort schon richtig). */
+  /**
+   * Datenordner des Emulators (Dateien liegen dort schon richtig). "{appdir}" steht für den Ordner der Emulator-Programmdatei
+   * (nur Windows: dort legen z. B. RPCS3 und shadPS4 ihre Daten neben die .exe); ist der Emulator unbekannt, entfällt der Eintrag.
+   */
   emulatorDirs: string[];
   /**
    * true = der Ablageort ist nicht sicher bekannt (z. B. bei RPCS3 auf dem Mac): „nicht gefunden“ ist dann nur ein
-   * Hinweis und blockiert weder den Spielstart noch die Einrichtungsprüfung.
+   * Hinweis und blockiert weder den Spielstart noch die Einrichtungsprüfung. Sicher wird er (`RequirementStatus.sure`),
+   * sobald ein „{appdir}“-Ort geprüft werden konnte.
    */
   uncertain?: boolean;
   /** Ordner im Emulator, in den `bios_copy` die Datei legt; null = nicht kopierbar (Einspielen im Emulator). */
@@ -94,7 +98,7 @@ export const REQUIREMENTS: Requirement[] = [
     required: true,
     description:
       "Die offizielle PS3-Systemsoftware (Datei PS3UPDAT.PUP, rund 200 MB). Sony stellt sie kostenlos auf der PlayStation-Support-Seite bereit; RPCS3 braucht sie einmalig.",
-    installHint: "Einspielen in RPCS3: Datei → Firmware installieren → PS3UPDAT.PUP wählen.",
+    installHint: "Einspielen in RPCS3: Datei → Firmware installieren → PS3UPDAT.PUP wählen. Liegt die Datei schon im BIOS-Ordner, geht es auch mit einem Klick unter „Einrichtung & Downloads“ → PS3-Firmware → „Jetzt mit RPCS3 einspielen“.",
     links: [
       { label: "Sony: PS3-Systemsoftware laden", url: "https://www.playstation.com/en-us/support/hardware/ps3/system-software/" },
       { label: "RPCS3: Schnellstart-Anleitung", url: "https://rpcs3.net/quickstart" },
@@ -103,7 +107,10 @@ export const REQUIREMENTS: Requirement[] = [
     nameRegex: "\\.pup$",
     minSize: 50 * MiB,
     markers: ["sys/external/liblv2.sprx"],
+    // Windows: RPCS3 legt dev_flash neben die rpcs3.exe (bei einem Ordner „portable“ dort hinein; fs::get_config_dir).
     emulatorDirs: [
+      "{appdir}/portable/dev_flash",
+      "{appdir}/dev_flash",
       "~/Library/Application Support/rpcs3/dev_flash",
       "~/.config/rpcs3/dev_flash",
     ],
@@ -114,6 +121,42 @@ export const REQUIREMENTS: Requirement[] = [
 
 export const requirementsFor = (emulatorId: string): Requirement[] =>
   REQUIREMENTS.filter((r) => r.emulatorId === emulatorId);
+
+/* ------------------------------------------------------------------ Bekannte Emulator-Programme */
+
+/** Programmpfade der gefundenen Emulatoren (Emulator-ID → Pfad); die Erkennung (detect.ts) trägt sie ein. */
+const knownApps = new Map<string, string>();
+const appListeners = new Set<() => void>();
+
+/** Merkt sich (oder vergisst) den Programmpfad eines Emulators; Hörer erfahren von jeder Änderung. */
+export function rememberEmulatorApp(emulatorId: string, path: string | null): void {
+  if ((knownApps.get(emulatorId) ?? null) === path) return;
+  if (path) knownApps.set(emulatorId, path);
+  else knownApps.delete(emulatorId);
+  for (const fn of appListeners) fn();
+}
+
+/** Meldet sich für Änderungen an den bekannten Emulator-Programmen an; die Rückgabe meldet wieder ab. */
+export function subscribeEmulatorApps(fn: () => void): () => void {
+  appListeners.add(fn);
+  return () => {
+    appListeners.delete(fn);
+  };
+}
+
+/** Ordner einer Windows-Programmdatei ("D:\\Emu\\rpcs3.exe" → "D:/Emu"), sonst null (macOS-.app und Linux legen Daten anderswo ab). */
+export function windowsAppDir(path: string | null | undefined): string | null {
+  if (!path || !/\.exe$/i.test(path)) return null;
+  const dir = path.replace(/\\/g, "/").replace(/\/[^/]*$/, "");
+  return dir && dir !== path ? dir : null;
+}
+
+/** Ersetzt "{appdir}" in einem Ort; ohne bekanntes Windows-Programm gibt es keinen Ort (null). */
+function expandAppDir(dir: string, emulatorId: string): string | null {
+  if (!dir.includes("{appdir}")) return dir;
+  const app = windowsAppDir(knownApps.get(emulatorId));
+  return app ? dir.replace("{appdir}", app) : null;
+}
 
 export type RequirementState =
   /** Beim Emulator vorhanden – bereit. */
@@ -133,14 +176,22 @@ export interface RequirementStatus {
   /** Datei im BIOS-Ordner (für „In den Emulator übernehmen“). */
   folderPath?: string;
   error?: string;
+  /** true = der Ablageort wurde sicher geprüft (ein „{appdir}“-Ort war bekannt), „fehlt“ ist dann verlässlich. */
+  sure?: boolean;
 }
+
+/** Gilt „fehlt“ nur als Vermutung? */
+export const isUncertain = (s: Pick<RequirementStatus, "req" | "sure">): boolean => !!s.req.uncertain && !s.sure;
 
 export const biosDirOf = (settingsBiosDir?: string) => (settingsBiosDir && settingsBiosDir.trim()) || DEFAULT_BIOS_DIR;
 
 const specOf = (r: Requirement, biosDir: string): RequirementScanSpec => ({
   id: r.id,
   locations: [
-    ...r.emulatorDirs.map((dir) => ({ kind: "emulator" as const, dir })),
+    ...r.emulatorDirs.flatMap((dir) => {
+      const real = expandAppDir(dir, r.emulatorId);
+      return real ? [{ kind: "emulator" as const, dir: real }] : [];
+    }),
     { kind: "folder" as const, dir: biosDir },
   ],
   nameRegex: r.nameRegex,
@@ -160,11 +211,13 @@ export async function checkRequirements(biosDir: string, reqs: readonly Requirem
     return reqs.map((req) => {
       const found = results.find((x) => x.id === req.id)?.found ?? [];
       // Ein Marker-Treffer im Emulator-Ordner = fertig eingerichtet; Dateimuster dort ebenfalls (BIOS-Dateien).
-      const inEmu = found.find((f) => f.kind === "emulator" && (req.markers?.length ? req.markers.some((m) => f.path.endsWith(m)) : true));
+      const inEmu = found.find((f) => f.kind === "emulator" && (req.markers?.length ? req.markers.some((m) => f.path.replace(/\\/g, "/").endsWith(m)) : true));
       const inFolder = found.find((f) => f.kind === "folder");
-      if (inEmu) return { req, state: "ready" as const, path: inEmu.path, folderPath: inFolder?.path };
-      if (inFolder) return { req, state: "in-folder" as const, path: inFolder.path, folderPath: inFolder.path };
-      return { req, state: "missing" as const };
+      // Sicher, wenn der Ort neben der Windows-Programmdatei bekannt ist (dort liegen die Daten verlässlich).
+      const sure = req.emulatorDirs.some((dir) => dir.includes("{appdir}") && expandAppDir(dir, req.emulatorId) !== null);
+      if (inEmu) return { req, state: "ready" as const, path: inEmu.path, folderPath: inFolder?.path, sure };
+      if (inFolder) return { req, state: "in-folder" as const, path: inFolder.path, folderPath: inFolder.path, sure };
+      return { req, state: "missing" as const, sure };
     });
   } catch (err) {
     return reqs.map((req) => ({ req, state: "unknown" as const, error: errorText(err) }));
@@ -187,7 +240,7 @@ export function describeRequirement(s: RequirementStatus): { text: string; tone:
         ? { text: "Im BIOS-Ordner gefunden – noch in den Emulator übernehmen", tone: "warn" }
         : { text: "Datei gefunden – noch im Emulator einspielen", tone: "warn" };
     case "missing":
-      if (s.req.uncertain) return { text: "Nicht gefunden – falls du sie schon in den Emulator eingespielt hast, ist alles in Ordnung", tone: "warn" };
+      if (isUncertain(s)) return { text: "Nicht gefunden – falls du sie schon in den Emulator eingespielt hast, ist alles in Ordnung", tone: "warn" };
       return { text: s.req.required ? "Fehlt" : "Fehlt (optional)", tone: s.req.required ? "error" : "warn" };
     default:
       return { text: s.error ?? "Nur in der Desktop-App prüfbar", tone: undefined };
@@ -197,7 +250,7 @@ export function describeRequirement(s: RequirementStatus): { text: string; tone:
 /** Dateien, die sicher fehlen (ohne die mit unsicherem Ablageort) – sie blockieren den Start und die Einrichtungsprüfung. */
 export function blockingMissing(statuses: readonly RequirementStatus[], emulatorIds?: ReadonlySet<string>): RequirementStatus[] {
   return statuses.filter(
-    (s) => s.req.required && !s.req.uncertain && (s.state === "missing" || s.state === "in-folder") && (!emulatorIds || emulatorIds.has(s.req.emulatorId)),
+    (s) => s.req.required && !isUncertain(s) && (s.state === "missing" || s.state === "in-folder") && (!emulatorIds || emulatorIds.has(s.req.emulatorId)),
   );
 }
 

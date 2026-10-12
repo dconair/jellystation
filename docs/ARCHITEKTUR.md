@@ -112,6 +112,10 @@ lokalen HLS-Plan; die Engine nutzt ihn als automatische Rückfallstufe bei Forma
 - `requirements_scan({ specs: [{ id, locations: [{ kind: "emulator"|"folder", dir }], nameRegex?, minSize, maxSize, markers[] }] }) -> [{ id, found: [{ kind, dir, path, size }] }]` –
   sucht Dateien nach Namensmuster/Größe (im BIOS-Ordner auch eine Ebene tiefer) und Markerdateien (z. B. `sys/external/liblv2.sprx` der
   eingespielten PS3-Firmware). `~` wird aufgelöst. Katalog und Auswertung: `src/emulators/requirements.ts`.
+  Orte dürfen `{appdir}` enthalten (Ordner der gefundenen Windows-`.exe`; z. B. liegt RPCS3s `dev_flash` neben der `rpcs3.exe`, bei einem
+  Ordner `portable` darin). Die Erkennung (`detect.ts`) merkt sich die Programmpfade (`rememberEmulatorApp`); ist ein `{appdir}`-Ort
+  geprüft, gilt „fehlt“ als sicher (`RequirementStatus.sure`) und blockiert den Start mit einer klaren Meldung. Die PS3-Firmware lässt sich
+  unter „Einrichtung & Downloads“ per `rpcs3 --installfw <PUP>` einspielen.
 - `bios_copy({ from, toDir }) -> string` – kopiert eine Datei des Nutzers in einen Emulator-Datenordner; Ziel nur im Benutzerordner, nie überschreiben.
 - Frontend: Setup-Schritt „Dateien“ (`FilesStep`), Dialog `RequirementsDialog`, Vorabprüfung `preflight` in `useGameLauncher`.
 
@@ -120,6 +124,9 @@ lokalen HLS-Plan; die Engine nutzt ihn als automatische Rückfallstufe bei Forma
   `.app`-Bundles (Name passt auf den regulären Ausdruck `appPattern`, ohne Groß-/Kleinschreibung) in `/Applications`,
   `~/Applications`, deren direkten Unterordnern, `~/Downloads`, `~/Desktop` und per Spotlight (`mdfind`, nur macOS).
   `source` ∈ `applications | user-applications | subfolder | downloads | desktop | spotlight`. Beste Treffer zuerst.
+  Unter Windows wird stattdessen nach `.exe` gesucht (das Muster wird von `….app$` auf `….exe$` umgestellt; Installationsordner der App
+  `%LOCALAPPDATA%\JellyStation\Emulators`, `Programs`, `C:\Emulators`/`Emulatoren`/`Emulation` (auch `D:`), Programme, Downloads, Schreibtisch;
+  bis zu drei Ebenen tief, Updater/Deinstaller werden übersprungen). `emulator_inspect`/`game_launch` verlangen dort eine `.exe`/`.com`/`.bat`/`.cmd`.
 - `emulator_inspect({ path }) -> { path, exists, kind: "bundle"|"file"|"other", executable, name, bundleId, version, error }` –
   prüft einen vom Nutzer gewählten Pfad: bei einer `.app` wird `Contents/Info.plist` gelesen (`CFBundleExecutable`),
   die Programmdatei in `Contents/MacOS` aufgelöst und auf Ausführbarkeit geprüft; bei einer Datei die Ausführbarkeit.
@@ -151,6 +158,9 @@ Frontend `src/diagnose/`:
   PS3-`.PUP` beginnt mit „SCEUF“, BIOS nicht nur Nullen/Einsen), alle Spieldateien der Bibliothek (lesbar, nicht leer, `.cue`-/`.m3u`-Teile vorhanden, kein Archiv,
   passende Endung, Ordnerform bei PS3/PS4/PSP). Ergebnis: `DiagnoseReport` mit `Finding`s (`error|warn|info|ok`, Erklärung mit nächstem Schritt, optional `fix`).
   `applyFix()` führt `copy-bios` (über `bios_copy`) und `clear-quarantine` aus; `open-emulators|open-files|open-games-dir` öffnet der Aufrufer.
+- Protokoll von RPCS3 (`RPCS3.log`): Windows `<rpcs3.exe-Ordner>/log/` (bzw. `portable/log/`), sonst im Cache-Ordner. Es wird nach einem
+  fehlgeschlagenen Start gelesen; nur die gezielten RPCS3-Regeln (Firmware fehlt/zu alt, Disc-Schlüssel fehlt, Pfad kein Spiel, Installationsort ohne
+  Schreibrechte) werten es aus. Die Texte stammen aus `Emulator.cpp` (`game_boot_result`) und `rpcs3.cpp`.
 - `rules.ts` – reine Regeln: erlaubte Endungen je Emulator, Protokollpfade, Muster für typische Fehlermeldungen (BIOS/Firmware/Lizenz/Abbild/Rechte/Quarantäne/Architektur/Grafik …).
   Die Muster sind bewusst weit gefasst, die Texte vorsichtig („vermutlich“). Es gibt **keine** Hashlisten bekannter BIOS-Dateien (nichts davon wird mitgeliefert).
 - `DiagnoseDialog.tsx` – Liste der Befunde (Probleme, Hinweise, In Ordnung), „Behebbares beheben“, „Neu prüfen“, Protokolle, „Bericht kopieren“.

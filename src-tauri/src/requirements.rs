@@ -55,8 +55,10 @@ pub struct RequirementResult {
 }
 
 fn home() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
+    // Unter Windows zuerst USERPROFILE (HOME kann dort auf etwas Fremdes zeigen, z. B. von Git Bash gesetzt).
+    let (first, second) = if cfg!(windows) { ("USERPROFILE", "HOME") } else { ("HOME", "USERPROFILE") };
+    std::env::var_os(first)
+        .or_else(|| std::env::var_os(second))
         .map(PathBuf::from)
 }
 

@@ -4,7 +4,7 @@ import type { Settings } from "../settings/settings";
 import { ConfirmDialog, MessageDialog, PopupList, ProgressDialog } from "../ui/popup";
 import type { PopupItem, PopupStatus } from "../ui/popup";
 import { baseName, openExternal } from "../emulators/actions";
-import { biosCopy } from "../emulators/backend";
+import { biosCopy, gameLaunch, onGameExit } from "../emulators/backend";
 import { describeStatus, tildePath } from "../emulators/status";
 import type { EmulatorStatus } from "../emulators/status";
 import type { EmulatorsState } from "../emulators/useEmulators";
@@ -247,6 +247,30 @@ export function InstallDialog(props: InstallDialogProps) {
     }
   };
 
+  /**
+   * Lässt RPCS3 die Firmware aus dem BIOS-Ordner einspielen (`rpcs3 --installfw <PUP>`, siehe rpcs3.cpp). RPCS3 öffnet sich,
+   * zeigt den Fortschritt und bleibt offen; sobald es sich schließt, wird neu geprüft.
+   */
+  const installFirmwareWithRpcs3 = async (s: RequirementStatus, rpcs3: EmulatorStatus) => {
+    const pup = s.folderPath ?? s.path;
+    if (!pup || !rpcs3.path) return;
+    const id = "setup:rpcs3-firmware";
+    try {
+      const off = onGameExit((exit) => {
+        if (exit.id !== id) return;
+        off();
+        void live.current.requirements.refresh();
+      });
+      await gameLaunch({ id, program: rpcs3.path, args: ["--installfw", pup], label: "RPCS3 (Firmware einspielen)" });
+      message("info", "RPCS3 spielt die Firmware ein", [
+        "RPCS3 öffnet sich gleich und installiert die PS3-Firmware (dauert ein bis zwei Minuten, der Fortschritt steht in RPCS3).",
+        "Wenn es fertig ist, schließe RPCS3. Danach prüft JellyStation die Firmware erneut.",
+      ]);
+    } catch (err) {
+      message("error", "RPCS3 ließ sich nicht öffnen", [errorText(err), "Spiele die Firmware alternativ in RPCS3 ein: Datei → Firmware installieren."]);
+    }
+  };
+
   const downloadFirmware = async (s: RequirementStatus, rawUrl: string) => {
     const url = rawUrl.trim();
     const id = `fw-${s.req.id}`;
@@ -405,6 +429,8 @@ export function InstallDialog(props: InstallDialogProps) {
       const acts: PopupItem[] = [{ id: "file", label: "Datei von meinem Computer wählen …", detail: "Wird geprüft und im BIOS-Ordner abgelegt" }];
       if (s.state !== "missing" && s.state !== "unknown") acts.push({ id: "check", label: "Gefundene Datei prüfen", detail: tildePath(s.folderPath ?? s.path ?? "") });
       if (s.state === "in-folder" && s.req.copyTo) acts.push({ id: "copy", label: "In den Emulator übernehmen", detail: tildePath(s.folderPath ?? "") });
+      const rpcs3 = s.req.id === "ps3-firmware" ? emulators.statuses.find((e) => e.def.id === "rpcs3" && e.valid && e.path) : undefined;
+      if (rpcs3 && s.state === "in-folder") acts.push({ id: "rpcs3-install", label: "Jetzt mit RPCS3 einspielen", detail: "RPCS3 öffnet sich und installiert die gefundene Datei" });
       if (s.req.id === "ps3-firmware") acts.push({ id: "sony-direct", label: "Direkt von Sony laden (Version 4.93)", detail: "Offizieller Sony-Server, rund 206 MB, kostenlos" });
       if (s.req.id === "ps3-firmware") acts.push({ id: "sony", label: "Von Sony laden (Link einfügen) …", detail: "Nur offizielle Sony-Server werden akzeptiert" });
       for (const l of s.req.links) acts.push({ id: `link:${l.url}`, label: l.label, detail: "Öffnet den Browser" });
@@ -419,6 +445,7 @@ export function InstallDialog(props: InstallDialogProps) {
           footer={{ text: s.req.description, kind: "info" }}
           onSelect={(id) => {
             if (id === "file") void chooseFileFor(s);
+            else if (id === "rpcs3-install" && rpcs3) void installFirmwareWithRpcs3(s, rpcs3);
             else if (id === "check") void checkFound(s);
             else if (id === "copy") {
               setJob({ title: s.req.label, status: "Kopiere …", progress: null });

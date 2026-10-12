@@ -1441,3 +1441,38 @@ fn random_paths_and_ids_never_panic_inspection_and_search() {
         assert_eq!(hits.len(), 1);
     }
 }
+
+/* ------------------------------------------------------------------------------- Windows: .exe-Suche */
+
+#[test]
+fn windows_pattern_turns_app_into_exe() {
+    assert_eq!(windows_pattern("^RPCS3.*\\.app$", "rpcs3"), "^RPCS3.*\\.exe$");
+    assert_eq!(windows_pattern("seltsam", "shadps4"), "^shadps4.*\\.exe$");
+}
+
+#[test]
+fn finds_windows_programs_by_name_and_skips_helpers() {
+    let dir = TempDir::new("winexe");
+    write_file(&dir.path().join("Emu/RPCS3/rpcs3.exe"), "x", 0o644);
+    write_file(&dir.path().join("Emu/RPCS3/rpcs3-updater.exe"), "x", 0o644);
+    write_file(&dir.path().join("Emu/RPCS3/notes.txt"), "x", 0o644);
+    write_file(&dir.path().join("Downloads/rpcs3.exe"), "x", 0o644);
+    write_file(&dir.path().join("Downloads/a/b/c/d/rpcs3.exe"), "x", 0o644);
+    let roots = vec![
+        (dir.path().join("Emu"), "applications"),
+        (dir.path().join("Downloads"), "downloads"),
+    ];
+    let hits = find_windows_programs(&roots, &[spec("rpcs3", "^RPCS3.*\\.app$", &[])]);
+    let paths: Vec<_> = hits[0]
+        .matches
+        .iter()
+        .map(|m| (m.path.replace(dir.path().to_str().unwrap(), ""), m.source))
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            ("/Emu/RPCS3/rpcs3.exe".to_string(), "applications"),
+            ("/Downloads/rpcs3.exe".to_string(), "downloads"),
+        ]
+    );
+}
