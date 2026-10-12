@@ -108,6 +108,19 @@ fn is_executable(meta: &fs::Metadata) -> bool {
     }
 }
 
+/// Unter Windows startet nur eine Programmdatei (`.exe`, `.com`, `.bat`, `.cmd`); eine `.txt` oder `.iso` gilt nicht als Emulator.
+/// Auf anderen Systemen immer `true` (dort entscheidet das Ausführungsrecht).
+fn has_program_extension(path: &Path) -> bool {
+    if !cfg!(windows) {
+        return true;
+    }
+    path.extension().is_some_and(|ext| {
+        ["exe", "com", "bat", "cmd"]
+            .iter()
+            .any(|known| ext.eq_ignore_ascii_case(known))
+    })
+}
+
 fn is_plain_file_name(name: &str) -> bool {
     !name.is_empty() && name != "." && name != ".." && !name.contains(['/', '\\', '\0'])
 }
@@ -212,7 +225,12 @@ pub fn resolve_program(program: &str, home: &Path) -> Result<Resolved, String> {
         let executable = resolve_bundle_executable(&path, info.executable.as_deref())?;
         return Ok(Resolved { executable });
     }
-    if is_executable(&meta) {
+    if !has_program_extension(&path) {
+        Err(format!(
+            "Das ist keine Programmdatei (.exe): {}",
+            path.display()
+        ))
+    } else if is_executable(&meta) {
         Ok(Resolved { executable: path })
     } else {
         Err(format!(
@@ -286,7 +304,12 @@ pub fn inspect(path_text: &str, home: &Path) -> Inspection {
         out.name = path
             .file_name()
             .map(|name| name.to_string_lossy().into_owned());
-        if is_executable(&meta) {
+        if !has_program_extension(&path) {
+            out.error = Some(format!(
+                "Das ist keine Programmdatei (.exe): {}",
+                path.display()
+            ));
+        } else if is_executable(&meta) {
             out.executable = Some(out.path.clone());
         } else {
             out.error = Some(format!(
@@ -625,8 +648,129 @@ pub fn spotlight_bundle(bundle_id: &str, budget: Duration) -> Vec<PathBuf> {
         .unwrap_or_default()
 }
 
+/// Namen, die in einem Emulator-Ordner liegen, aber nicht der Emulator selbst sind.
+const WINDOWS_SKIP_NAMES: &str = r"(unins|uninstall|update|updater|crash|vc_?redist|setup|installer|helper)";
+/// So tief unter einem Suchort wird nach Programmen gesucht (Ordner / Unterordner / Unter-Unterordner).
+const WINDOWS_MAX_DEPTH: usize = 3;
+/// Höchstens so viele Ordner werden pro Suchort angesehen (ein riesiger Downloads-Ordner soll die Suche nicht bremsen).
+const WINDOWS_MAX_DIRS: usize = 1500;
+
+/// Aus dem `.app`-Suchmuster des Katalogs das passende für `.exe`-Dateien machen ("^RPCS3.*\\.app$" → "^RPCS3.*\\.exe$").
+fn windows_pattern(app_pattern: &str, id: &str) -> String {
+    let trimmed = app_pattern.trim();
+    match trimmed.strip_suffix(r"\.app$") {
+        Some(head) => format!(r"{head}\.exe$"),
+        None => format!(r"^{}.*\.exe$", regex::escape(id)),
+    }
+}
+
+/// Sucht unter Windows `.exe`-Dateien der Emulatoren in den üblichen Ordnern: dem Installationsordner der App, `C:\Emulators`,
+/// Programme, Downloads und Schreibtisch. Gleiche Reihenfolge wie bei den Apps: bessere Quellen zuerst, nähere Treffer vor tieferen.
+pub fn find_windows_programs(
+    roots: &[(PathBuf, &'static str)],
+    specs: &[EmulatorSpec],
+) -> Vec<EmulatorHits> {
+    let skip = RegexBuilder::new(WINDOWS_SKIP_NAMES)
+        .case_insensitive(true)
+        .build()
+        .ok();
+    // Alle .exe je Suchort einmal einsammeln: (Pfad, Quelle).
+    let mut exes: Vec<(PathBuf, &'static str)> = Vec::new();
+    for (root, source) in roots {
+        let mut queue: VecDeque<(PathBuf, usize)> = VecDeque::from([(root.clone(), 0)]);
+        let mut seen_dirs = 0usize;
+        while let Some((dir, depth)) = queue.pop_front() {
+            seen_dirs += 1;
+            if seen_dirs > WINDOWS_MAX_DIRS {
+                break;
+            }
+            let Ok(entries) = fs::read_dir(&dir) else { continue };
+            let mut paths: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+            sort_entries(&mut paths);
+            for path in paths {
+                let name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                if is_hidden_or_trash(&name) {
+                    continue;
+                }
+                if is_dir(&path) {
+                    if depth + 1 < WINDOWS_MAX_DEPTH {
+                        queue.push_back((path, depth + 1));
+                    }
+                } else if path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
+                    && !skip.as_ref().is_some_and(|re| re.is_match(&name))
+                {
+                    exes.push((path, source));
+                }
+            }
+        }
+    }
+    specs
+        .iter()
+        .map(|spec| {
+            let pattern = windows_pattern(&spec.app_pattern, &spec.id);
+            let (regex, error) = match compile_pattern(&pattern) {
+                Ok(regex) => (regex, None),
+                Err(message) => (None, Some(message)),
+            };
+            let mut seen = HashSet::new();
+            let mut matches = Vec::new();
+            if let Some(regex) = &regex {
+                for (path, source) in &exes {
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    if regex.is_match(&name) && seen.insert(path.clone()) {
+                        matches.push(EmulatorMatch {
+                            path: path.to_string_lossy().into_owned(),
+                            source,
+                        });
+                    }
+                }
+            }
+            EmulatorHits {
+                id: spec.id.clone(),
+                matches,
+                error,
+            }
+        })
+        .collect()
+}
+
+/// Die Suchorte unter Windows (nur vorhandene Ordner), beste Quelle zuerst.
+fn windows_search_roots(home: &Path) -> Vec<(PathBuf, &'static str)> {
+    let mut roots: Vec<(PathBuf, &'static str)> = Vec::new();
+    if let Some(local) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from) {
+        // Hierhin installiert „Einrichtung & Downloads“ die Emulatoren.
+        roots.push((local.join("JellyStation").join("Emulators"), "applications"));
+        roots.push((local.join("Programs"), "user-applications"));
+    }
+    for drive in ["C:", "D:"] {
+        for name in ["Emulators", "Emulatoren", "Emulation"] {
+            roots.push((PathBuf::from(format!("{drive}\\{name}")), "applications"));
+        }
+    }
+    for var in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Some(dir) = std::env::var_os(var).map(PathBuf::from) {
+            roots.push((dir, "applications"));
+        }
+    }
+    roots.push((home.join("Downloads"), "downloads"));
+    roots.push((home.join("Desktop"), "desktop"));
+    roots.retain(|(dir, _)| is_dir(dir));
+    roots
+}
+
 /// Suche an den echten Orten dieses Rechners. Spotlight nur unter macOS und insgesamt höchstens 5 Sekunden.
 pub fn find_on_this_machine(home: &Path, specs: &[EmulatorSpec]) -> Vec<EmulatorHits> {
+    if cfg!(windows) {
+        return find_windows_programs(&windows_search_roots(home), specs);
+    }
     let roots = SearchRoots::system(home);
     if cfg!(target_os = "macos") {
         let deadline = Instant::now() + Duration::from_secs(5);

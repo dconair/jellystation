@@ -7,6 +7,7 @@
  * Fehlt ein Muster oder ist eines zu weit, genügt es, hier die Liste anzupassen.
  */
 import type { EmulatorDef } from "../emulators/catalog";
+import { windowsAppDir } from "../emulators/requirements";
 import type { FileProbe } from "./backend";
 import type { DiagnoseContext, DiagnoseGame, Finding, FixAction } from "./types";
 
@@ -45,7 +46,10 @@ export const looksLikeArchive = (headHex: string): boolean =>
  * übersprungen – die Diagnose arbeitet dann nur mit der Ausgabe des Prozesses.
  */
 export const EMULATOR_LOGS: Record<string, readonly string[]> = {
+  // macOS/Linux: das Protokoll liegt im Cache-Ordner (fs::get_log_dir = get_cache_dir); Windows siehe emulatorLogPaths.
   rpcs3: [
+    "~/Library/Caches/rpcs3/RPCS3.log",
+    "~/.cache/rpcs3/RPCS3.log",
     "~/Library/Application Support/rpcs3/RPCS3.log",
     "~/Library/Application Support/rpcs3/log/RPCS3.log",
     "~/.config/rpcs3/RPCS3.log",
@@ -79,9 +83,11 @@ export const EMULATOR_LOGS: Record<string, readonly string[]> = {
  */
 export function emulatorLogPaths(emulatorId: string, appPath?: string | null): string[] {
   const fixed = EMULATOR_LOGS[emulatorId] ?? [];
-  if (emulatorId === "shadps4" && appPath && /\.exe$/i.test(appPath)) {
-    const dir = appPath.replace(/[\\/][^\\/]*$/, "");
-    if (dir && dir !== appPath) return [`${dir}/user/log/shad_log.txt`, ...fixed];
+  const dir = windowsAppDir(appPath);
+  if (dir) {
+    if (emulatorId === "shadps4") return [`${dir}/user/log/shad_log.txt`, ...fixed];
+    // RPCS3 unter Windows: Daten neben der rpcs3.exe, bei einem Ordner „portable“ darin (fs::get_config_dir).
+    if (emulatorId === "rpcs3") return [`${dir}/portable/log/RPCS3.log`, `${dir}/log/RPCS3.log`, ...fixed];
   }
   return [...fixed];
 }
@@ -111,6 +117,52 @@ const openFiles = (label: string) => (c: RuleContext): FixAction | undefined =>
   c.def ? { fix: { kind: "open-files", emulatorId: c.def.id }, label, auto: false } : undefined;
 
 export const OUTPUT_RULES: readonly OutputRule[] = [
+  // --- RPCS3: die Meldungen stammen aus dem Quellcode (Emulator.cpp: game_boot_result, rpcs3.cpp: report_fatal_error)
+  {
+    id: "disc-key",
+    test: /Missing decryption key for the disc|Wrong decryption key for the disc|encrypted and no matching decryption key|does not decrypt it|Failed to decrypt content/i,
+    emulators: ["rpcs3"],
+    level: "error",
+    title: "Das PS3-Abbild ist verschlüsselt (Disc-Schlüssel fehlt)",
+    detail: () =>
+      "Dieses Disc-Abbild (.iso) ist so verschlüsselt, wie es von der Original-Disc gesichert wird, und RPCS3 hat keinen passenden Schlüssel dafür. Lege den zugehörigen Disc-Schlüssel (.dkey) deiner eigenen Disc in den Ordner „data/redump“ neben der rpcs3.exe (den genauen Pfad nennt das Protokoll) oder benutze ein entschlüsseltes Abbild bzw. den entpackten Spieleordner (PS3_GAME). JellyStation liefert und lädt keine Schlüssel.",
+  },
+  {
+    id: "firmware-old",
+    test: /Firmware is too old/i,
+    emulators: ["rpcs3"],
+    level: "error",
+    title: "PS3-Firmware ist zu alt",
+    detail: () => "Das Spiel braucht eine neuere PS3-Firmware, als in RPCS3 eingespielt ist. Spiele die aktuelle PS3UPDAT.PUP von Sony ein (Datei → Firmware installieren).",
+    fix: openFiles("BIOS & Firmware"),
+  },
+  {
+    id: "invalid-target",
+    test: /reason: (Invalid file or folder|Wrong disc location|Invalid dev_bdvd folder|Nothing to boot)|Invalid file or folder|Wrong disc location/i,
+    emulators: ["rpcs3"],
+    level: "error",
+    title: "RPCS3 erkennt das Spiel nicht",
+    detail: () =>
+      "RPCS3 kann an diesem Pfad kein startbares PS3-Spiel erkennen. Ein Spieleordner muss den Unterordner „PS3_GAME“ enthalten (entpackt, mit USRDIR und PARAM.SFO); bei einem Abbild muss es eine vollständige, nicht beschädigte .iso sein. Installationspakete (.pkg) werden vorher in RPCS3 über „Datei → .pkg installieren“ eingespielt.",
+  },
+  {
+    id: "disc-type",
+    test: /This disc type is not supported yet|reason: Generic error/i,
+    emulators: ["rpcs3"],
+    level: "error",
+    title: "RPCS3 kann diese Disc nicht starten",
+    detail: () => "RPCS3 kennt dieses Abbild-Format nicht oder kann es nicht lesen. Prüfe, ob die Datei vollständig ist, und starte das Spiel notfalls als entpackten Ordner (PS3_GAME).",
+  },
+  {
+    id: "install-location",
+    test: /cannot be installed in Program Files|Cannot create\s*'[^']*'\s*or\s*'[^']*'\s*\(access denied\)|Cannot create\s*'[^']*'\s*or\s*'[^']*'\s*\(error=/i,
+    emulators: ["rpcs3"],
+    level: "error",
+    title: "RPCS3 darf an seinem Ort nichts schreiben",
+    detail: () =>
+      "RPCS3 legt Einstellungen, Protokoll und Firmware neben die rpcs3.exe und braucht dort Schreibrechte. In „Programme“ oder ähnlichen geschützten Ordnern geht das nicht. Verschiebe den ganzen RPCS3-Ordner z. B. nach C:\\Emulatoren\\RPCS3 und wähle die rpcs3.exe unter Emulatoren neu aus.",
+    fix: (c) => (c.def ? { fix: { kind: "open-emulators", emulatorId: c.def.id }, label: "Emulatoren öffnen", auto: false } : undefined),
+  },
   {
     id: "bios",
     test: /(no|missing|could ?n[o']t find|cannot find|can'?t find|not found|requires?|need)[^\n]{0,50}\bbios\b|\bbios\b[^\n]{0,50}(not found|missing|not set|could ?n[o']t|invalid|required|error|failed)/i,
@@ -189,7 +241,7 @@ export const OUTPUT_RULES: readonly OutputRule[] = [
     level: "error",
     title: "Zugriff verweigert",
     detail: (c) =>
-      `macOS erlaubt ${name(c)} den Zugriff auf eine Datei oder einen Ordner nicht. Öffne Systemeinstellungen → Datenschutz & Sicherheit → Dateien und Ordner (oder Festplattenvollzugriff) und erlaube ${name(c)} den Ordner, in dem das Spiel liegt.`,
+      `${name(c)} darf auf eine Datei oder einen Ordner nicht zugreifen. Mac: Systemeinstellungen → Datenschutz & Sicherheit → Dateien und Ordner (oder Festplattenvollzugriff). Windows: Liegt das Spiel in einem geschützten Ordner oder auf einem Laufwerk ohne Rechte? Verschiebe es z. B. nach C:\\Spiele und prüfe, ob ein Virenschutz den Zugriff sperrt.`,
   },
   {
     id: "quarantine",
@@ -237,7 +289,7 @@ export const OUTPUT_RULES: readonly OutputRule[] = [
     test: /another instance|already running|single[- ]instance/i,
     level: "warn",
     title: "Der Emulator läuft vielleicht schon im Hintergrund",
-    detail: (c) => `Eine zweite Instanz von ${name(c)} startet nicht. Beende den Emulator im Dock bzw. mit ⌘Q und versuche es erneut.`,
+    detail: (c) => `Eine zweite Instanz von ${name(c)} startet nicht. Beende den Emulator (Dock bzw. ⌘Q auf dem Mac, Task-Manager unter Windows) und versuche es erneut.`,
   },
   {
     id: "graphics",
@@ -250,10 +302,12 @@ export const OUTPUT_RULES: readonly OutputRule[] = [
 ];
 
 /** Alle Regeln, die auf die Zeilen passen: pro Regel höchstens ein Befund mit den ersten Trefferzeilen als Auszug. */
-export function analyzeOutput(lines: readonly string[], ctx: RuleContext, idPrefix: string): Finding[] {
+export function analyzeOutput(lines: readonly string[], ctx: RuleContext, idPrefix: string, specificOnly = false): Finding[] {
   const out: Finding[] = [];
   for (const rule of OUTPUT_RULES) {
     if (rule.emulators && (!ctx.def || !rule.emulators.includes(ctx.def.id))) continue;
+    // Das Protokoll von RPCS3 ist lang und voller harmloser „error“-Zeilen: dort zählen nur die gezielten Regeln.
+    if (specificOnly && !rule.emulators) continue;
     const hits = lines.filter((l) => rule.test.test(l));
     if (hits.length === 0) continue;
     out.push({
@@ -315,6 +369,10 @@ export function explainExit(ctx: DiagnoseContext, def: EmulatorDef | null): Find
     detail += " Das ist ein Absturz des Emulators. Häufige Gründe: fehlende Firmware/BIOS, ein beschädigtes Abbild oder die Grafikeinstellungen.";
   } else if (exit.code !== null && exit.code !== 0) {
     detail += " Der Code allein nennt die Ursache nicht; die Ausgabe des Emulators steht darunter.";
+  }
+  if (def?.id === "rpcs3" && quick && !signal) {
+    detail +=
+      " Bei RPCS3 steckt dahinter fast immer eines von dreien: die PS3-Firmware ist nicht eingespielt, das Disc-Abbild ist verschlüsselt und es fehlt der Disc-Schlüssel, oder der Pfad zeigt nicht auf ein startbares Spiel (Ordner mit PS3_GAME bzw. vollständige .iso). RPCS3 schreibt den Grund in sein Protokoll (RPCS3.log) – die Prüfung unten liest es aus.";
   }
   const out = [...exit.stderrTail];
   if (out.length === 0) out.push(...exit.stdoutTail);

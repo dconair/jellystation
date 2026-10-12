@@ -336,8 +336,13 @@ pub fn newest_log(candidates: &[String], lines: usize, home: Option<&Path>) -> O
         if has_parent_component(&p) {
             continue;
         }
+        // Protokolle liegen im Benutzerordner – oder neben dem Emulator (Windows: z. B. D:\\Emulatoren\\RPCS3\\log\\RPCS3.log).
+        // Außerhalb zählen deshalb nur Dateien, die wie ein Protokoll heißen.
         if let Some(h) = home {
-            if !p.starts_with(h) {
+            let looks_like_log = p
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("log") || ext.eq_ignore_ascii_case("txt"));
+            if !p.starts_with(h) && !looks_like_log {
                 continue;
             }
         }
@@ -367,7 +372,10 @@ pub fn newest_log(candidates: &[String], lines: usize, home: Option<&Path>) -> O
 #[tauri::command]
 pub async fn diag_log_tail(candidates: Vec<String>, lines: Option<usize>) -> Option<LogTail> {
     tauri::async_runtime::spawn_blocking(move || {
-        let home = std::env::var_os("HOME").map(PathBuf::from);
+        // Unter Windows ist HOME meist nicht gesetzt, dort gilt USERPROFILE.
+        let home = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .map(PathBuf::from);
         newest_log(&candidates, lines.unwrap_or(120), home.as_deref())
     })
     .await

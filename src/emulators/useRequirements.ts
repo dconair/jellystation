@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { REQUIREMENTS, checkRequirements } from "./requirements";
+import { REQUIREMENTS, checkRequirements, subscribeEmulatorApps } from "./requirements";
 import type { RequirementStatus } from "./requirements";
 
 export interface RequirementsState {
@@ -36,6 +36,9 @@ export function useRequirements(biosDir: string): RequirementsState {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Wird ein Emulator erst später gefunden (oder neu gewählt), liegt auch sein Datenordner neu fest: noch einmal prüfen.
+  useEffect(() => subscribeEmulatorApps(() => void refresh()), [refresh]);
 
   return { statuses, loading, refresh };
 }

@@ -200,7 +200,7 @@ function Main({
       const fresh = await checkRequirements(biosDirOf(biosDir), requirementsFor(def.id));
       const lacking = blockingMissing(fresh);
       if (lacking.length === 0) return null;
-      return `${def.name} braucht noch: ${lacking.map((s) => s.req.label).join(", ")}.`;
+      return `${def.name} braucht noch: ${lacking.map((s) => s.req.label).join(", ")}. ${lacking.map((s) => s.req.installHint).join(" ")}`;
     },
     onNeedFiles: (emulatorId, message) => openOverlay({ kind: "files", focusEmulatorId: emulatorId, message }),
     // Ein Spiel startet nicht: gleich die Diagnose mit Ursache und Behebung zeigen.

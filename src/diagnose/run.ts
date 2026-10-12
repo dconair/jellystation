@@ -7,7 +7,7 @@
 import { errorText, launchLogTail } from "../emulators/backend";
 import { EMULATORS, emulatorForSystem, getEmulator } from "../emulators/catalog";
 import type { EmulatorDef } from "../emulators/catalog";
-import { checkRequirements, describeRequirement, installRequirement, requirementsFor } from "../emulators/requirements";
+import { checkRequirements, describeRequirement, installRequirement, isUncertain, requirementsFor } from "../emulators/requirements";
 import type { RequirementStatus } from "../emulators/requirements";
 import { tildePath } from "../emulators/status";
 import type { EmulatorStatus } from "../emulators/status";
@@ -164,12 +164,12 @@ async function requirementFindings(input: DiagnoseInput, relevantIds: ReadonlySe
       continue;
     }
     if (s.state === "missing") {
-      const level: Level = s.req.uncertain ? "info" : s.req.required ? "error" : "warn";
+      const level: Level = isUncertain(s) ? "info" : s.req.required ? "error" : "warn";
       findings.push({
         id,
         level,
         title: `${s.req.label} fehlt`,
-        detail: `${s.req.description} ${s.req.uncertain ? "Ob sie eingespielt ist, kann die App hier nicht sicher feststellen." : "Lege die Datei in den BIOS-Ordner der App und übernimm sie danach in den Emulator."}`,
+        detail: `${s.req.description} ${isUncertain(s) ? "Ob sie eingespielt ist, kann die App hier nicht sicher feststellen." : (s.req.copyTo ? "Lege die Datei in den BIOS-Ordner der App und übernimm sie danach in den Emulator." : `Lege die Datei in den BIOS-Ordner der App und spiele sie dann ein. ${s.req.installHint}`)}`,
         emulatorId,
         fix: { fix: { kind: "open-files", emulatorId }, label: "BIOS & Firmware", auto: false },
         links: s.req.links,
@@ -317,7 +317,7 @@ export async function runDiagnosis(input: DiagnoseInput): Promise<DiagnoseReport
         const fresh = tail.modifiedMs > 0 && at - tail.modifiedMs < FRESH_LOG_MS;
         if (fresh) {
           const seen = new Set(findings.map((f) => f.id.replace(/^[a-z]+-/, "")));
-          for (const f of analyzeOutput(tail.lines, rc, "log")) {
+          for (const f of analyzeOutput(tail.lines, rc, "log", ctxDef.id === "rpcs3")) {
             if (seen.has(f.id.replace(/^[a-z]+-/, ""))) continue; // schon aus der Ausgabe bekannt
             add({ ...f, level: "warn", title: `${f.title} (laut Protokoll)` });
           }
