@@ -31,11 +31,17 @@ export const ALT_PING_TIMEOUT_MS = 8000;
 /** In Tauri über das HTTP-Plugin (Rust, kein CORS/ATS), im Browser über window.fetch. */
 async function request(url: string, headers: Record<string, string>, ms = TEST_TIMEOUT_MS) {
   const signal = AbortSignal.timeout(ms);
-  if (isTauri()) {
-    const { fetch } = await import("@tauri-apps/plugin-http");
-    return fetch(url, { headers, signal });
+  try {
+    if (isTauri()) {
+      const { fetch } = await import("@tauri-apps/plugin-http");
+      return await fetch(url, { headers, signal });
+    }
+    return await window.fetch(url, { headers, signal });
+  } catch (err) {
+    // Das HTTP-Plugin meldet den Abbruch als Text „Request canceled“ statt als TimeoutError – an der Frist erkennen.
+    if (signal.aborted) throw new DOMException("Zeitüberschreitung", "TimeoutError");
+    throw err;
   }
-  return window.fetch(url, { headers, signal });
 }
 
 /** Meldung zu einem HTTP-Fehlerstatus der Server-Info. 403 kommt von Jellyfin, wenn „Fernzugriff“ aus ist und die Anfrage von außerhalb des LAN kommt. */
@@ -52,7 +58,12 @@ function networkHint(err: unknown): string {
     return "Zeitüberschreitung – Server nicht erreichbar. Läuft Tailscale auf beiden Geräten, und erlaubt die Firewall des Servers Port 8096 auch im Tailscale-Netz?";
   }
   const detail = (err instanceof Error ? err.message : typeof err === "string" ? err : "").trim().replace(/\s+/g, " ");
-  return detail ? `Server nicht erreichbar (${detail.slice(0, 160)})` : "Server nicht erreichbar";
+  if (!detail) return "Server nicht erreichbar";
+  // „error sending request“ heißt: keine Verbindung (Port zu, Name unbekannt, Netz weg) – der Grund steckt nicht in der Meldung.
+  const hint = /error sending request/i.test(detail)
+    ? ". Adresse und Port 8096 prüfen; unterwegs muss Tailscale auf beiden Geräten laufen."
+    : "";
+  return `Server nicht erreichbar (${detail.slice(0, 160)})${hint}`;
 }
 
 /**
