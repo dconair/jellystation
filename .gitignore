@@ -4,3 +4,7 @@ src-tauri/target
 src-tauri/gen
 *.local
 .DS_Store
+
+# ffmpeg, das die Build-Workflows in die Installer legen
+src-tauri/ffmpeg-bin/
+src-tauri/tauri.ffmpeg.conf.json

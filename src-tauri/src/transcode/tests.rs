@@ -30,7 +30,7 @@ fn nur_netzadressen() {
 /// und prüfen, dass Segmente gültiges H.264/AAC ergeben. Wird übersprungen, wenn kein ffmpeg da ist.
 #[tokio::test(flavor = "multi_thread")]
 async fn segmente_aus_einer_datei() {
-    let Some(ffmpeg) = find_ffmpeg() else {
+    let Some(ffmpeg) = find_ffmpeg(&[]) else {
         eprintln!("ffmpeg fehlt – Test übersprungen");
         return;
     };
@@ -49,7 +49,7 @@ async fn segmente_aus_einer_datei() {
         return;
     }
     let url = src.to_string_lossy().to_string();
-    let (ffmpeg, probe) = prepare(&url, "file,pipe", Some(ffmpeg)).expect("prepare");
+    let (ffmpeg, probe) = prepare(&url, "file,pipe", &[], Some(ffmpeg)).expect("prepare");
     assert_eq!(probe.video.as_deref(), Some("hevc"));
     assert!((probe.duration - 14.0).abs() < 0.5, "Dauer {}", probe.duration);
 

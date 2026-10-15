@@ -40,13 +40,33 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      # ffmpeg legt der Installer mit in die App (Stremio-Streams, die das Fenster nicht abspielt, werden damit lokal
+      # umgewandelt – siehe docs/ARCHITEKTUR.md, „Lokales Umwandeln“). Schlägt das Holen fehl, entsteht der Installer
+      # trotzdem, nur ohne ffmpeg.
+      - name: ffmpeg für den Installer holen
+        id: ffmpeg
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p src-tauri/ffmpeg-bin "$RUNNER_TEMP/ffmpeg"
+          gh release download latest -R BtbN/FFmpeg-Builds -p "ffmpeg-master-latest-win64-gpl.zip" -D "$RUNNER_TEMP/ffmpeg" --clobber
+          7z e "$RUNNER_TEMP/ffmpeg/ffmpeg-master-latest-win64-gpl.zip" "*/bin/ffmpeg.exe" -o"src-tauri/ffmpeg-bin" -y
+          src-tauri/ffmpeg-bin/ffmpeg.exe -hide_banner -encoders | grep libx264
+          cat > src-tauri/ffmpeg-bin/NOTICE.txt <<'EOF'
+          Dieses Verzeichnis enthält ein unverändertes ffmpeg (GPL-Build, mit libx264) zum lokalen Umwandeln von Streams.
+          ffmpeg steht unter der GNU GPL v3. Quellcode und Lizenztexte: https://ffmpeg.org und https://github.com/BtbN/FFmpeg-Builds
+          EOF
+          echo '{"bundle":{"resources":{"ffmpeg-bin/*":"ffmpeg/"}}}' > src-tauri/tauri.ffmpeg.conf.json
+          echo "ok=true" >> "$GITHUB_OUTPUT"
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # Leer (Pull Request) = nur bauen, keine Release anfassen
           tagName: ${{ github.event_name == 'push' && github.ref_name || github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
-          args: --bundles nsis,msi
+          args: --bundles nsis,msi ${{ steps.ffmpeg.outputs.ok == 'true' && '--config src-tauri/tauri.ffmpeg.conf.json' || '' }}
       # Installer ein zweites Mal mit festem, versionslosem Namen anhängen (für den Link im README)
       - name: Installer mit festem Namen hochladen
         if: github.event_name != 'pull_request'

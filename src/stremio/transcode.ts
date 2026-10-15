@@ -12,7 +12,7 @@ export interface TranscodeInfo {
 }
 
 const MISSING_HELP =
-  "ffmpeg wurde nicht gefunden. Installiere es (Windows: „winget install Gyan.FFmpeg“, macOS: „brew install ffmpeg“) und starte JellyStation neu.";
+  "ffmpeg wurde nicht gefunden (in den Installern ist es enthalten). Installiere es (Windows: „winget install Gyan.FFmpeg“, macOS: „brew install ffmpeg“) und starte JellyStation neu.";
 
 /**
  * Wandelt eine Stream-Adresse lokal mit ffmpeg in einen abspielbaren HLS-Strom um. Wirft JfError("unplayable"),

@@ -17,6 +17,10 @@ on:
         default: ""
   push:
     tags: ["v*"]
+  # Testlauf ohne Release, wenn nur dieser Workflow geändert wird (z. B. im Pull Request)
+  pull_request:
+    paths:
+      - ".github/workflows/build-mac.yml"
 
 permissions:
   contents: write
@@ -31,10 +35,12 @@ jobs:
             args: --target aarch64-apple-darwin
             target: aarch64-apple-darwin
             name: AppleSilicon
+            ffmpeg: ffmpeg-darwin-arm64
           - os: macos-15-intel # Intel
             args: --target x86_64-apple-darwin
             target: x86_64-apple-darwin
             name: Intel
+            ffmpeg: ffmpeg-darwin-x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -49,20 +55,43 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      # ffmpeg legt die DMG mit in die App (Stremio-Streams, die das Fenster nicht abspielt, werden damit lokal
+      # umgewandelt – siehe docs/ARCHITEKTUR.md, „Lokales Umwandeln“). Schlägt das Holen fehl, entsteht die DMG
+      # trotzdem, nur ohne ffmpeg. Die Programmdatei wird ad-hoc signiert, sonst startet sie auf Apple Silicon nicht.
+      - name: ffmpeg für die DMG holen
+        id: ffmpeg
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p src-tauri/ffmpeg-bin
+          gh release download b6.0 -R eugeneware/ffmpeg-static -p "${{ matrix.ffmpeg }}" -D src-tauri/ffmpeg-bin --clobber
+          mv "src-tauri/ffmpeg-bin/${{ matrix.ffmpeg }}" src-tauri/ffmpeg-bin/ffmpeg
+          chmod +x src-tauri/ffmpeg-bin/ffmpeg
+          codesign --force -s - src-tauri/ffmpeg-bin/ffmpeg
+          src-tauri/ffmpeg-bin/ffmpeg -hide_banner -encoders | grep libx264
+          cat > src-tauri/ffmpeg-bin/NOTICE.txt <<'EOF'
+          Dieses Verzeichnis enthält ein unverändertes ffmpeg (GPL-Build, mit libx264) zum lokalen Umwandeln von Streams.
+          ffmpeg steht unter der GNU GPL v3. Quellcode und Lizenztexte: https://ffmpeg.org und https://github.com/eugeneware/ffmpeg-static
+          EOF
+          echo '{"bundle":{"resources":{"ffmpeg-bin/*":"ffmpeg/"}}}' > src-tauri/tauri.ffmpeg.conf.json
+          echo "ok=true" >> "$GITHUB_OUTPUT"
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag || format('build-{0}', github.run_number) }}
+          # Im Pull Request leer = nur bauen, keine Release anfassen
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag || github.event_name != 'pull_request' && format('build-{0}', github.run_number) || '' }}
           releaseName: JellyStation ${{ github.ref_type == 'tag' && github.ref_name || format('(Testbuild {0})', github.run_number) }}
           releaseBody: |
             Nicht signierte Mac-App. Beim ersten Öffnen: Rechtsklick → „Öffnen“.
             Spiele, BIOS und Firmware bringst du selbst mit – siehe docs/ANLEITUNG-MAC.md.
           releaseDraft: false
           prerelease: true
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ steps.ffmpeg.outputs.ok == 'true' && '--config src-tauri/tauri.ffmpeg.conf.json' || '' }}
       # DMG ein zweites Mal mit festem, versionslosem Namen anhängen (für die Links im README)
       - name: DMG mit festem Namen hochladen
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag || format('build-{0}', github.run_number) }}
