@@ -302,7 +302,7 @@ function Main({
     () => ({
       id: "games-get",
       label: "Spiele laden",
-      icon: "games",
+      icon: "download",
       entries: [
         {
           id: "gg-link",

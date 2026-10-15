@@ -147,6 +147,124 @@ const glyphs: Record<CategoryIconName, Glyph> = {
     ),
   },
 
+  // Einträge der Einstellungen-Spalte: gleiche Machart wie die Kategorie-Icons (Silhouette, Aussparungen für Details).
+
+  // Ordner mit Reiter.
+  folder: {
+    fill: (p) => <path d="M2.4 6.6a2.2 2.2 0 0 1 2.2-2.2h4.6l2.3 2.6h7.9a2.2 2.2 0 0 1 2.2 2.2v8.8a2.2 2.2 0 0 1-2.2 2.2H4.6a2.2 2.2 0 0 1-2.2-2.2z" fill={p} />,
+    cut: <rect x="2.4" y="9.4" width="19.2" height="1.3" fill={K} />,
+  },
+
+  // Liste: drei Zeilen mit Punkt.
+  list: {
+    fill: (p) => (
+      <>
+        <circle cx="4.6" cy="6.4" r="1.8" fill={p} />
+        <circle cx="4.6" cy="12" r="1.8" fill={p} />
+        <circle cx="4.6" cy="17.6" r="1.8" fill={p} />
+        <rect x="8.6" y="5" width="12.8" height="2.8" rx="1.4" fill={p} />
+        <rect x="8.6" y="10.6" width="12.8" height="2.8" rx="1.4" fill={p} />
+        <rect x="8.6" y="16.2" width="12.8" height="2.8" rx="1.4" fill={p} />
+      </>
+    ),
+  },
+
+  // Download: Pfeil in eine Ablage.
+  download: {
+    fill: (p) => (
+      <>
+        <rect x="10.4" y="2.6" width="3.2" height="8.6" rx="0.8" fill={p} />
+        <path d="M5.8 10.2 12 16.4l6.2-6.2z" fill={p} stroke={p} strokeWidth="1" strokeLinejoin="round" />
+        <rect x="3" y="17.6" width="18" height="3.4" rx="1.4" fill={p} />
+      </>
+    ),
+  },
+
+  // Chip: Baustein mit Anschlussbeinen (BIOS und Firmware).
+  chip: {
+    fill: (p) => (
+      <>
+        <rect x="6" y="6" width="12" height="12" rx="2.2" fill={p} />
+        <path d="M9.4 2.6v3.4M14.6 2.6v3.4M9.4 18v3.4M14.6 18v3.4M2.6 9.4H6M2.6 14.6H6M18 9.4h3.4M18 14.6h3.4" stroke={p} strokeWidth="1.7" strokeLinecap="round" />
+      </>
+    ),
+    cut: <rect x="9.2" y="9.2" width="5.6" height="5.6" rx="1" fill={K} />,
+  },
+
+  // Puls: Herzschlag-Linie in einer Kachel (Diagnose).
+  pulse: {
+    fill: (p) => <rect x="2.4" y="4.2" width="19.2" height="15.6" rx="3" fill={p} />,
+    cut: <path d="M4.8 12.6h3.6l1.8-4.4 3.4 8.2 1.9-3.8h3.7" fill="none" stroke={K} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />,
+  },
+
+  // Benutzer: Kopf und Schultern.
+  user: {
+    fill: (p) => (
+      <>
+        <circle cx="12" cy="7.6" r="4.2" fill={p} />
+        <path d="M3.4 21c0-4.8 3.8-7.8 8.6-7.8s8.6 3 8.6 7.8z" fill={p} />
+      </>
+    ),
+  },
+
+  // Wiedergabe: Scheibe mit Dreieck.
+  play: {
+    fill: (p) => <circle cx="12" cy="12" r="9.2" fill={p} />,
+    cut: <path d="M9.8 7.8 16.4 12 9.8 16.2z" fill={K} stroke={K} strokeWidth="1.2" strokeLinejoin="round" />,
+  },
+
+  // Sonne: Helligkeit, Farbe.
+  sun: {
+    fill: (p) => (
+      <>
+        <circle cx="12" cy="12" r="4.4" fill={p} />
+        <path d="M12 2.6v3M12 18.4v3M2.6 12h3M18.4 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1" stroke={p} strokeWidth="1.9" strokeLinecap="round" />
+      </>
+    ),
+  },
+
+  // Bild: Rahmen mit Sonne und Bergen (Cover und Grafiken).
+  image: {
+    fill: (p) => <rect x="2.4" y="4.2" width="19.2" height="15.6" rx="2.6" fill={p} />,
+    cut: (
+      <>
+        <circle cx="8.2" cy="9.4" r="1.9" fill={K} />
+        <path d="M3.4 18.6 9.6 12.4l3.4 3.4 2.6-2.6 5 5.4z" fill={K} />
+      </>
+    ),
+  },
+
+  // Funkeln: Vierzack-Stern mit kleinem Begleiter (Animationen).
+  sparkle: {
+    fill: (p) => (
+      <>
+        <path d="M10.4 2.6Q10.4 10.4 18.2 10.4Q10.4 10.4 10.4 18.2Q10.4 10.4 2.6 10.4Q10.4 10.4 10.4 2.6Z" fill={p} stroke={p} strokeWidth="1.2" strokeLinejoin="round" />
+        <path d="M18.4 13.8Q18.4 17.4 22 17.4Q18.4 17.4 18.4 21Q18.4 17.4 14.8 17.4Q18.4 17.4 18.4 13.8Z" fill={p} stroke={p} strokeWidth="0.9" strokeLinejoin="round" />
+      </>
+    ),
+  },
+
+  // Kreispfeil: erneut ausführen.
+  refresh: {
+    fill: (p) => (
+      <>
+        <path d="M19.4 12.2a7.4 7.4 0 1 1-2.5-5.6" fill="none" stroke={p} strokeWidth="2.6" strokeLinecap="round" />
+        <path d="M20.6 2.8v6.8h-6.8z" fill={p} stroke={p} strokeWidth="1" strokeLinejoin="round" />
+      </>
+    ),
+  },
+
+  // Info: Scheibe mit „i“.
+  info: {
+    fill: (p) => <circle cx="12" cy="12" r="9.2" fill={p} />,
+    cut: (
+      <>
+        <circle cx="12" cy="7.8" r="1.4" fill={K} />
+        <rect x="10.8" y="10.6" width="2.4" height="7" rx="1.1" fill={K} />
+      </>
+    ),
+  },
+
   // Einstellungen: Werkzeugkasten wie in der XMB: Henkel als Ring, dunkles Band quer über den Deckel, zwei Verschlüsse.
   settings: {
     fill: (p) => (

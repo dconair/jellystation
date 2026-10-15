@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import type { CategoryIconName, XmbCategory, XmbEntry } from "../data/types";
+import type { CategoryIconName, EntryAction, XmbCategory, XmbEntry } from "../data/types";
 import { useGamepad } from "../input/useGamepad";
 import type { PadAction } from "../input/useGamepad";
 import { ArtImage } from "../art/ArtImage";
@@ -49,6 +49,29 @@ interface NavState {
   /** Pro Kategorie der zuletzt fokussierte Eintrag. */
   focus: Record<string, number>;
 }
+
+/** Eigenes Symbol je Eintrag der Einstellungen-Spalte, damit die Kacheln nicht alle gleich aussehen. */
+const ACTION_ICONS: Partial<Record<EntryAction, CategoryIconName>> = {
+  "open-connections": "web",
+  "open-games-dir": "folder",
+  "open-game-assignments": "list",
+  "open-install": "download",
+  "open-game-sources": "download",
+  "open-emulators": "games",
+  "open-requirements": "chip",
+  "open-diagnose": "pulse",
+  "choose-jellyfin-user": "user",
+  "toggle-transcode": "play",
+  "open-display-settings": "sun",
+  "open-covers": "image",
+  "open-motion-settings": "sparkle",
+  "open-sound-settings": "music",
+  "run-setup": "refresh",
+  "open-about": "info",
+};
+
+const entryIcon = (entry: XmbEntry, fallback: CategoryIconName): CategoryIconName =>
+  (entry.action && ACTION_ICONS[entry.action]) || fallback;
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
@@ -100,6 +123,14 @@ interface CategoryButtonProps {
   onPick: (id: string) => void;
 }
 
+/** Kurzname des Systems für Spiele-Kategorien ("Spiele · PS2" → "PS2"); die Controller-Icons sehen sonst alle gleich aus. */
+const systemTag = (label: string): string | null => {
+  const m = /^Spiele · (.+)$/.exec(label);
+  if (!m) return null;
+  if (m[1] === "Nicht zugeordnet") return "Offen";
+  return m[1].length <= 9 ? m[1] : null;
+};
+
 /** Ort, Größe, Deckkraft, Leuchten und Beschriftung setzt die MotionEngine pro Bild – hier steht nur der Aufbau. */
 const CategoryButton = memo(function CategoryButton({ motion, id, label, icon, active, onPick }: CategoryButtonProps) {
   const button = useRef<HTMLButtonElement>(null);
@@ -107,6 +138,7 @@ const CategoryButton = memo(function CategoryButton({ motion, id, label, icon, a
   const scale = useRef<HTMLSpanElement>(null);
   const glow = useRef<HTMLSpanElement>(null);
   const text = useRef<HTMLSpanElement>(null);
+  const tag = systemTag(label);
 
   useLayoutEffect(() => {
     if (!button.current || !bob.current || !scale.current) return;
@@ -134,6 +166,7 @@ const CategoryButton = memo(function CategoryButton({ motion, id, label, icon, a
             <CategoryIcon name={icon} variant="tile" />
           </span>
           <CategoryIcon name={icon} />
+          {tag && <span className="xmb-category__tag">{tag}</span>}
         </span>
       </span>
       <span ref={text} className="xmb-category__label">
@@ -276,7 +309,7 @@ function Column({ motion, cat, active, focus, pitchArt, ranges, runningIds, acti
           key={entry.id}
           motion={motion}
           catId={cat.id}
-          icon={cat.icon}
+          icon={entryIcon(entry, cat.icon)}
           entry={entry}
           index={ei}
           count={cat.entries.length}
@@ -547,7 +580,7 @@ export function Xmb({ categories, onActivate, runningIds, notice, inputEnabled =
 
   /* ---- Detailkarte: genau eine; die Maschine blendet aus, lässt tauschen und blendet den neueren Eintrag ein ---- */
   const wanted: DetailData | null = focusedEntry
-    ? { key: `${category.id}/${focusedEntry.id}`, entry: focusedEntry, icon: category.icon }
+    ? { key: `${category.id}/${focusedEntry.id}`, entry: focusedEntry, icon: entryIcon(focusedEntry, category.icon) }
     : null;
   const wantedRef = useRef(wanted);
   wantedRef.current = wanted;

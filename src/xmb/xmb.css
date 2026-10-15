@@ -1,6 +1,6 @@
 .xmb {
   --xmb-ease: cubic-bezier(0.3, 1.08, 0.4, 1); /* nur noch für den Bestätigungs-Puls */
-  --xmb-text-shadow: 0 0 0.7rem rgba(0, 0, 0, 0.55);
+  --xmb-text-shadow: 0 0.05rem 0.18rem rgba(0, 0, 0, 0.5), 0 0 0.75rem rgba(0, 0, 0, 0.55); /* enger Kern für die Lesbarkeit auf hellem Grund, weicher Hof für den Rest */
   /* Bei höheren Fenstern als 16:9 (z. B. 4:3) wird die Menü-Komposition mittig nach unten geschoben. */
   --stage-shift: max(0px, calc((100vh - 54rem) / 2));
   position: fixed;
@@ -51,7 +51,7 @@
 .xmb-clock__date {
   font-size: 1.15rem;
   letter-spacing: 0.04em;
-  opacity: 0.62;
+  opacity: 0.88;
 }
 
 .xmb-clock__time {
@@ -66,7 +66,7 @@
   max-width: 18rem;
   font-size: 1rem;
   white-space: nowrap;
-  opacity: 0.75;
+  opacity: 0.9;
   animation: xmb-fade-in 0.6s ease both;
 }
 
@@ -164,6 +164,24 @@
 
 .xmb-category__glow .xmb-icon-svg {
   filter: drop-shadow(0 0 0.35rem rgba(255, 255, 255, 0.55)) drop-shadow(0 0 1rem rgba(255, 255, 255, 0.45));
+}
+
+/* Systemname unter dem Controller-Icon: die Spiele-Kategorien sehen sonst alle gleich aus. Die aktive trägt ihn schon im Namen. */
+.xmb-category__tag {
+  position: absolute;
+  top: calc(100% + 0.15rem);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: var(--xmb-text-shadow);
+}
+
+.xmb-category.is-active .xmb-category__tag {
+  visibility: hidden;
 }
 
 .xmb-category__label {
@@ -408,10 +426,10 @@
 
 .xmb-item__subtitle {
   font-size: 1.05rem;
-  font-weight: 300;
+  font-weight: 400;
   line-height: 1.2;
   letter-spacing: 0.04em;
-  opacity: 0.68;
+  opacity: 0.88;
 }
 
 .xmb-item__badge {
@@ -511,7 +529,7 @@
 .xmb-detail__meta,
 .xmb-detail__text {
   margin: 0;
-  font-weight: 300;
+  font-weight: 400;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -521,7 +539,7 @@
   font-size: 1.05rem;
   line-height: 1.3;
   letter-spacing: 0.04em;
-  opacity: 0.62;
+  opacity: 0.88;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -533,7 +551,7 @@
   margin-top: 0.7rem;
   font-size: 1.1rem;
   line-height: 1.5;
-  opacity: 0.8;
+  opacity: 0.96;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -558,7 +576,7 @@
   align-items: center;
   gap: 2.2rem;
   font-size: 1.05rem;
-  font-weight: 300;
+  font-weight: 400;
   letter-spacing: 0.04em;
   line-height: 1;
   text-shadow: var(--xmb-text-shadow);
@@ -596,13 +614,13 @@
   border-radius: 0.3rem;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   text-align: center;
-  opacity: 0.5;
+  opacity: 0.82;
 }
 
 .xmb-hint--key .xmb-hint__label {
-  opacity: 0.6;
+  opacity: 0.85;
 }
 
 /* Meldungen erscheinen wie bei der PS3 oben rechts unter der Uhr. */
