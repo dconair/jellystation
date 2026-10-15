@@ -6,8 +6,9 @@
 //! festen Segmenten, und jedes Segment wird erst beim Abruf von einem eigenen ffmpeg-Aufruf erzeugt (H.264/AAC in
 //! MPEG-TS). So klappen Springen, Dauer und Fortsetzen wie bei einem Server, ohne die ganze Datei vorab umzuwandeln.
 //!
-//! ffmpeg bringt JellyStation nicht mit: es wird im PATH und an den üblichen Installationsorten gesucht
-//! (`JELLYSTATION_FFMPEG` überschreibt das). Fehlt es, meldet `transcode_start` den Fehler `ffmpeg_missing`.
+//! ffmpeg: Die Installer (EXE/DMG) legen es in den Ressourcenordner der App (`ffmpeg/ffmpeg[.exe]`, siehe die
+//! Build-Workflows). Gesucht wird zuerst dort, dann im PATH und an den üblichen Installationsorten
+//! (`JELLYSTATION_FFMPEG` überschreibt das). Fehlt es überall, meldet `transcode_start` den Fehler `ffmpeg_missing`.
 
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener as StdTcpListener};
@@ -94,9 +95,12 @@ fn candidates() -> Vec<PathBuf> {
     list
 }
 
-/// Das erste ffmpeg, das sich starten lässt.
-pub fn find_ffmpeg() -> Option<PathBuf> {
-    candidates().into_iter().find(|path| {
+/// Das erste ffmpeg, das sich starten lässt: erst die mitgelieferten Pfade `bundled`, dann die üblichen Orte.
+pub fn find_ffmpeg(bundled: &[PathBuf]) -> Option<PathBuf> {
+    let custom = candidates();
+    // Eine ausdrücklich gesetzte Variable gewinnt vor der mitgelieferten Kopie.
+    let (first, rest) = if std::env::var_os("JELLYSTATION_FFMPEG").is_some() { custom.split_at(1) } else { custom.split_at(0) };
+    first.iter().chain(bundled).chain(rest).cloned().find(|path| {
         command(path)
             .arg("-version")
             .stdout(Stdio::null())
@@ -402,8 +406,8 @@ pub struct Transcode {
 }
 
 /// Prüft die Adresse, findet ffmpeg und liest die Quelle (blockiert, bis ffmpeg antwortet).
-fn prepare(url: &str, protocols: &str, ffmpeg: Option<PathBuf>) -> Result<(PathBuf, Probe), String> {
-    let ffmpeg = ffmpeg.or_else(find_ffmpeg).ok_or_else(|| FFMPEG_MISSING.to_string())?;
+fn prepare(url: &str, protocols: &str, bundled: &[PathBuf], forced: Option<PathBuf>) -> Result<(PathBuf, Probe), String> {
+    let ffmpeg = forced.or_else(|| find_ffmpeg(bundled)).ok_or_else(|| FFMPEG_MISSING.to_string())?;
     let probe = probe_source(&ffmpeg, url, protocols)?;
     Ok((ffmpeg, probe))
 }
@@ -470,12 +474,24 @@ impl Drop for Transcode {
 
 /// Startet das lokale Umwandeln einer Stream-Adresse. Fehler `ffmpeg_missing`: ffmpeg ist nicht installiert.
 #[tauri::command]
-pub async fn transcode_start(state: tauri::State<'_, Transcode>, url: String) -> Result<TranscodeInfo, String> {
+pub async fn transcode_start(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Transcode>,
+    url: String,
+) -> Result<TranscodeInfo, String> {
+    use tauri::Manager;
     let url = valid_source(&url)?.to_string();
+    // Die Installer legen ffmpeg in den Ressourcenordner (Windows: neben die App, macOS: Contents/Resources).
+    let name = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    let bundled: Vec<PathBuf> = app
+        .path()
+        .resource_dir()
+        .map(|dir| vec![dir.join("ffmpeg").join(name), dir.join(name)])
+        .unwrap_or_default();
     // Das Prüfen der Quelle startet ffmpeg und wartet aufs Netz: nicht auf einem Runtime-Thread.
     let source = url.clone();
     let (ffmpeg, probe) =
-        tauri::async_runtime::spawn_blocking(move || prepare(&source, NET_PROTOCOLS, None))
+        tauri::async_runtime::spawn_blocking(move || prepare(&source, NET_PROTOCOLS, &bundled, None))
             .await
             .map_err(|err| format!("Umwandler abgebrochen: {err}"))??;
     state.launch(&ffmpeg, &url, NET_PROTOCOLS, probe)

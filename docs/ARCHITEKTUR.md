@@ -85,8 +85,13 @@ nur auf `127.0.0.1`, der Anfragen mit Anmeldung an Jellyfin weiterreicht.
 
 ### Lokales Umwandeln mit ffmpeg (`transcode.rs`)
 Für Stremio-Streams, die das WebView nicht abspielt (HEVC, DTS, MKV …) und für die kein Jellyfin-Server umwandeln kann.
-ffmpeg gehört nicht zur App: Es wird im PATH und an üblichen Orten gesucht (Windows: WinGet-Links, Scoop, Chocolatey,
-`C:\ffmpeg`; macOS: Homebrew), `JELLYSTATION_FFMPEG` überschreibt das.
+ffmpeg liefern die Installer mit: Die Build-Workflows (`build-windows.yml`, `build-mac.yml`) laden ein statisches GPL-Build
+(Windows: BtbN/FFmpeg-Builds, macOS: eugeneware/ffmpeg-static) nach `src-tauri/ffmpeg-bin/` und packen es über eine
+Zusatz-Konfiguration (`--config src-tauri/tauri.ffmpeg.conf.json`, nur in CI) als Ressource `ffmpeg/` in die App; `NOTICE.txt`
+nennt Lizenz (GPL v3) und Quelle. Schlägt das Holen fehl, entsteht der Installer ohne ffmpeg. Gesucht wird zuerst im
+Ressourcenordner der App, dann im PATH und an üblichen Orten (Windows: WinGet-Links, Scoop, Chocolatey, `C:\ffmpeg`;
+macOS: Homebrew); `JELLYSTATION_FFMPEG` überschreibt das. In der Entwicklung (`tauri dev`) braucht es daher ein
+installiertes ffmpeg.
 
 - `transcode_start({ url }) -> { url, durationSec, video, audio }` – prüft die Quelle (nur http/https, `ffmpeg -i` liest
   Dauer und Codecs) und startet einen HTTP-Server auf `127.0.0.1` (zufälliger Token im Pfad). Er liefert eine VOD-Wiedergabeliste
