@@ -142,7 +142,7 @@
   font-style: italic;
   line-height: 1.45;
   letter-spacing: 0.03em;
-  opacity: 0.68;
+  opacity: 0.88;
 }
 
 /* ---------- Beschreibung ---------- */
@@ -191,7 +191,7 @@
   margin-bottom: 0.4rem;
   font-size: 1.3rem;
   line-height: 1.5;
-  opacity: 0.62;
+  opacity: 0.82;
 }
 .movie-text .movie-none {
   opacity: 0.55;
@@ -272,7 +272,7 @@
   text-shadow: inherit;
   cursor: pointer;
   outline: none;
-  opacity: 0.66;
+  opacity: 0.76;
   transition: opacity 0.35s ease;
   -webkit-appearance: none;
   appearance: none;
@@ -314,7 +314,7 @@
 .movie-row__detail {
   font-size: 1.2rem;
   letter-spacing: 0.05em;
-  opacity: 0.68;
+  opacity: 0.86;
 }
 
 .movie-row__value {

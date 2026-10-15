@@ -93,13 +93,12 @@
 }
 
 .setup-logo {
-  margin-bottom: 0.45rem;
-  font-size: 1.05rem;
+  margin-bottom: 0.3rem;
+  font-size: 1.3rem;
   font-weight: 400;
-  letter-spacing: 0.34em;
-  text-transform: uppercase;
+  letter-spacing: 0.06em;
   line-height: 1;
-  opacity: 0.55;
+  opacity: 0.8;
 }
 
 .setup-sub {
@@ -292,7 +291,7 @@
   margin: 0 0 1.7rem;
   font-size: 1.2rem;
   line-height: 1.55;
-  opacity: 0.72;
+  opacity: 0.9;
 }
 
 .setup-lead em {
@@ -325,7 +324,7 @@
 
 .setup-field {
   display: grid;
-  grid-template-columns: 10.5rem minmax(0, 1fr);
+  grid-template-columns: 12.5rem minmax(0, 1fr);
   align-items: center;
   column-gap: 1.4rem;
   row-gap: 0.5rem;
@@ -336,14 +335,14 @@
   font-size: 1.15rem;
   font-weight: 400;
   letter-spacing: 0.03em;
-  opacity: 0.75;
+  opacity: 0.9;
 }
 
 .setup-field > small {
   grid-column: 2;
   font-size: 1rem;
   line-height: 1.4;
-  opacity: 0.6;
+  opacity: 0.82;
 }
 
 .setup-input-row {
@@ -572,7 +571,7 @@
   margin: 0;
   font-size: 1rem;
   line-height: 1.5;
-  opacity: 0.6;
+  opacity: 0.82;
 }
 
 .setup-note--center {
@@ -735,7 +734,7 @@
 .check-text small {
   font-size: 1rem;
   line-height: 1.4;
-  opacity: 0.68;
+  opacity: 0.85;
   overflow-wrap: anywhere;
 }
 
@@ -769,7 +768,7 @@
 
 .setup-summary {
   font-size: 1.05rem;
-  opacity: 0.7;
+  opacity: 0.86;
   white-space: nowrap;
 }
 

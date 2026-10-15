@@ -70,7 +70,20 @@ export type CategoryIconName =
   | "photos"
   | "livetv"
   | "games"
-  | "settings";
+  | "settings"
+  // Symbole für einzelne Einträge der Einstellungen-Spalte (siehe ACTION_ICONS in Xmb.tsx)
+  | "folder"
+  | "list"
+  | "download"
+  | "chip"
+  | "pulse"
+  | "user"
+  | "play"
+  | "sun"
+  | "image"
+  | "sparkle"
+  | "refresh"
+  | "info";
 
 export interface XmbCategory {
   id: string;

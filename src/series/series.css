@@ -272,7 +272,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   font-size: 1.25rem;
   line-height: 1.35;
   letter-spacing: 0.04em;
-  opacity: 0.7;
+  opacity: 0.88;
 }
 
 /* ---------- Untere Hälfte: Staffel-Auswahl und Folgenliste ---------- */
@@ -337,7 +337,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   font-size: 1.3rem;
   letter-spacing: 0.08em;
   white-space: nowrap;
-  opacity: 0.65;
+  opacity: 0.86;
 }
 
 .series-lists {
@@ -489,7 +489,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   letter-spacing: 0.05em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  opacity: 0.7;
+  opacity: 0.86;
 }
 
 /* ---------- Folgenliste ---------- */
@@ -574,7 +574,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   gap: 1.8rem;
   height: var(--s-row);
   padding: 0 2rem 0 1.4rem;
-  opacity: 0.66;
+  opacity: 0.76;
   cursor: pointer;
   transition: opacity 0.35s ease;
 }
@@ -590,7 +590,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   line-height: 1;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 .series-row__thumb {
@@ -699,7 +699,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   letter-spacing: 0.05em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  opacity: 0.72;
+  opacity: 0.86;
 }
 .series-row__seen {
   display: inline-flex;
@@ -722,7 +722,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   font-size: 1.3rem;
   line-height: 1.5;
   letter-spacing: 0.025em;
-  opacity: 0.72;
+  opacity: 0.86;
 }
 
 /* ---------- Hinweisleiste ---------- */
@@ -759,7 +759,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
 }
 .series-hints__pos {
   font-variant-numeric: tabular-nums;
-  opacity: 0.7;
+  opacity: 0.86;
 }
 
 .series-keys {
@@ -851,7 +851,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   text-transform: uppercase;
   white-space: nowrap;
   text-overflow: ellipsis;
-  opacity: 0.65;
+  opacity: 0.86;
 }
 .series-detail__title {
   flex: none;
@@ -1063,7 +1063,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   font-weight: 300;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  opacity: 0.6;
+  opacity: 0.84;
 }
 .series-more__row {
   display: flex;
@@ -1087,7 +1087,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   text-shadow: inherit;
   cursor: pointer;
   outline: none;
-  opacity: 0.66;
+  opacity: 0.76;
   -webkit-appearance: none;
   appearance: none;
   transition:
@@ -1118,7 +1118,7 @@ html:has(.series-frame) .xmb > :not(.xmb-background):not(.xmb-vignette) {
   display: block;
   font-size: 1.1rem;
   letter-spacing: 0.1em;
-  opacity: 0.65;
+  opacity: 0.84;
 }
 .series-tile__title {
   display: block;

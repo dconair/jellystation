@@ -35,7 +35,7 @@
   overflow: hidden;
   background: radial-gradient(
     ellipse 85% 75% at 50% 46%,
-    rgba(var(--ui-l5), calc(var(--pop-dim) * 0.55)) 0%,
+    rgba(var(--ui-l5), calc(var(--pop-dim) * 0.8)) 0%,
     rgba(var(--ui-l5), calc(var(--pop-dim) * 1.05)) 100%
   );
   animation: pop-fade-in 0.28s ease both;
@@ -87,9 +87,9 @@
   border-radius: 0.6rem;
   background: linear-gradient(
     180deg,
-    rgba(var(--ui-l28), 0.9) 0%,
-    rgba(var(--ui-l14), 0.94) 38%,
-    rgba(var(--ui-l5), 0.97) 100%
+    rgba(var(--ui-l28), 0.95) 0%,
+    rgba(var(--ui-l14), 0.96) 38%,
+    rgba(var(--ui-l5), 0.98) 100%
   );
   border: 1px solid rgba(var(--ui-l84), 0.22);
   box-shadow:
@@ -193,7 +193,7 @@
   letter-spacing: 0.04em;
   white-space: nowrap;
   text-overflow: ellipsis;
-  opacity: 0.62;
+  opacity: 0.86;
 }
 
 .pop-head__spinner {
@@ -291,7 +291,7 @@
 .pop-row {
   display: block;
   cursor: pointer;
-  opacity: 0.6;
+  opacity: 0.74;
   transition: opacity 0.35s ease;
 }
 
@@ -382,7 +382,7 @@
   font-size: 1.1rem;
   line-height: 1.35;
   letter-spacing: 0.035em;
-  opacity: 0.62;
+  opacity: 0.86;
 }
 
 .pop-row__trailing {
@@ -394,7 +394,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   text-overflow: ellipsis;
-  opacity: 0.72;
+  opacity: 0.88;
 }
 
 .pop-check--end {
@@ -477,7 +477,7 @@
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
-  opacity: 0.55;
+  opacity: 0.8;
 }
 
 .pop-section > span {
@@ -499,7 +499,7 @@
   padding: 3.4rem 2.4rem;
   font-size: 1.3rem;
   text-align: center;
-  opacity: 0.6;
+  opacity: 0.82;
 }
 
 /* ---------- Statuszeile ---------- */
@@ -640,7 +640,7 @@
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  opacity: 0.55;
+  opacity: 0.82;
 }
 
 /* ---------- Dialoge ---------- */
@@ -850,7 +850,7 @@
   line-height: 1;
   text-shadow: inherit;
   white-space: nowrap;
-  opacity: 0.6;
+  opacity: 0.74;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
@@ -938,7 +938,7 @@
   font-size: 1.1rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  opacity: 0.7;
+  opacity: 0.86;
 }
 
 .pop-log {
