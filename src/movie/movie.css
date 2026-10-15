@@ -67,15 +67,16 @@
   right: var(--m-pad);
   top: 3rem;
   bottom: calc(var(--s-hints) + 1.6rem);
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 50rem) min(37rem, 36%);
+  align-items: start; /* beide Flächen teilen die Oberkante */
+  align-content: center; /* die Komposition als Ganzes steht mittig */
   justify-content: space-between;
   gap: 3rem;
 }
 
 .movie-panel {
   position: relative;
-  flex: 0 1 50rem;
   display: flex;
   flex-direction: column;
   max-height: 100%;
@@ -85,7 +86,6 @@
 
 .movie-options {
   position: relative;
-  flex: 0 0 min(37rem, 36%);
   min-width: 0; /* sonst weitet eine lange Tonspur-Bezeichnung die Fläche über den Bildschirm */
   padding: 1.1rem;
   animation-name: movie-options-in;

@@ -192,7 +192,7 @@
 .player-headline__sub {
   margin: 0.5rem 0 0;
   font-size: 1.7rem;
-  color: rgba(255, 255, 255, 0.68);
+  color: rgba(255, 255, 255, 0.86);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -249,7 +249,7 @@
 .player-time--rest {
   min-width: 7.2rem;
   text-align: right;
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 /* Die Klickfläche ist höher als der sichtbare Balken: leichter zu treffen. */
@@ -417,7 +417,7 @@
   margin-top: 1.2rem;
   padding-left: 0.4rem;
   font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .player-hint {
