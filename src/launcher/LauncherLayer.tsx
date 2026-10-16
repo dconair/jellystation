@@ -10,6 +10,8 @@ export interface LaunchView {
   status: string;
   /** false = blendet gerade aus. */
   open: boolean;
+  /** Bei langen Schritten (Firmware laden/einspielen): was „Zurück“ (Esc, ○) abbricht. */
+  cancel?: () => void;
 }
 
 /** Ein Hinweis- oder Fehlerdialog der Warteschlange. */
@@ -42,6 +44,7 @@ export function LauncherLayer({ launching, dialog, onLaunchExited, onCloseDialog
           status={launching.status}
           open={launching.open}
           active={!dialog}
+          onCancel={launching.cancel}
           onExited={() => onLaunchExited(launching.key)}
         />
       )}

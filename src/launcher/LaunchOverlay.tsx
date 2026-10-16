@@ -14,6 +14,8 @@ export interface LaunchOverlayProps {
   open?: boolean;
   /** false = liegt unter einem Dialog (keine Eingabe). */
   active?: boolean;
+  /** Gesetzt bei langen Schritten: „Zurück“ (Esc, ○) bricht sie ab. Sonst nimmt das Overlay die Tasten nur an. */
+  onCancel?: () => void;
   onExited?: () => void;
 }
 
@@ -24,9 +26,14 @@ export interface LaunchOverlayProps {
  * Reine Anzeige: Das Overlay nimmt die Tasten nur an, um sie vom Hauptmenü fernzuhalten. Geschlossen wird es vom
  * Aufrufer (`open={false}`), der Ablauf steuert die Dauer (≈ 2,5 s) oder ersetzt es durch einen Fehlerdialog.
  */
-export function LaunchOverlay({ entry, status, open = true, active = true, onExited }: LaunchOverlayProps) {
+export function LaunchOverlay({ entry, status, open = true, active = true, onCancel, onExited }: LaunchOverlayProps) {
   // Tasten schlucken, damit während des Starts nichts im Hauptmenü passiert (z. B. ein zweiter Start per ✕).
-  useOverlayInput({ active: active && open, onAction: () => undefined });
+  useOverlayInput({
+    active: active && open,
+    onAction: (action) => {
+      if (action === "back") onCancel?.();
+    },
+  });
   // Startklang der PS3 (gameboot), einmal pro Spielstart.
   useEffect(() => playSound("gameboot"), []);
 
@@ -54,6 +61,7 @@ export function LaunchOverlay({ entry, status, open = true, active = true, onExi
           <DotSpinner size="2.2rem" />
           <span>{status}</span>
         </div>
+        {onCancel && <p className="launch__subtitle">Zurück bricht ab</p>}
       </div>
     </OverlayFrame>
   );

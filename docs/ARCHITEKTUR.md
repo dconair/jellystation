@@ -146,6 +146,22 @@ lokalen HLS-Plan; die Engine nutzt ihn als automatische Rückfallstufe bei Forma
 Shell-Plugin (`@tauri-apps/plugin-shell`): nur für `open()` (Webseiten öffnen; `plugins.shell.open` in tauri.conf.json) und
 `brew install --cask <name>` (Scope in `capabilities/emulators.json`, Pfade `/opt/homebrew/bin/brew` und `/usr/local/bin/brew`).
 
+### PS3-Selbstreparatur (`rpcs3.rs`, `src/launcher/rpcs3Repair.ts`)
+Beim Start eines PS3-Spiels (RPCS3) prüft die App vorher und repariert danach selbst, was sich ohne den Nutzer beheben lässt. Alles stammt aus dem Quellcode
+von RPCS3 (`System.cpp`, `Loader/ISO.cpp`, `rpcs3.cpp`, `main_window.cpp`), nichts wurde gegen eine echte Installation getestet.
+
+- `rpcs3_prepare({ appPath, gamePath, extraDirs }) -> { configDir, firmwareInstalled, isIso, keyNextToGame, keysCopied, keysError, pup }` – bestimmt den Datenordner von RPCS3
+  wie `fs::get_config_dir` (Ordner `portable` neben der Programmdatei, Windows: `RPCS3_CONFIG_DIR` bzw. Ordner der `rpcs3.exe`, macOS `~/Library/Application Support/rpcs3`,
+  sonst `~/.config/rpcs3`) und prüft dort `dev_flash/sys/external/liblv2.sprx` (Firmware). Bei einer `.iso` ohne Schlüssel neben dem Abbild (`<Name>.dkey|.key`) kopiert
+  der Befehl `.dkey`/`.key`-Dateien (16 oder 32 Byte), die der Nutzer neben das Spiel oder in den BIOS-Ordner gelegt hat, nach `data/redump/` (RPCS3 probiert jede Datei dort;
+  ein Schlüssel mit dem Namen des Abbilds hat Vorrang; nichts wird überschrieben). Außerdem liefert er eine `PS3UPDAT.PUP` (Kopf „SCEUF“, ab 50 MB) aus dem BIOS-Ordner.
+- Vor dem Start (`prepareRpcs3` in `useGameLauncher.ts`): Fehlt die Firmware und liegt eine `.PUP` bereit, spielt die App sie über `rpcs3 --installfw` ein (RPCS3 öffnet sein Fenster, fragt
+  einmal nach und meldet „Successfully installed PS3 firmware“ im Protokoll; danach beendet die App RPCS3). Liegt keine bereit, bietet ein Dialog an, sie vom offiziellen Sony-Server zu laden
+  (wie unter „Einrichtung & Downloads“) und danach einzuspielen. Das Angebot kommt einmal pro Sitzung; ein erneuter Start versucht es trotzdem. ○ bricht lange Schritte ab.
+- Nach einem sofortigen Ende (`autoRepairRpcs3`): Ursache aus `RPCS3.log` und der Ausgabe lesen (gezielte Regeln aus `diagnose/rules.ts`), Schlüssel bzw. Firmware wie oben beheben und das Spiel
+  **einmal** neu starten. Nennt das Protokoll keinen Grund, startet der zweite Versuch RPCS3 mit sichtbarem Fenster (ohne `--no-gui`), damit seine eigene Meldung erscheint.
+  Bleibt nichts zu tun, öffnet sich die Diagnose; `DiagnoseContext.repairNotes` zeigt dort, was die App versucht hat.
+
 ### Diagnose (`diagnose.rs`)
 Alles lesend; die App ändert nur auf Klick. Befehle:
 

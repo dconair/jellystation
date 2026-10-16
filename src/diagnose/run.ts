@@ -302,6 +302,16 @@ export async function runDiagnosis(input: DiagnoseInput): Promise<DiagnoseReport
 
   // 1. Der Anlass: was beim Start passiert ist, und was die Ausgabe verrät.
   if (ctx) {
+    if (ctx.repairNotes?.length) {
+      add({
+        id: "auto-repair",
+        level: "info",
+        title: "Das hat die App schon selbst versucht",
+        detail: "Vor dieser Diagnose hat JellyStation automatisch versucht, den Fehler zu beheben. Die Befunde darunter sind das, was übrig blieb.",
+        emulatorId: ctxDef?.id,
+        extra: ctx.repairNotes,
+      });
+    }
     for (const f of explainExit(ctx, ctxDef)) add(f);
     const status = input.emulators.find((s) => s.def.id === ctxDef?.id);
     const rc = { def: ctxDef, appPath: status?.valid ? status.path : null };

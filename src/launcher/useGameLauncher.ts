@@ -10,11 +10,13 @@ import { tildePath } from "../emulators/status";
 import type { EmulatorStatus } from "../emulators/status";
 import type { EmulatorsState } from "../emulators/useEmulators";
 import type { DiagnoseContext } from "../diagnose/types";
+import { biosDirOf } from "../emulators/requirements";
 import { isTauri } from "../platform";
 import { playSfx } from "../xmb/sound";
 import { classifyLaunchError, commandLineOf, exitDetail, exitHow, exitShort, formatDuration, judgeExit, MIN_OVERLAY_MS } from "./format";
 import { LauncherLayer } from "./LauncherLayer";
 import type { DialogSpec, LaunchView } from "./LauncherLayer";
+import { cancelFirmwareDownload, downloadSonyFirmware, installFirmwareWithRpcs3, rpcs3Causes, rpcs3LogLines, rpcs3Prepare } from "./rpcs3Repair";
 
 export type Notify = (text: string) => void;
 
@@ -46,6 +48,8 @@ export interface GameLauncherOptions {
    * (`<DiagnoseDialog context={…}>`), die Ursache und Behebung zeigt. Ohne diese Funktion erscheint der Fehlerdialog.
    */
   onDiagnose?: (context: DiagnoseContext) => void;
+  /** BIOS-Ordner der App (Einstellungen). Dort sucht die Selbstreparatur die Firmware (`PS3UPDAT.PUP`) und Disc-Schlüssel. */
+  biosDir?: string;
 }
 
 export interface GameLauncher {
@@ -87,10 +91,18 @@ interface Session {
   overlayKey: number;
   stopping: boolean;
   exited: boolean;
+  /** Wievielter Versuch (1 = Erststart; die Selbstreparatur startet höchstens einmal neu). */
+  attempt: number;
+  /** Was die App selbst schon behoben oder versucht hat (für die Diagnose). */
+  repairNotes: string[];
+  /** Zeile des Start-Overlays, falls nicht die übliche. */
+  startStatus?: string;
 }
 
 /** So lange darf das Overlay höchstens stehen bleiben, falls ein Aufruf hängt. */
 const OVERLAY_FAILSAFE_MS = 15_000;
+/** Für lange Schritte (Firmware laden oder einspielen) darf das Overlay entsprechend länger stehen. */
+const OVERLAY_LONG_MS = 25 * 60 * 1000;
 /** Verzögerung, bevor ein Dialog erscheint (siehe showDialog). */
 const DIALOG_DELAY_MS = 60;
 
@@ -186,12 +198,16 @@ class LaunchController {
     this.ui.setLaunching((cur) => (!cur || cur.key !== key ? cur : immediate ? null : cur.open ? { ...cur, open: false } : cur));
   }
 
-  private openLaunch(entry: XmbEntry, status: string): number {
+  private openLaunch(entry: XmbEntry, status: string, opts: { failsafeMs?: number; cancel?: () => void } = {}): number {
     const key = ++this.seq;
-    this.ui.setLaunching({ key, entry, status, open: true });
+    this.ui.setLaunching({ key, entry, status, open: true, cancel: opts.cancel });
     // Notbremse: Das Overlay darf nie dauerhaft stehen bleiben.
-    void this.wait(OVERLAY_FAILSAFE_MS).then(() => this.closeLaunch(key));
+    void this.wait(opts.failsafeMs ?? OVERLAY_FAILSAFE_MS).then(() => this.closeLaunch(key));
     return key;
+  }
+
+  private setLaunchStatus(key: number, status: string) {
+    this.ui.setLaunching((cur) => (cur && cur.key === key ? { ...cur, status } : cur));
   }
 
   closeDialog = () => this.ui.setDialogs((ds) => ds.slice(1));
@@ -280,7 +296,14 @@ class LaunchController {
           this.needEmulator(entry, def, st);
           return;
         }
-        if (this.options().preflight && !this.warnedFiles.has(def.id)) {
+        // RPCS3 repariert sich selbst (Firmware, Disc-Schlüssel); nur wenn das nicht geht, greift die allgemeine Vorabprüfung.
+        let repaired = false;
+        if (def.id === "rpcs3" && isTauri()) {
+          const outcome = await this.prepareRpcs3(entry, game.path, st.path, notify);
+          if (outcome === "stop") return;
+          repaired = outcome === "ok";
+        }
+        if (!repaired && this.options().preflight && !this.warnedFiles.has(def.id)) {
           let problem: string | null = null;
           try {
             problem = (await this.options().preflight?.(def)) ?? null;
@@ -317,6 +340,8 @@ class LaunchController {
         overlayKey: 0,
         stopping: false,
         exited: false,
+        attempt: 1,
+        repairNotes: [],
       });
     } catch (err) {
       // Unerwartet – aber nie still scheitern.
@@ -364,7 +389,7 @@ class LaunchController {
     const id = s.entry.id;
     this.sessions.set(id, s);
     this.markRunning(id, true);
-    s.overlayKey = this.openLaunch(s.entry, s.emulatorName ? `${s.emulatorName} wird gestartet …` : `„${s.entry.title}“ wird gestartet …`);
+    s.overlayKey = this.openLaunch(s.entry, s.startStatus ?? (s.emulatorName ? `${s.emulatorName} wird gestartet …` : `„${s.entry.title}“ wird gestartet …`));
 
     try {
       const res = await gameLaunch({ id, program: s.program, args: s.args, label: s.entry.title });
@@ -422,6 +447,7 @@ class LaunchController {
 
   /** Öffnet die Diagnose zum gescheiterten Start; false, wenn der Aufrufer keine anbietet (dann der Fehlerdialog). */
   private diagnose(s: Session, cause: Pick<DiagnoseContext, "exit" | "launchError">): boolean {
+    const repairNotes = s.repairNotes.length > 0 ? s.repairNotes : undefined;
     const open = this.options().onDiagnose;
     const game = s.entry.game;
     if (!open || !game) return false;
@@ -432,6 +458,7 @@ class LaunchController {
       path: game.path,
       system: game.system,
       commandLine: s.commandLine,
+      repairNotes,
       ...cause,
     });
     return true;
@@ -455,6 +482,11 @@ class LaunchController {
     }
 
     this.closeLaunch(s.overlayKey, true);
+    // Sofort beendet: Bei RPCS3 sucht die App die Ursache selbst und versucht, sie zu beheben (einmal neu starten).
+    if (verdict.quick && s.def?.id === "rpcs3" && s.attempt < 2 && isTauri() && s.entry.game) {
+      void this.autoRepairRpcs3(s, exit);
+      return;
+    }
     if (this.diagnose(s, { exit })) return;
     const how = exitHow(exit);
     const dur = formatDuration(exit.durationMs);
@@ -487,6 +519,205 @@ class LaunchController {
                 open(def.id, `${def.name} hat „${title}“ ${verdict.quick ? "sofort" : "unerwartet"} beendet (${exitShort(exit)}). Prüfe den Emulator und das Startprotokoll.`),
             }
           : undefined,
+    });
+  }
+
+  /* ------------------------------------------------------------------ Selbstreparatur (RPCS3) */
+
+  /**
+   * Vor dem Start: Datenordner von RPCS3 prüfen, Disc-Schlüssel des Nutzers dorthin legen, fehlende Firmware einspielen
+   * (oder anbieten). "ok" = weiter mit dem Start, "stop" = der Start wird hier beendet (Dialog oder Download läuft),
+   * "unavailable" = die Vorbereitung gibt es nicht (ältere App) – dann gilt die allgemeine Vorabprüfung.
+   */
+  private async prepareRpcs3(entry: XmbEntry, gamePath: string, appPath: string, notify: Notify): Promise<"ok" | "stop" | "unavailable"> {
+    let prep;
+    try {
+      prep = await rpcs3Prepare(appPath, gamePath, [biosDirOf(this.options().biosDir)]);
+    } catch {
+      return "unavailable";
+    }
+    if (prep.firmwareInstalled) return "ok";
+    if (prep.pup) {
+      const res = await this.installFirmware(entry, appPath, prep.pup);
+      return res ? "ok" : "stop";
+    }
+    // Weder eingespielt noch als Datei da: einmal anbieten, die Firmware zu laden. Ein erneuter Start versucht es trotzdem
+    // (der Datenordner kann in RPCS3 anders eingestellt sein, als die App annimmt).
+    if (!this.warnedFiles.has("rpcs3-firmware")) {
+      this.warnedFiles.add("rpcs3-firmware");
+      this.offerFirmwareDownload(entry, notify);
+      return "stop";
+    }
+    return "ok";
+  }
+
+  /** Spielt die Firmware über RPCS3 ein; false (mit Dialog), wenn es nicht klappte. */
+  private async installFirmware(entry: XmbEntry, appPath: string, pup: string): Promise<boolean> {
+    let cancelled = false;
+    const key = this.openLaunch(entry, "PS3-Firmware wird eingespielt …", { failsafeMs: OVERLAY_LONG_MS, cancel: () => (cancelled = true) });
+    let res;
+    try {
+      res = await installFirmwareWithRpcs3({
+        appPath,
+        pup,
+        status: (t) => this.setLaunchStatus(key, t),
+        wait: (ms) => this.wait(ms),
+        keepGoing: () => this.alive && !cancelled,
+      });
+    } finally {
+      this.closeLaunch(key, true);
+    }
+    if (res.ok) return true;
+    if (!cancelled) {
+      const open = this.options().onNeedFiles;
+      this.showDialog({
+        tone: "error",
+        title: "Firmware nicht eingespielt",
+        lines: [`Die PS3-Firmware ließ sich nicht automatisch in RPCS3 einspielen. ${res.reason}`, "Spiele sie in RPCS3 von Hand ein (Datei → Firmware installieren) und wähle das Spiel danach erneut."],
+        action: open ? { label: "BIOS & Firmware", run: () => open("rpcs3", "Die PS3-Firmware ist noch nicht in RPCS3 eingespielt.") } : undefined,
+      });
+    }
+    return false;
+  }
+
+  private offerFirmwareDownload(entry: XmbEntry, notify: Notify) {
+    this.showDialog({
+      tone: "info",
+      title: "PS3-Firmware fehlt",
+      lines: [
+        "RPCS3 braucht einmalig die offizielle PS3-Firmware. Ohne sie schließt sich jedes PS3-Spiel sofort wieder.",
+        "JellyStation kann sie vom offiziellen Sony-Server laden (rund 206 MB, kostenlos) und in RPCS3 einspielen. Danach startet das Spiel von selbst.",
+        "Liegt schon eine PS3UPDAT.PUP bereit, kopiere sie in den BIOS-Ordner der App. Wählst du das Spiel erneut, versucht JellyStation den Start trotzdem.",
+      ],
+      action: { label: "Laden und einspielen", run: () => void this.fetchFirmwareAndLaunch(entry, notify) },
+    });
+  }
+
+  private async fetchFirmwareAndLaunch(entry: XmbEntry, notify: Notify) {
+    if (this.busy.has(entry.id)) return;
+    this.busy.add(entry.id);
+    let key = 0;
+    let cancelled = false;
+    let again = false;
+    try {
+      key = this.openLaunch(entry, "PS3-Firmware wird geladen …", {
+        failsafeMs: OVERLAY_LONG_MS,
+        cancel: () => {
+          cancelled = true;
+          cancelFirmwareDownload();
+        },
+      });
+      await downloadSonyFirmware(biosDirOf(this.options().biosDir), (t) => this.setLaunchStatus(key, t));
+      again = true;
+    } catch (err) {
+      if (!cancelled) {
+        this.showDialog({
+          tone: "error",
+          title: "Firmware nicht geladen",
+          lines: [errorText(err), "Lade die PS3UPDAT.PUP im Browser von der Sony-Seite und lege sie in den BIOS-Ordner, oder nutze Einstellungen → Einrichtung & Downloads."],
+        });
+      }
+    } finally {
+      if (key) this.closeLaunch(key, true);
+      this.busy.delete(entry.id);
+    }
+    // Die Datei liegt jetzt im BIOS-Ordner: der normale Start spielt sie ein und startet das Spiel.
+    if (again && this.alive) await this.launch(entry, notify);
+  }
+
+  /**
+   * Das Spiel endete in RPCS3 sofort wieder. Ursache aus dem Protokoll von RPCS3 lesen und, was sich ohne den Nutzer
+   * beheben lässt, beheben: Disc-Schlüssel an die richtige Stelle legen, Firmware einspielen. Danach startet das Spiel
+   * einmal neu. Ist die Ursache unbekannt, öffnet der zweite Versuch RPCS3 mit sichtbarem Fenster, damit dessen eigene
+   * Meldung zu sehen ist. Bleibt nichts zu tun, folgt die Diagnose samt Liste dessen, was versucht wurde.
+   */
+  private async autoRepairRpcs3(s: Session, exit: GameExit) {
+    const id = s.entry.id;
+    const game = s.entry.game;
+    this.busy.add(id);
+    const notes = [...s.repairNotes];
+    let key = 0;
+    let retryArgs: string[] | null = null;
+    let handled = false; // true = ein eigener Dialog läuft, keine Diagnose mehr
+    try {
+      if (!game) throw new Error("kein Spiel");
+      key = this.openLaunch(s.entry, "Die App sucht den Grund und versucht, ihn zu beheben …", { failsafeMs: OVERLAY_LONG_MS });
+      const lines = await rpcs3LogLines(s.program, s.startedAt, [...exit.stderrTail, ...exit.stdoutTail]);
+      const causes = rpcs3Causes(lines, s.def, s.program);
+      const prep = await rpcs3Prepare(s.program, game.path, [biosDirOf(this.options().biosDir)]).catch(() => null);
+
+      if (prep && prep.keysCopied.length > 0) {
+        notes.push(`Disc-Schlüssel aus deinen Ordnern in den Schlüsselordner von RPCS3 übernommen (${prep.keysCopied.length} Datei${prep.keysCopied.length === 1 ? "" : "en"}).`);
+        retryArgs = s.args;
+      } else if (prep?.keysError && causes.has("disc-key")) {
+        notes.push(`Disc-Schlüssel konnten nicht übernommen werden: ${prep.keysError}.`);
+      }
+
+      const firmwareCause = causes.has("firmware") || causes.has("firmware-old");
+      if (firmwareCause && prep && (!prep.firmwareInstalled || causes.has("firmware-old"))) {
+        if (prep.pup) {
+          this.closeLaunch(key, true);
+          key = 0;
+          if (await this.installFirmware(s.entry, s.program, prep.pup)) {
+            notes.push("PS3-Firmware aus dem BIOS-Ordner in RPCS3 eingespielt.");
+            retryArgs = s.args;
+          } else {
+            handled = true; // installFirmware hat schon erklärt, was los ist
+          }
+        } else {
+          this.closeLaunch(key, true);
+          key = 0;
+          this.offerFirmwareDownload(s.entry, s.notify);
+          handled = true;
+        }
+      }
+
+      // Unbekannter Grund: einmal mit sichtbarem Fenster versuchen, damit RPCS3 seine Meldung selbst zeigt.
+      if (!retryArgs && !handled && causes.size === 0 && notes.length === 0) {
+        notes.push("Das Protokoll von RPCS3 nannte keinen Grund. Zweiter Versuch mit sichtbarem RPCS3-Fenster.");
+        retryArgs = [game.path];
+      }
+    } catch (err) {
+      notes.push(`Die automatische Suche ist fehlgeschlagen: ${errorText(err)}`);
+    }
+
+    if (key) this.closeLaunch(key, true);
+    if (!this.alive) {
+      this.busy.delete(id);
+      return;
+    }
+    if (retryArgs) {
+      const visible = retryArgs !== s.args;
+      const next: Session = {
+        ...s,
+        args: retryArgs,
+        commandLine: commandLineOf(s.program, retryArgs),
+        note: visible ? "RPCS3 wurde mit sichtbarem Fenster gestartet. Zeigt es eine Meldung, nennt sie den Grund." : undefined,
+        startedAt: Date.now(),
+        overlayKey: 0,
+        stopping: false,
+        exited: false,
+        attempt: s.attempt + 1,
+        repairNotes: notes,
+        startStatus: visible ? "RPCS3 wird erneut gestartet …" : "Das Problem wurde behoben – RPCS3 wird erneut gestartet …",
+      };
+      try {
+        await this.startProcess(next);
+      } finally {
+        if (!this.running.has(id)) this.busy.delete(id);
+      }
+      return;
+    }
+    this.busy.delete(id);
+    if (handled) return;
+    // Nichts mehr zu tun: Diagnose mit dem, was die App versucht hat.
+    const withNotes: Session = { ...s, repairNotes: notes };
+    if (this.diagnose(withNotes, { exit })) return;
+    this.showDialog({
+      tone: "error",
+      title: "Spiel sofort beendet",
+      lines: [`„${s.entry.title}“ wurde von RPCS3 sofort beendet.`, ...notes, "Unter Einstellungen → Diagnose steht die Ursache."],
+      detail: exitDetail(s.commandLine, exit),
     });
   }
 

@@ -196,6 +196,7 @@ function Main({
 
   const { running, launch, overlay: launcherOverlay } = useGameLauncher({
     emulators,
+    biosDir: biosDirOf(biosDir),
     onNeedEmulator: (focusId, message) => openOverlay({ kind: "emulators", focusId, message }),
     // Vor dem Start frisch prüfen, ob BIOS/Firmware da ist – eine Meldung statt eines Absturzes im Emulator.
     preflight: async (def) => {

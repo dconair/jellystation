@@ -48,6 +48,8 @@ export interface DiagnoseContext {
   exit?: Pick<GameExit, "code" | "signal" | "durationMs" | "stderrTail" | "stdoutTail" | "hint">;
   /** `game_launch` selbst hat den Start abgelehnt (Text auf Deutsch). */
   launchError?: string;
+  /** Was die App vor dem Anzeigen der Diagnose selbst schon behoben oder versucht hat (nur RPCS3). */
+  repairNotes?: string[];
 }
 
 export interface DiagnoseGame {
