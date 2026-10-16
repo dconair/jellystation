@@ -125,7 +125,7 @@ export const OUTPUT_RULES: readonly OutputRule[] = [
     level: "error",
     title: "Das PS3-Abbild ist verschlüsselt (Disc-Schlüssel fehlt)",
     detail: () =>
-      "Dieses Disc-Abbild (.iso) ist so verschlüsselt, wie es von der Original-Disc gesichert wird, und RPCS3 hat keinen passenden Schlüssel dafür. Lege den zugehörigen Disc-Schlüssel (.dkey) deiner eigenen Disc in den Ordner „data/redump“ neben der rpcs3.exe (den genauen Pfad nennt das Protokoll) oder benutze ein entschlüsseltes Abbild bzw. den entpackten Spieleordner (PS3_GAME). JellyStation liefert und lädt keine Schlüssel.",
+      "Dieses Disc-Abbild (.iso) ist so verschlüsselt, wie es von der Original-Disc gesichert wird, und RPCS3 hat keinen passenden Schlüssel dafür. Lege den zugehörigen Disc-Schlüssel (.dkey) deiner eigenen Disc neben die .iso (gleicher Dateiname, nur mit der Endung .dkey) oder in den BIOS-Ordner der App – JellyStation legt ihn beim nächsten Start selbst an die richtige Stelle (Ordner „data/redump“ von RPCS3). Alternativ hilft ein entschlüsseltes Abbild bzw. der entpackte Spieleordner (PS3_GAME). JellyStation liefert und lädt keine Schlüssel.",
   },
   {
     id: "firmware-old",

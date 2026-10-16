@@ -7,6 +7,7 @@ pub mod library;
 pub mod hashing;
 pub mod media_proxy;
 pub mod requirements;
+pub mod rpcs3;
 pub mod transcode;
 pub mod web;
 
@@ -63,6 +64,7 @@ pub fn run() {
             diagnose::diag_clear_quarantine,
             requirements::requirements_scan,
             requirements::bios_copy,
+            rpcs3::rpcs3_prepare,
             web::web_open,
             web::web_close,
             web::game_import,
