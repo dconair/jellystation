@@ -166,24 +166,6 @@
   filter: drop-shadow(0 0 0.35rem rgba(255, 255, 255, 0.55)) drop-shadow(0 0 1rem rgba(255, 255, 255, 0.45));
 }
 
-/* Systemname unter dem Controller-Icon: die Spiele-Kategorien sehen sonst alle gleich aus. Die aktive trägt ihn schon im Namen. */
-.xmb-category__tag {
-  position: absolute;
-  top: calc(100% + 0.15rem);
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.85rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  white-space: nowrap;
-  text-shadow: var(--xmb-text-shadow);
-}
-
-.xmb-category.is-active .xmb-category__tag {
-  visibility: hidden;
-}
-
 .xmb-category__label {
   position: absolute;
   top: 50%;

@@ -123,14 +123,6 @@ interface CategoryButtonProps {
   onPick: (id: string) => void;
 }
 
-/** Kurzname des Systems für Spiele-Kategorien ("Spiele · PS2" → "PS2"); die Controller-Icons sehen sonst alle gleich aus. */
-const systemTag = (label: string): string | null => {
-  const m = /^Spiele · (.+)$/.exec(label);
-  if (!m) return null;
-  if (m[1] === "Nicht zugeordnet") return "Offen";
-  return m[1].length <= 9 ? m[1] : null;
-};
-
 /** Ort, Größe, Deckkraft, Leuchten und Beschriftung setzt die MotionEngine pro Bild – hier steht nur der Aufbau. */
 const CategoryButton = memo(function CategoryButton({ motion, id, label, icon, active, onPick }: CategoryButtonProps) {
   const button = useRef<HTMLButtonElement>(null);
@@ -138,7 +130,6 @@ const CategoryButton = memo(function CategoryButton({ motion, id, label, icon, a
   const scale = useRef<HTMLSpanElement>(null);
   const glow = useRef<HTMLSpanElement>(null);
   const text = useRef<HTMLSpanElement>(null);
-  const tag = systemTag(label);
 
   useLayoutEffect(() => {
     if (!button.current || !bob.current || !scale.current) return;
@@ -166,7 +157,6 @@ const CategoryButton = memo(function CategoryButton({ motion, id, label, icon, a
             <CategoryIcon name={icon} variant="tile" />
           </span>
           <CategoryIcon name={icon} />
-          {tag && <span className="xmb-category__tag">{tag}</span>}
         </span>
       </span>
       <span ref={text} className="xmb-category__label">
