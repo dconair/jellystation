@@ -660,7 +660,10 @@ export class PlayerEngine {
         if (!this.sourceActive) return;
         window.clearTimeout(this.stallTimer);
         this.lastPos = v.currentTime;
-        this.emit({ time: v.currentTime, buffered: this.bufferedEnd() });
+        // Läuft das Bild und liegt genug Material vor, ist der Ladekreisel überholt (ein "stalled" ohne Folgen löste ihn aus).
+        const flowing = this.s.buffering && !v.paused && !v.seeking && v.readyState >= 3;
+        if (flowing) window.clearTimeout(this.bufferTimer);
+        this.emit({ time: v.currentTime, buffered: this.bufferedEnd(), ...(flowing ? { buffering: false } : {}) });
         if (this.reporterStarted && !v.seeking) this.reporter?.progress(v.currentTime, v.paused);
         return;
       }
@@ -689,6 +692,9 @@ export class PlayerEngine {
       case "waiting":
       case "stalled": {
         if (!this.sourceActive || this.attachFail) return;
+        // Chromium meldet "stalled", wenn eine Anfrage 3 s lang ruht – etwa weil der Puffer voll ist und es nichts nachzuladen gibt.
+        // Das ist kein Stocken: nur zählen, wenn die Wiedergabe tatsächlich auf Daten wartet.
+        if (e.type === "stalled" && v.readyState >= 3) return;
         window.clearTimeout(this.bufferTimer);
         this.bufferTimer = window.setTimeout(() => this.emit({ buffering: true }), 300);
         this.armStall();

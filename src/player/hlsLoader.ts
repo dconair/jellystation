@@ -28,6 +28,16 @@ export interface AttachHlsOptions {
 const NETWORK_RETRIES = 3;
 const MEDIA_RETRIES = 2;
 
+/** Geduld mit dem Server: lange auf das erste Byte warten, Fehler dagegen schnell und mehrfach wiederholen. */
+const LOAD_POLICY = {
+  default: {
+    maxTimeToFirstByteMs: 60_000,
+    maxLoadTimeMs: 180_000,
+    timeoutRetry: { maxNumRetry: 3, retryDelayMs: 500, maxRetryDelayMs: 4000 },
+    errorRetry: { maxNumRetry: 4, retryDelayMs: 500, maxRetryDelayMs: 4000, backoff: "linear" as const },
+  },
+};
+
 export async function attachHls(video: HTMLVideoElement, url: string, opts: AttachHlsOptions): Promise<HlsHandle> {
   const { default: Hls } = await import("hls.js");
   if (!Hls.isSupported()) throw new Error("Dieses Fenster unterstützt keine HLS-Wiedergabe (MediaSource fehlt)");
@@ -36,9 +46,20 @@ export async function attachHls(video: HTMLVideoElement, url: string, opts: Atta
   const hls = new Hls({
     startPosition: opts.startSec > 0 ? opts.startSec : -1,
     enableWorker: true,
-    // Filme, kein Live-Stream: lieber großzügig puffern als an der Grenze ruckeln.
-    maxBufferLength: 40,
+    // Filme, kein Live-Stream: lieber großzügig vorpuffern als an der Grenze ruckeln. Die Vorgabe von hls.js (30 s, höchstens
+    // 60 MB) ist bei hohen Bitraten schon nach etwa 10 s voll; die Obergrenzen sind hier deshalb höher.
+    maxBufferLength: 60,
+    maxMaxBufferLength: 180,
+    maxBufferSize: 240 * 1000 * 1000,
+    // Kleine Lücken im Strom (ungenaue Zeitstempel beim Umpacken) überspringen, statt zu warten.
+    maxBufferHole: 0.5,
     backBufferLength: 30,
+    startFragPrefetch: true,
+    // Jellyfin startet ffmpeg erst bei der ersten Anfrage (und nach einem Sprung neu): Das erste Byte kann dauern.
+    // Die Vorgaben (hls.js bricht nach wenigen Sekunden ab und wiederholt) lösen sonst unnötige Fehler und Neustarts aus.
+    manifestLoadPolicy: LOAD_POLICY,
+    playlistLoadPolicy: LOAD_POLICY,
+    fragLoadPolicy: LOAD_POLICY,
     ...(rewrite
       ? {
           xhrSetup: (xhr: XMLHttpRequest, requestUrl: string) => {

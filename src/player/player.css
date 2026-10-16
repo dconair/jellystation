@@ -81,7 +81,7 @@
 
 /* Bei sichtbarem Bedienfeld rutschen die Untertitel darüber. */
 .player-cues.is-raised {
-  bottom: 14.6rem;
+  bottom: 18.6rem;
 }
 
 .player-cue {
@@ -125,14 +125,14 @@
 
 .player-osd::before {
   top: 0;
-  height: 13rem;
-  background: linear-gradient(180deg, rgba(var(--ui-l5), 0.82), rgba(var(--ui-l5), 0.4) 55%, transparent);
+  height: 14rem;
+  background: linear-gradient(180deg, rgba(var(--ui-l5), 0.78), rgba(var(--ui-l5), 0.32) 58%, transparent);
 }
 
 .player-osd::after {
   bottom: 0;
-  height: 20rem;
-  background: linear-gradient(0deg, rgba(var(--ui-l5), 0.9), rgba(var(--ui-l5), 0.55) 52%, transparent);
+  height: 24rem;
+  background: linear-gradient(0deg, rgba(var(--ui-l5), 0.78), rgba(var(--ui-l5), 0.34) 55%, transparent);
 }
 
 .player-osd.is-on::before,
@@ -164,7 +164,7 @@
 
 .player-osd__bottom {
   bottom: 0;
-  padding: 0 7rem 3.4rem;
+  padding: 0 5.6rem 3.2rem;
   transform: translateY(1.6rem);
 }
 
@@ -174,25 +174,43 @@
   transform: none;
 }
 
+/* Die Bedienkonsole unten: eine Glasfläche wie die Listen der XMB (Tönung, Lichtkante, kein Weichzeichner über dem Film). */
+.player-console {
+  position: relative;
+  padding: 1.7rem 2.8rem 1.3rem;
+  border-radius: 2.2rem;
+  border: 1px solid rgba(var(--ui-l84), 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(180deg, rgba(var(--ui-l28), 0.62), rgba(var(--ui-l9), 0.86));
+  box-shadow:
+    0 1.6rem 4rem rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -1px 0 rgba(var(--ui-l84), 0.08);
+}
+
 .player-headline {
   min-width: 0;
+  padding-left: 0.2rem;
 }
 
 .player-headline__title {
   margin: 0;
-  font-size: 2.9rem;
+  font-size: 3.5rem;
   font-weight: 300;
-  line-height: 1.15;
-  letter-spacing: 0.015em;
+  line-height: 1.1;
+  letter-spacing: 0.005em;
+  text-shadow: 0 0.1rem 1.4rem rgba(0, 0, 0, 0.7);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .player-headline__sub {
-  margin: 0.5rem 0 0;
-  font-size: 1.7rem;
-  color: rgba(255, 255, 255, 0.86);
+  margin: 0.7rem 0 0;
+  font-size: 1.8rem;
+  letter-spacing: 0.04em;
+  color: rgb(var(--ui-l92));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -200,37 +218,44 @@
 
 .player-clock {
   flex: none;
-  font-size: 2.2rem;
+  padding: 0.5rem 1.8rem 0.6rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(var(--ui-l84), 0.24);
+  background: linear-gradient(180deg, rgba(var(--ui-l28), 0.5), rgba(var(--ui-l9), 0.7));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  font-size: 2rem;
   font-weight: 300;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .player-barrow {
   display: flex;
   align-items: center;
-  gap: 1.6rem;
+  gap: 1.8rem;
 }
 
 .player-playbtn {
   flex: none;
   display: grid;
   place-items: center;
-  width: 3.6rem;
-  height: 3.6rem;
-  padding: 0.5rem;
-  border: 0;
+  width: 4.8rem;
+  height: 4.8rem;
+  padding: 1.2rem;
+  border: 1px solid rgba(var(--ui-l84), 0.45);
   border-radius: 50%;
-  background: transparent;
+  background: radial-gradient(circle at 50% 28%, rgba(var(--ui-l76), 0.42), rgba(var(--ui-l28), 0.35) 70%);
   color: #fff;
   cursor: pointer;
   pointer-events: auto;
-  filter: drop-shadow(0 0 0.6rem rgba(var(--pl-glow), 0.5));
+  box-shadow:
+    0 0 1.6rem rgba(var(--pl-glow), 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
   transition: transform 0.35s var(--pl-ease), background 0.25s ease;
 }
 .player-playbtn:hover {
-  transform: scale(1.12);
-  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.08);
+  background: radial-gradient(circle at 50% 28%, rgba(var(--ui-l76), 0.6), rgba(var(--ui-l38), 0.5) 70%);
 }
 
 .player-glyph {
@@ -241,15 +266,17 @@
 
 .player-time {
   flex: none;
-  min-width: 6.4rem;
-  font-size: 1.7rem;
+  min-width: 7rem;
+  font-size: 2rem;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.92);
+  color: #fff;
 }
 .player-time--rest {
-  min-width: 7.2rem;
+  min-width: 7.8rem;
   text-align: right;
-  color: rgba(255, 255, 255, 0.82);
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 /* Die Klickfläche ist höher als der sichtbare Balken: leichter zu treffen. */
@@ -268,14 +295,14 @@
   --buffered: 0;
   position: relative;
   width: 100%;
-  height: 0.5rem;
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.2);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  height: 0.7rem;
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0.2rem rgba(0, 0, 0, 0.35);
   transition: height 0.25s var(--pl-soft);
 }
 .player-track-hit:hover .player-track {
-  height: 0.7rem;
+  height: 0.9rem;
 }
 
 .player-track__buffer,
@@ -293,8 +320,8 @@
 }
 .player-track__played {
   width: calc(var(--played) * 100%);
-  background: linear-gradient(90deg, rgba(var(--ui-l92), 0.92), #fff);
-  box-shadow: 0 0 0.9rem rgba(var(--pl-glow), 0.7);
+  background: linear-gradient(90deg, rgba(var(--ui-l68), 0.95), rgba(var(--ui-l92), 0.98) 70%, #fff);
+  box-shadow: 0 0 1.1rem rgba(var(--pl-glow), 0.75);
   transition: width 0.26s linear;
 }
 
@@ -413,11 +440,12 @@
 .player-hints {
   display: flex;
   align-items: center;
-  gap: 3rem;
-  margin-top: 1.2rem;
-  padding-left: 0.4rem;
+  gap: 2.6rem;
+  margin-top: 0.9rem;
+  padding: 1.1rem 0.2rem 0;
+  border-top: 1px solid rgba(var(--ui-l84), 0.14);
   font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .player-hint {
@@ -454,8 +482,13 @@
 
 .player-method {
   margin-left: auto;
-  font-size: 1.4rem;
-  color: rgba(255, 255, 255, 0.55);
+  padding: 0.25rem 1.3rem 0.35rem;
+  border-radius: 1.6rem;
+  border: 1px solid rgba(var(--ui-l84), 0.2);
+  background: rgba(var(--ui-l9), 0.5);
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(var(--ui-l92), 0.82);
   letter-spacing: 0.04em;
 }
 
@@ -592,7 +625,7 @@
   transition: bottom 0.5s var(--pl-soft);
 }
 .player-toast.is-raised {
-  bottom: 15rem;
+  bottom: 19rem;
 }
 
 .player-closing {

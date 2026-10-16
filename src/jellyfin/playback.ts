@@ -1,6 +1,7 @@
 import type { JellyfinRef } from "../data/types";
 import { mediaUrl } from "./context";
 import type { JfContext } from "./context";
+import { autoBitrateLimit } from "./bandwidth";
 import { abortError, isAbortError, JfError, statusError } from "./errors";
 import { jfRaw, jfText } from "./http";
 import { getItem, itemToRef } from "./items";
@@ -45,7 +46,7 @@ export interface PlanOptions {
   audioIndex?: number;
   /** Untertitel-Index; `null` = aus; ohne Angabe gilt die Einstellung des Benutzers auf dem Server. */
   subtitleIndex?: number | null;
-  /** Höchste Bitrate in Bit/s (Standard 120 Mbit/s). */
+  /** Höchste Bitrate in Bit/s. Ohne Angabe misst der Player die Leitung (Bandbreitentest) und begrenzt nur, wenn sie nicht reicht. */
   maxBitrate?: number;
   /** Direktwiedergabe/Umpacken ausschließen: immer HLS (z. B. nach einem Abspielfehler). */
   forceTranscode?: boolean;
@@ -499,7 +500,12 @@ async function plan(ctx: JfContext, itemId: string, opts: PlanOptions, internal:
         (item) => ({ ok: true as const, item }),
         (error: unknown) => ({ ok: false as const, error }),
       );
-  const infoResult = fetchPlaybackInfo(ctx, itemId, internal.noDirect ? { ...opts, forceTranscode: true } : opts).then(
+  // Ohne ausdrückliche Wahl („Automatisch“) entscheidet ein kurzer Bandbreitentest, ob das Original über diese Leitung passt.
+  const infoOpts = async (): Promise<PlanOptions> => {
+    const maxBitrate = opts.maxBitrate ?? (await autoBitrateLimit(ctx, opts.signal));
+    return { ...opts, ...(maxBitrate ? { maxBitrate } : {}), ...(internal.noDirect ? { forceTranscode: true } : {}) };
+  };
+  const infoResult = infoOpts().then((o) => fetchPlaybackInfo(ctx, itemId, o)).then(
     (info) => ({ ok: true as const, info }),
     (error: unknown) => ({ ok: false as const, error }),
   );

@@ -259,6 +259,8 @@ export class LocalPreviewSource implements PreviewSource {
   private timer = 0;
   private busy = false;
   private ready = false;
+  /** Das versteckte Video bekommt seine Quelle erst, wenn jemand wirklich spult – sonst lädt es parallel zum Film dieselbe Datei. */
+  private loaded = false;
   private failures = 0;
   private tick = 0;
   private disposed = false;
@@ -286,7 +288,12 @@ export class LocalPreviewSource implements PreviewSource {
     v.addEventListener("error", this.onError);
     this.video = v;
     document.body.appendChild(v);
-    v.src = url;
+  }
+
+  private load() {
+    if (this.loaded || this.disposed) return;
+    this.loaded = true;
+    this.video.src = this.url;
   }
 
   get aspect(): number {
@@ -308,7 +315,7 @@ export class LocalPreviewSource implements PreviewSource {
     this.ready = false;
     this.failures = 0;
     this.setFailed(false);
-    this.video.src = url;
+    if (this.loaded) this.video.src = url;
   }
 
   frameAt(sec: number): PreviewFrame | null {
@@ -334,6 +341,7 @@ export class LocalPreviewSource implements PreviewSource {
 
   want(sec: number): void {
     if (this.disposed || this._failed) return;
+    this.load();
     const cell = this.cellOf(sec);
     this.target = cell;
     if (!this.cells.has(cell)) this.schedule(CAPTURE_DELAY_MS);
