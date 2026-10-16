@@ -255,6 +255,12 @@ Grundlage für „Einstellungen → Einrichtung & Downloads“ (`src/install/`).
   die Engine kann; sonst HLS-Transkodierung nach H.264/AAC).
 - `planPlayback(ctx, itemId, opts) -> PlaybackPlan` – ruft `POST /Items/{id}/PlaybackInfo`, entscheidet Direct Play /
   Direct Stream / Transcode (HLS) und liefert URL, Dauer, Audio-/Untertitel-Spuren, `PlaySessionId`.
+- Bandbreitentest (`bandwidth.ts`): Ohne gewählte Qualität („Automatisch“) holt `planPlayback` vorab einen 4-MB-Block von
+  `GET /Playback/BitrateTest` (über den Proxy, höchstens ~2,5 s, 5 Minuten je Server gemerkt) und setzt 70 % der gemessenen Rate
+  als Bitrate-Grenze; reicht die Leitung für das Original nicht (WLAN, Tailscale), wandelt der Server gleich passend um, statt dass
+  der Player ständig nachpuffert. Schlägt der Test fehl oder ist die Leitung schnell, gilt keine Grenze. „Original (ohne Limit)“ im
+  Optionsmenü umgeht den Test. hls.js puffert großzügig (60 s, bis 240 MB) und wartet bis zu 60 s auf das erste Byte, weil Jellyfin
+  ffmpeg erst bei der Anfrage startet. Das versteckte Vorschau-Video (ohne Trickplay) lädt erst, wenn jemand die Leiste benutzt.
 - `PlaybackReporter` – meldet Start/Fortschritt/Ende (Wiedergabeposition = „Weiterschauen“) und beendet Transkodierungen.
   Mit API-Key funktionieren die älteren Endpunkte `/Users/{userId}/PlayingItems/…` zuverlässig; die neueren `/Sessions/Playing*`
   sind Rückfall.

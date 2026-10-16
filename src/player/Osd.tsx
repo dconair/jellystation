@@ -172,6 +172,7 @@ export function Osd(p: OsdProps) {
       </div>
 
       <div className="player-osd__bottom">
+       <div className="player-console">
         <div className="player-barrow">
           <button
             type="button"
@@ -259,6 +260,7 @@ export function Osd(p: OsdProps) {
           </span>
           {p.methodLabel && <span className="player-method">{p.methodLabel}</span>}
         </div>
+       </div>
       </div>
     </div>
   );

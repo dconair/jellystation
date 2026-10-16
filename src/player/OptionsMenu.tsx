@@ -9,11 +9,12 @@ export const FIT_LABEL: Record<FitMode, string> = { contain: "Einpassen", cover:
 export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 const MBIT = 1_000_000;
 export const QUALITIES: ReadonlyArray<{ bps: number | undefined; label: string }> = [
-  { bps: undefined, label: "Automatisch (Original)" },
+  { bps: undefined, label: "Automatisch" },
+  { bps: 120 * MBIT, label: "Original (ohne Limit)" },
   ...[40, 20, 12, 8, 4, 2].map((m) => ({ bps: m * MBIT, label: `${m} Mbit/s` })),
 ];
 
-export const qualityLabel = (bps: number | undefined) => QUALITIES.find((q) => q.bps === bps)?.label ?? (bps ? `${Math.round(bps / MBIT)} Mbit/s` : "Automatisch (Original)");
+export const qualityLabel = (bps: number | undefined) => QUALITIES.find((q) => q.bps === bps)?.label ?? (bps ? `${Math.round(bps / MBIT)} Mbit/s` : "Automatisch");
 export const speedLabel = (r: number) => `${String(r).replace(".", ",")}×`;
 
 type View = "root" | "audio" | "subtitles" | "quality" | "fit" | "speed";
